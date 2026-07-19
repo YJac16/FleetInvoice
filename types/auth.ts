@@ -11,6 +11,10 @@ export interface SessionContext {
   email: string;
   role: UserRole;
   fullName: string;
+  /** drivers.id when a driver record exists for this profile. */
+  driverId: string | null;
+  /** Optional default vehicle from the driver record. */
+  defaultVehicleId: string | null;
 }
 
 export interface LoginCredentials {

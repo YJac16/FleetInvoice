@@ -2,7 +2,9 @@
 
 Transport management SaaS for companies where drivers submit trips and the office generates invoices.
 
-**Phase 1** delivers the application foundation only: authentication, roles, database schema, layouts, navigation, and placeholder modules. Trip logging, pricing, invoice generation, and PDFs are intentionally out of scope.
+**Phase 1** delivered the application foundation (auth, roles, schema, layouts).
+
+**Phase 2** delivers the **Driver Portal**: trip capture, my trips (table + timeline), edit/delete pending trips, duplicate detection, and draft autosave. Pricing, invoices, reports, PDFs, and admin review remain out of scope.
 
 ## Stack
 
@@ -28,12 +30,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Apply the SQL migration in the Supabase SQL editor (or via Supabase CLI):
+Apply SQL migrations in order in the Supabase SQL editor (or via Supabase CLI):
 
 ```bash
-# SQL file
 supabase/migrations/00001_initial_schema.sql
+supabase/migrations/00002_driver_trips.sql
 ```
+
+Create Auth users, ensure matching `profiles` + `drivers` rows, then seed active companies/vehicles for dropdowns.
 
 Then run the app:
 
@@ -77,13 +81,22 @@ npm run start    # start production server
 npm run lint     # eslint
 ```
 
-## Phase 1 checklist
+## Phase checklist
 
-- [x] Next.js 15 foundation
-- [x] Supabase clients + auth (login, forgot password, remember me, logout)
-- [x] Role-based middleware
-- [x] SQL schema, indexes, FKs, RLS
-- [x] App shell (sidebar, top nav, mobile menu, profile menu, dark mode)
-- [x] Placeholder pages for all modules
-- [x] Shared UI (table, modal, confirm, empty state, pagination, skeletons)
-- [x] Global error boundary, 404, loading states, toasts
+### Phase 1
+- [x] Next.js 15 foundation, auth, roles, schema, app shell, placeholders
+
+### Phase 2 — Driver Portal
+- [x] Driver dashboard (today / week / pending / approved + recent / upcoming)
+- [x] Multi-step New Trip form (no pricing)
+- [x] Save trips to Supabase with RLS (own trips only)
+- [x] My Trips table + timeline views, search + filters
+- [x] Edit pending/rejected; delete pending with confirm
+- [x] Duplicate detection warning
+- [x] Draft autosave every 15s + restore
+- [x] Toast notifications; mobile sticky submit
+
+### Later
+- [ ] Pricing rules engine
+- [ ] Invoice generation + PDFs
+- [ ] Admin trip review workflow

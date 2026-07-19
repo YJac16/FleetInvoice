@@ -4,6 +4,7 @@ import {
   FileText,
   LayoutDashboard,
   MapPinned,
+  PlusCircle,
   Receipt,
   Settings,
   Tags,
@@ -24,7 +25,14 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Overview of fleet activity",
   },
   {
-    title: "Trips",
+    title: "New Trip",
+    href: ROUTES.tripsNew,
+    icon: PlusCircle,
+    roles: ["driver"],
+    description: "Log a completed trip",
+  },
+  {
+    title: "My Trips",
     href: ROUTES.trips,
     icon: Truck,
     description: "Trip submissions and status",

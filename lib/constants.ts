@@ -8,6 +8,8 @@ export const ROUTES = {
   forgotPassword: "/forgot-password",
   dashboard: "/dashboard",
   trips: "/trips",
+  tripsNew: "/trips/new",
+  tripDetail: (id: string) => `/trips/${id}` as const,
   drivers: "/drivers",
   companies: "/companies",
   vehicles: "/vehicles",

@@ -6,12 +6,7 @@
 
 export type UserRole = "admin" | "driver";
 
-export type TripStatus =
-  | "draft"
-  | "submitted"
-  | "approved"
-  | "invoiced"
-  | "cancelled";
+export type TripStatus = "pending" | "approved" | "rejected" | "invoiced";
 
 export type InvoiceStatus = "draft" | "issued" | "paid" | "void";
 
@@ -79,12 +74,23 @@ export interface Trip {
   id: string;
   driver_id: string;
   company_id: string;
-  vehicle_id: string | null;
+  vehicle_id: string;
   trip_date: string;
-  trip_time: string | null;
+  trip_time: string;
+  pickup_area: string;
+  destination_area: string;
+  areas_visited: string[];
+  passengers: number;
+  notes: string | null;
   status: TripStatus;
   created_at: string;
   updated_at: string;
+}
+
+/** Trip row with joined display labels for driver UI. */
+export interface TripWithDetails extends Trip {
+  company_name: string;
+  vehicle_label: string;
 }
 
 export interface Invoice {
@@ -283,9 +289,14 @@ export type Database = {
           id?: string;
           driver_id: string;
           company_id: string;
-          vehicle_id?: string | null;
+          vehicle_id: string;
           trip_date: string;
-          trip_time?: string | null;
+          trip_time: string;
+          pickup_area: string;
+          destination_area: string;
+          areas_visited?: string[];
+          passengers: number;
+          notes?: string | null;
           status?: TripStatus;
           created_at?: string;
           updated_at?: string;
@@ -294,9 +305,14 @@ export type Database = {
           id?: string;
           driver_id?: string;
           company_id?: string;
-          vehicle_id?: string | null;
+          vehicle_id?: string;
           trip_date?: string;
-          trip_time?: string | null;
+          trip_time?: string;
+          pickup_area?: string;
+          destination_area?: string;
+          areas_visited?: string[];
+          passengers?: number;
+          notes?: string | null;
           status?: TripStatus;
           created_at?: string;
           updated_at?: string;
@@ -418,6 +434,18 @@ export type Database = {
       current_driver_id: {
         Args: Record<PropertyKey, never>;
         Returns: string;
+      };
+      list_active_companies: {
+        Args: Record<PropertyKey, never>;
+        Returns: { id: string; company_name: string }[];
+      };
+      list_my_trips: {
+        Args: Record<PropertyKey, never>;
+        Returns: TripWithDetails[];
+      };
+      get_my_trip: {
+        Args: { p_trip_id: string };
+        Returns: TripWithDetails[];
       };
     };
     Enums: {

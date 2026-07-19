@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -25,9 +25,15 @@ export function PageHeader({
           {title}
         </h1>
         {description ? (
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            {description}
-          </p>
+          typeof description === "string" ? (
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </p>
+          ) : (
+            <div className="max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </div>
+          )
         ) : null}
       </div>
       {actions ? (

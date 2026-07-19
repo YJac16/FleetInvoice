@@ -42,7 +42,12 @@ export function AppSidebar({ role, className, onNavigate }: AppSidebarProps) {
         <nav className="space-y-1">
           {items.map((item) => {
             const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              item.href === "/trips"
+                ? pathname === "/trips" ||
+                  (/^\/trips\/[^/]+$/.test(pathname) &&
+                    pathname !== "/trips/new")
+                : pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <Link
