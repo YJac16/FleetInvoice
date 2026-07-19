@@ -1,0 +1,10 @@
+# Minimal Supabase CLI config for local migrations.
+# Run: npx supabase db push  (or apply SQL in the Supabase SQL editor)
+
+project_id = "fleetinvoice"
+
+[db]
+major_version = 15
+
+[db.migrations]
+schema_paths = []
