@@ -48,6 +48,7 @@ export async function updateSession(request: NextRequest) {
 
   // Without Supabase env, skip auth enforcement so local UI can still compile/run.
   if (!env.supabaseUrl || !env.supabaseAnonKey) {
+    supabaseResponse.headers.set("x-pathname", request.nextUrl.pathname);
     return supabaseResponse;
   }
 

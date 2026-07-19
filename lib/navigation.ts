@@ -35,7 +35,15 @@ export const NAV_ITEMS: NavItem[] = [
     title: "My Trips",
     href: ROUTES.trips,
     icon: Truck,
+    roles: ["driver"],
     description: "Trip submissions and status",
+  },
+  {
+    title: "Trips",
+    href: ROUTES.trips,
+    icon: Truck,
+    roles: ["admin"],
+    description: "All trips with calculated pricing",
   },
   {
     title: "Drivers",

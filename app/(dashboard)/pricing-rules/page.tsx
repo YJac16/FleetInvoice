@@ -1,37 +1,28 @@
 import type { Metadata } from "next";
-import { Tags } from "lucide-react";
 
-import { PlaceholderPage } from "@/components/shared/placeholder-page";
+import { PricingRulesClient } from "@/features/pricing/components/pricing-rules-client";
+import {
+  getPricingLookupOptions,
+  listPricingRules,
+} from "@/services/pricing.service";
 
 export const metadata: Metadata = {
   title: "Pricing Rules",
 };
 
-export default function PricingRulesPage() {
+export default async function PricingRulesPage() {
+  const [rules, lookups] = await Promise.all([
+    listPricingRules(),
+    getPricingLookupOptions(),
+  ]);
+
   return (
-    <PlaceholderPage
-      title="Pricing Rules"
-      description="Company-specific pricing rules. Drivers cannot view this module."
-      icon={Tags}
-      emptyTitle="No pricing rules"
-      emptyDescription="Rule calculation engines are intentionally deferred past Phase 1."
-      cards={[
-        {
-          title: "Company rules",
-          description: "Named rules scoped to a company.",
-          badge: "Admin",
-        },
-        {
-          title: "Protected access",
-          description: "Blocked for driver roles via RLS and middleware.",
-          badge: "Secure",
-        },
-        {
-          title: "Future rates",
-          description: "Rate tables will extend this foundation.",
-          badge: "Phase 2+",
-        },
-      ]}
+    <PricingRulesClient
+      rules={rules}
+      companies={lookups.companies}
+      areas={lookups.areas}
+      vehicles={lookups.vehicles}
+      areaNames={lookups.areaNames}
     />
   );
 }

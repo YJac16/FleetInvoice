@@ -6,12 +6,23 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AdminTripDetailClient } from "@/features/pricing/components/admin-trip-detail-client";
 import { TripForm } from "@/features/trips/components/trip-form";
 import { TripStatusBadge } from "@/features/trips/components/trip-status-badge";
 import { ROUTES } from "@/lib/constants";
+import { hasSupabaseConfig } from "@/lib/env";
 import { canDriverEditTrip } from "@/lib/trips/constants";
 import { formatTripTime } from "@/lib/trips/filters";
+import {
+  getAdminTrip,
+  listTripPricingHistory,
+} from "@/services/admin-trips.service";
 import { getTripLookupOptions } from "@/services/lookups.service";
+import {
+  getDemoAdminSessionContext,
+  getDemoSessionContext,
+  getSessionContext,
+} from "@/services/profile.service";
 import { getMyTrip } from "@/services/trips.service";
 
 export const metadata: Metadata = {
@@ -24,6 +35,24 @@ interface TripDetailPageProps {
 
 export default async function TripDetailPage({ params }: TripDetailPageProps) {
   const { id } = await params;
+
+  const session =
+    (await getSessionContext()) ??
+    (!hasSupabaseConfig()
+      ? process.env.NEXT_PUBLIC_DEMO_ROLE === "admin"
+        ? getDemoAdminSessionContext()
+        : getDemoSessionContext()
+      : null);
+
+  if (session?.role === "admin") {
+    const [trip, history] = await Promise.all([
+      getAdminTrip(id),
+      listTripPricingHistory(id),
+    ]);
+    if (!trip) notFound();
+    return <AdminTripDetailClient trip={trip} history={history} />;
+  }
+
   const [trip, lookups] = await Promise.all([
     getMyTrip(id),
     getTripLookupOptions(),

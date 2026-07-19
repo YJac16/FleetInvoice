@@ -1,5 +1,8 @@
+import {
+  DEMO_ADMIN_USER_ID,
+  DEMO_DRIVER_ID,
+} from "@/lib/demo/catalog";
 import { hasSupabaseConfig } from "@/lib/env";
-import { getDemoDriverId } from "@/lib/trips/demo-store";
 import { createClient } from "@/supabase/server";
 import type { Profile } from "@/types/database";
 import type { SessionContext } from "@/types/auth";
@@ -64,14 +67,26 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   };
 }
 
-/** Demo session used when Supabase is not configured. */
+/** Demo driver session used when Supabase is not configured. */
 export function getDemoSessionContext(): SessionContext {
   return {
     userId: "00000000-0000-0000-0000-000000000000",
     email: "driver@fleetinvoice.local",
     role: "driver",
     fullName: "Yaseen",
-    driverId: getDemoDriverId(),
+    driverId: DEMO_DRIVER_ID,
     defaultVehicleId: "v1111111-1111-1111-1111-111111111111",
+  };
+}
+
+/** Demo admin session for reviewing admin modules without Supabase. */
+export function getDemoAdminSessionContext(): SessionContext {
+  return {
+    userId: DEMO_ADMIN_USER_ID,
+    email: "admin@fleetinvoice.local",
+    role: "admin",
+    fullName: "Office Admin",
+    driverId: null,
+    defaultVehicleId: null,
   };
 }

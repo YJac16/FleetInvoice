@@ -28,6 +28,11 @@ import {
 } from "@/services/profile.service";
 import type { TripFormValues } from "@/features/trips/schemas";
 
+// Pricing is applied server-side only:
+// - Demo store: lib/pricing/demo-store via createDemoTrip/updateDemoTrip
+// - Supabase: BEFORE INSERT/UPDATE trigger in 00003_pricing_engine.sql
+// Drivers never receive calculated_price from list_my_trips / get_my_trip RPCs.
+
 /**
  * Supabase generated-client inference currently collapses some trip mutations
  * to `never` when array columns are present. Cast through unknown at the
@@ -222,7 +227,8 @@ export async function createTrip(
   };
 
   if (!hasSupabaseConfig()) {
-    const trip = createDemoTrip(payload);
+    const session = getDemoSessionContext();
+    const trip = createDemoTrip(payload, session.userId);
     revalidatePath(ROUTES.trips);
     revalidatePath(ROUTES.dashboard);
     return { success: true, tripId: trip.id, message: "Trip saved" };
@@ -276,7 +282,8 @@ export async function updateTrip(
   };
 
   if (!hasSupabaseConfig()) {
-    const trip = updateDemoTrip(id, ctx.driverId, payload);
+    const session = getDemoSessionContext();
+    const trip = updateDemoTrip(id, ctx.driverId, payload, session.userId);
     if (!trip) return { success: false, error: "Trip not found." };
     revalidatePath(ROUTES.trips);
     revalidatePath(ROUTES.tripDetail(id));
