@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { ROUTES } from "@/lib/constants";
-import { createClient } from "@/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
-/**
- * Handles Supabase auth callbacks (email confirmation, password recovery).
- */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? ROUTES.dashboard;
+  const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
     const supabase = await createClient();
@@ -19,5 +15,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${ROUTES.login}?error=auth_callback`);
+  return NextResponse.redirect(`${origin}/login`);
 }

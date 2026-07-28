@@ -1,102 +1,115 @@
-# FleetInvoice
+# WorkOps
 
-Transport management SaaS for companies where drivers submit trips and the office generates invoices.
+Enterprise multi-tenant **Workforce Operations Platform**.
 
-**Phase 1** delivered the application foundation (auth, roles, schema, layouts).
-
-**Phase 2** delivers the **Driver Portal**: trip capture, my trips (table + timeline), edit/delete pending trips, duplicate detection, and draft autosave. Pricing, invoices, reports, PDFs, and admin review remain out of scope.
+Transport is the first industry module. Foundation v1 + Phase 0 hardening deliver authentication, organisations, roles (including Supervisor and Company Manager), invitations with email outbox, audit logging, and core master-data management.
 
 ## Stack
 
-- Next.js 15 (App Router) + TypeScript
+- Next.js App Router + TypeScript
 - Tailwind CSS + shadcn/ui
-- Supabase (Auth, PostgreSQL, RLS)
+- Supabase (Auth, PostgreSQL, RLS, Storage-ready, Realtime-ready)
 - React Hook Form + Zod
-- TanStack Table + React Query
-- Day.js + Lucide Icons
+- TanStack Query
+
+## Architecture
+
+Master blueprint: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+```text
+app/            route entrypoints (+ api/ for privileged jobs)
+components/     shared UI + layout
+features/       isolated feature modules
+services/       data access layer
+lib/            env, auth, permissions, supabase, notifications
+hooks/          shared React hooks
+types/          domain types
+utils/          pure helpers
+database/       SQL migrations (canonical)
+supabase/       mirrored migrations for CLI workflows
+docs/           architecture, ADRs, runbooks
+tests/          unit + RLS harness
+```
+
+## Access model
+
+**Invite-only.** There is no public signup.
+
+1. Create a user in Supabase Auth
+2. Promote that user to Platform Owner (see seed below)
+3. Platform Owner creates organisations and invites Organisation Admins
+4. Organisation Admins invite Manager / Dispatcher / Supervisor / Company Manager / Driver / Employee users
+5. Assign **company scopes** for Company Managers (Users → Scopes)
 
 ## Getting started
 
+1. Install dependencies
+
 ```bash
 npm install
+```
+
+2. Configure environment
+
+```bash
 cp .env.example .env.local
 ```
 
-Fill in Supabase values in `.env.local`:
+See [`docs/runbooks/env-checklist.md`](docs/runbooks/env-checklist.md).
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+3. Apply database migrations in the Supabase SQL editor (in order):
+
+- `database/migrations/00001_workops_foundation.sql`
+- `database/migrations/00002_phase0_hardening.sql`
+- `database/migrations/00003_phase2_master_data.sql`
+
+4. Create Storage bucket `vehicle-docs` (see env checklist) for vehicle document uploads.
+
+5. Bootstrap a platform owner
+
+```sql
+update public.profiles
+set is_platform_owner = true
+where email = 'you@example.com';
 ```
 
-Apply SQL migrations in order in the Supabase SQL editor (or via Supabase CLI):
+6. (Optional) Load Cape Shuttle Ops demo data for screenshots
 
-```bash
-supabase/migrations/00001_initial_schema.sql
-supabase/migrations/00002_driver_trips.sql
-```
+Create an Auth user `admin@cape-shuttle.example`, then run [`database/seed.demo.cape-shuttle.sql`](database/seed.demo.cape-shuttle.sql) in the SQL editor. Matching TypeScript fixtures: [`tests/fixtures/cape-shuttle-ops.ts`](tests/fixtures/cape-shuttle-ops.ts).
 
-Create Auth users, ensure matching `profiles` + `drivers` rows, then seed active companies/vehicles for dropdowns.
+After seeding, open `/dashboard`, `/areas`, `/vehicles`, `/trips`, `/fuel`, and `/invoices`.
 
-Then run the app:
+7. Start the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+8. Run unit tests
 
-> Without Supabase env vars the UI still builds. Dashboard pages use a local demo admin session so the shell can be reviewed. Auth actions require real credentials.
+```bash
+npm test
+```
 
 ## Roles
 
-| Role   | Access |
-|--------|--------|
-| Admin  | All modules |
-| Driver | Dashboard, Trips, Settings only |
+| Role | Typical access |
+|------|----------------|
+| Platform Owner | All organisations, invites org admins |
+| Organisation Admin | Users + all master data in their org |
+| Manager / Dispatcher / Supervisor | Ops master-data (supervisor: limited manage + attendance) |
+| Company Manager | Scoped client companies/employees only |
+| Driver / Employee | Limited view (dashboard, profile) |
 
-Roles live on `profiles.role`. Middleware blocks drivers from admin routes. Postgres RLS enforces the same boundaries at the data layer (drivers cannot view invoices or pricing rules).
+## Notifications
 
-## Project structure
-
-```
-app/            App Router pages, layouts, auth callback
-components/     UI primitives + layout + shared components
-features/       Feature-scoped UI (auth forms, etc.)
-hooks/          Client hooks
-lib/            Constants, navigation, env helpers
-services/       Server-side auth/profile services
-types/          Shared TypeScript types
-utils/          Date/format helpers
-supabase/       Clients + SQL migrations
-```
-
-## Scripts
+Creating an invitation enqueues an email on `notification_outbox`. Drain with:
 
 ```bash
-npm run dev      # development server
-npm run build    # production build
-npm run start    # start production server
-npm run lint     # eslint
+curl -X POST http://localhost:3000/api/notifications/process \
+  -H "Authorization: Bearer $NOTIFICATIONS_PROCESS_SECRET"
 ```
 
-## Phase checklist
+## Future modules
 
-### Phase 1
-- [x] Next.js 15 foundation, auth, roles, schema, app shell, placeholders
-
-### Phase 2 — Driver Portal
-- [x] Driver dashboard (today / week / pending / approved + recent / upcoming)
-- [x] Multi-step New Trip form (no pricing)
-- [x] Save trips to Supabase with RLS (own trips only)
-- [x] My Trips table + timeline views, search + filters
-- [x] Edit pending/rejected; delete pending with confirm
-- [x] Duplicate detection warning
-- [x] Draft autosave every 15s + restore
-- [x] Toast notifications; mobile sticky submit
-
-### Later
-- [ ] Pricing rules engine
-- [ ] Invoice generation + PDFs
-- [ ] Admin trip review workflow
+See the phased roadmap in `docs/ARCHITECTURE.md` (routes, trips, QR, GPS, billing, AI).

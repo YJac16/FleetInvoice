@@ -1,27 +1,29 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { ROUTES } from "@/lib/constants";
-import { hasSupabaseConfig } from "@/lib/env";
-import {
-  getDemoSessionContext,
-  getSessionContext,
-} from "@/services/profile.service";
+import { requireSession } from "@/lib/auth/require-permission";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  let session = await getSessionContext();
+  const session = await requireSession();
 
-  if (!session && !hasSupabaseConfig()) {
-    session = getDemoSessionContext();
+  if (!session.isPlatformOwner && session.memberships.length === 0) {
+    redirect("/awaiting-invite");
   }
 
-  if (!session) {
-    redirect(ROUTES.login);
-  }
-
-  return <AppShell session={session}>{children}</AppShell>;
+  return (
+    <AppShell
+      profile={session.profile}
+      memberships={session.memberships}
+      activeOrganisationId={session.activeOrganisationId}
+      isPlatformOwner={session.isPlatformOwner}
+    >
+      {children}
+    </AppShell>
+  );
 }

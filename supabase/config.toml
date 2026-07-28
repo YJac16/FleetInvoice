@@ -1,10 +1,11 @@
-# Minimal Supabase CLI config for local migrations.
-# Run: npx supabase db push  (or apply SQL in the Supabase SQL editor)
+# WorkOps remote auth settings (pushed via supabase config push)
+project_id = "tggxnvombexvxblsntsm"
 
-project_id = "fleetinvoice"
-
-[db]
-major_version = 15
-
-[db.migrations]
-schema_paths = []
+[auth]
+enabled = true
+site_url = "https://workops-yaseens-projects-1765104f.vercel.app"
+additional_redirect_urls = [
+  "https://workops-yaseens-projects-1765104f.vercel.app/auth/callback",
+  "https://workops-mu.vercel.app/auth/callback",
+  "http://localhost:3000/auth/callback"
+]

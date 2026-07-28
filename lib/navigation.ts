@@ -1,110 +1,110 @@
 import {
   Building2,
+  Bus,
+  Calendar,
   Car,
+  CircleUser,
+  CreditCard,
   FileText,
+  Fuel,
   LayoutDashboard,
+  MapPin,
   MapPinned,
-  PlusCircle,
-  Receipt,
+  Route as RouteIcon,
   Settings,
-  Tags,
-  Truck,
   Users,
+  UsersRound,
+  Warehouse,
+  BarChart3,
+  Building,
+  Radar,
+  type LucideIcon,
 } from "lucide-react";
 
-import { ROUTES } from "@/lib/constants";
-import type { NavItem } from "@/types/navigation";
-import type { UserRole } from "@/types/database";
+import type { AppModule } from "@/lib/entitlements";
+import { moduleForPermission } from "@/lib/entitlements";
+import type { Permission } from "@/lib/permissions";
 
-/** Primary sidebar navigation. Filtered by role at render time. */
-export const NAV_ITEMS: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: ROUTES.dashboard,
-    icon: LayoutDashboard,
-    description: "Overview of fleet activity",
-  },
-  {
-    title: "New Trip",
-    href: ROUTES.tripsNew,
-    icon: PlusCircle,
-    roles: ["driver"],
-    description: "Log a completed trip",
-  },
-  {
-    title: "My Trips",
-    href: ROUTES.trips,
-    icon: Truck,
-    description: "Trip submissions and status",
-  },
-  {
-    title: "Drivers",
-    href: ROUTES.drivers,
-    icon: Users,
-    roles: ["admin"],
-    description: "Driver directory",
-  },
-  {
-    title: "Companies",
-    href: ROUTES.companies,
-    icon: Building2,
-    roles: ["admin"],
-    description: "Customer companies",
-  },
-  {
-    title: "Vehicles",
-    href: ROUTES.vehicles,
-    icon: Car,
-    roles: ["admin"],
-    description: "Fleet vehicles",
-  },
-  {
-    title: "Areas",
-    href: ROUTES.areas,
-    icon: MapPinned,
-    roles: ["admin"],
-    description: "Service areas and zones",
-  },
-  {
-    title: "Pricing Rules",
-    href: ROUTES.pricingRules,
-    icon: Tags,
-    roles: ["admin"],
-    description: "Company pricing rules",
-  },
-  {
-    title: "Invoices",
-    href: ROUTES.invoices,
-    icon: Receipt,
-    roles: ["admin"],
-    description: "Weekly invoices",
-  },
-  {
-    title: "Reports",
-    href: ROUTES.reports,
-    icon: FileText,
-    roles: ["admin"],
-    description: "Operational reports",
-  },
-  {
-    title: "Settings",
-    href: ROUTES.settings,
-    icon: Settings,
-    description: "Account and preferences",
-  },
+export type NavGroupId =
+  | "overview"
+  | "people"
+  | "fleet"
+  | "places"
+  | "planning"
+  | "ops"
+  | "finance"
+  | "system";
+
+export type NavItem = {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  permission: Permission;
+  module: AppModule;
+  group: NavGroupId;
+};
+
+export type NavGroup = {
+  id: NavGroupId;
+  label: string;
+};
+
+export const NAV_GROUPS: NavGroup[] = [
+  { id: "overview", label: "Overview" },
+  { id: "people", label: "People" },
+  { id: "fleet", label: "Fleet" },
+  { id: "places", label: "Places" },
+  { id: "planning", label: "Planning" },
+  { id: "ops", label: "Ops" },
+  { id: "finance", label: "Finance" },
+  { id: "system", label: "System" },
 ];
 
-export function getNavItemsForRole(role: UserRole): NavItem[] {
-  return NAV_ITEMS.filter(
-    (item) => !item.roles || item.roles.includes(role)
-  );
+function item(
+  title: string,
+  href: string,
+  icon: LucideIcon,
+  permission: Permission,
+  group: NavGroupId,
+  module?: AppModule
+): NavItem {
+  return {
+    title,
+    href,
+    icon,
+    permission,
+    group,
+    module: module ?? moduleForPermission(permission),
+  };
 }
 
-export function isAdminOnlyPath(pathname: string): boolean {
-  return NAV_ITEMS.some(
-    (item) =>
-      item.roles?.includes("admin") &&
-      !item.roles.includes("driver") &&
-      (pathname === item.href || pathname.startsWith(`${item.href}/`))
-  );
-}
+export const MAIN_NAV: NavItem[] = [
+  item("Dashboard", "/dashboard", LayoutDashboard, "dashboard:view", "overview"),
+  item("Users", "/users", Users, "users:view", "people"),
+  item("Drivers", "/drivers", CircleUser, "drivers:view", "people"),
+  item("Employees", "/employees", UsersRound, "employees:view", "people"),
+  item("Vehicles", "/vehicles", Car, "vehicles:view", "fleet"),
+  item("Fuel", "/fuel", Fuel, "fuel:view", "fleet"),
+  item("Companies", "/companies", Building2, "companies:view", "places"),
+  item("Areas", "/areas", MapPin, "areas:view", "places"),
+  item("Sites", "/sites", Warehouse, "sites:view", "places"),
+  item("Pickup Points", "/pickup-points", MapPinned, "pickup_points:view", "places"),
+  item("Routes", "/routes", RouteIcon, "routes:view", "planning"),
+  item("Schedules", "/schedules", Calendar, "schedules:view", "planning"),
+  item("Trips", "/trips", Bus, "trips:view", "planning"),
+  item("Dispatch", "/dispatch", Radar, "dispatch:view", "ops", "gps"),
+  item("Geofences", "/geofences", MapPin, "geofences:view", "ops", "gps"),
+  item("Attendance", "/attendance", UsersRound, "attendance:view", "ops", "attendance"),
+  item("Invoices", "/invoices", FileText, "invoices:view", "finance", "billing"),
+  item("Rate cards", "/rate-cards", FileText, "rate_cards:view", "finance", "billing"),
+  item("Pay rates", "/pay-rates", FileText, "payroll:view", "finance", "payroll"),
+  item("Payroll", "/payroll", FileText, "payroll:view", "finance", "payroll"),
+  item("Reports", "/reports", BarChart3, "reports:view", "finance", "reports"),
+  item("Organisations", "/organisations", Building, "organisations:view", "system"),
+  item("Subscriptions", "/subscriptions", CreditCard, "subscriptions:view", "system", "core"),
+  item("White-label", "/white-label", Building, "organisations:manage", "system", "core"),
+];
+
+export const SECONDARY_NAV: NavItem[] = [
+  item("Settings", "/settings", Settings, "settings:view", "system"),
+];

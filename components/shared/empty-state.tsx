@@ -1,39 +1,42 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
-interface EmptyStateProps {
-  icon: LucideIcon;
+type EmptyStateProps = {
+  icon?: LucideIcon;
   title: string;
-  description: string;
-  action?: React.ReactNode;
-  className?: string;
-}
+  description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  action?: ReactNode;
+};
 
 export function EmptyState({
   icon: Icon,
   title,
   description,
+  actionLabel,
+  onAction,
   action,
-  className,
 }: EmptyStateProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-6 py-16 text-center",
-        className
-      )}
-    >
-      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border">
-        <Icon className="size-5 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-semibold tracking-tight text-foreground">
-        {title}
-      </h3>
-      <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-        {description}
-      </p>
-      {action ? <div className="mt-5">{action}</div> : null}
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+      {Icon ? (
+        <div className="mb-4 rounded-full bg-muted p-3">
+          <Icon className="size-5 text-muted-foreground" />
+        </div>
+      ) : null}
+      <h3 className="text-base font-medium">{title}</h3>
+      {description ? (
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      ) : null}
+      {action ? <div className="mt-4">{action}</div> : null}
+      {!action && actionLabel && onAction ? (
+        <Button className="mt-4" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }

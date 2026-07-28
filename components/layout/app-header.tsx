@@ -1,54 +1,47 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Menu } from "lucide-react";
+import { useState } from "react";
 
-import { MobileNav } from "@/components/layout/mobile-nav";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { OrganisationSwitcher } from "@/components/layout/organisation-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserNav } from "@/components/layout/user-nav";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import type { SessionContext } from "@/types/auth";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
-interface AppHeaderProps {
-  session: SessionContext;
-  title?: string;
-}
+export function AppHeader() {
+  const [open, setOpen] = useState(false);
 
-export function AppHeader({ session, title }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
-      <div className="flex min-w-0 items-center gap-2">
-        <MobileNav role={session.role} />
-        {title ? (
-          <p className="truncate text-sm font-medium text-muted-foreground lg:hidden">
-            {title}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
+      <div className="md:hidden">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger
             render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Notifications"
-                className="relative"
-              />
+              <Button variant="ghost" size="icon" aria-label="Open menu">
+                <Menu className="size-4" />
+              </Button>
             }
-          >
-            <Bell className="size-4" />
-            <span className="absolute top-2 right-2 size-1.5 rounded-full bg-accent" />
-          </TooltipTrigger>
-          <TooltipContent>Notifications coming soon</TooltipContent>
-        </Tooltip>
+          />
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <AppSidebar onNavigate={() => setOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      </div>
+      <OrganisationSwitcher />
+      <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
-        <UserNav session={session} />
+        <UserNav />
       </div>
     </header>
   );

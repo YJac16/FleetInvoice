@@ -1,46 +1,23 @@
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
-interface PageHeaderProps {
+type PageHeaderProps = {
   title: string;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-  className?: string;
-}
+  description?: string;
+  actions?: ReactNode;
+};
 
-export function PageHeader({
-  title,
-  description,
-  actions,
-  className,
-}: PageHeaderProps) {
+export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-        className
-      )}
-    >
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-heading text-3xl tracking-tight text-foreground">
           {title}
         </h1>
         {description ? (
-          typeof description === "string" ? (
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              {description}
-            </p>
-          ) : (
-            <div className="max-w-2xl text-sm text-muted-foreground">
-              {description}
-            </div>
-          )
+          <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {actions}
-        </div>
-      ) : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }

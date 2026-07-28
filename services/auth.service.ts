@@ -1,82 +1,72 @@
-"use server";
+import { createClient } from "@/lib/supabase/client";
+import { env } from "@/lib/env";
 
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-
-import { COOKIE_REMEMBER_ME, ROUTES } from "@/lib/constants";
-import { env, hasSupabaseConfig } from "@/lib/env";
-import { createClient } from "@/supabase/server";
-
-export type AuthActionResult =
-  | { success: true; message?: string }
-  | { success: false; error: string };
-
-function missingConfigResult(): AuthActionResult {
-  return {
-    success: false,
-    error:
-      "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local.",
-  };
+export async function signInWithPassword(email: string, password: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error) throw error;
+  return data;
 }
 
-export async function signInWithPassword(input: {
+export async function signOut() {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function requestPasswordReset(email: string) {
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/profile`,
+  });
+  if (error) throw error;
+}
+
+export async function signUpWithInvite(input: {
   email: string;
   password: string;
-  rememberMe: boolean;
-  next?: string;
-}): Promise<AuthActionResult> {
-  if (!hasSupabaseConfig()) return missingConfigResult();
-
-  const supabase = await createClient();
-  const cookieStore = await cookies();
-
-  cookieStore.set(COOKIE_REMEMBER_ME, input.rememberMe ? "1" : "0", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
-
-  const { error } = await supabase.auth.signInWithPassword({
+  fullName: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
+    options: {
+      data: { full_name: input.fullName },
+      emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
   });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  const destination =
-    input.next && input.next.startsWith("/") ? input.next : ROUTES.dashboard;
-  redirect(destination);
+  if (error) throw error;
+  return data;
 }
 
-export async function requestPasswordReset(
-  email: string
-): Promise<AuthActionResult> {
-  if (!hasSupabaseConfig()) return missingConfigResult();
-
-  const supabase = await createClient();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${env.appUrl}/auth/callback?next=${ROUTES.settings}`,
+export async function acceptInvitationToken(token: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("accept_invitation", {
+    p_token: token,
   });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return {
-    success: true,
-    message: "If an account exists for that email, a reset link has been sent.",
-  };
+  if (error) throw error;
+  return data;
 }
 
-export async function signOut(): Promise<void> {
-  if (hasSupabaseConfig()) {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-  }
-  redirect(ROUTES.login);
+export async function getInvitationByToken(token: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_invitation_by_token", {
+    p_token: token,
+  });
+  if (error) throw error;
+  return data as
+    | {
+        id: string;
+        organisation_id: string;
+        email: string;
+        role: string;
+        token: string;
+        status: string;
+        expires_at: string;
+      }[]
+    | null;
 }

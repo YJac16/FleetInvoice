@@ -1,22 +1,45 @@
+"use client";
+
+import type { ReactNode } from "react";
+
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import type { SessionContext } from "@/types/auth";
+import { OrgProvider } from "@/components/layout/org-context";
+import type { MembershipWithOrg, Profile } from "@/types";
 
-interface AppShellProps {
-  session: SessionContext;
-  children: React.ReactNode;
-}
+type AppShellProps = {
+  children: ReactNode;
+  profile: Profile;
+  memberships: MembershipWithOrg[];
+  activeOrganisationId: string | null;
+  isPlatformOwner: boolean;
+};
 
-export function AppShell({ session, children }: AppShellProps) {
+export function AppShell({
+  children,
+  profile,
+  memberships,
+  activeOrganisationId,
+  isPlatformOwner,
+}: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <AppSidebar role={session.role} />
+    <OrgProvider
+      profile={profile}
+      memberships={memberships}
+      initialOrganisationId={activeOrganisationId}
+      isPlatformOwner={isPlatformOwner}
+    >
+      <div className="flex min-h-screen bg-background">
+        <div className="hidden md:block">
+          <div className="sticky top-0 h-screen">
+            <AppSidebar />
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppHeader />
+          <main className="flex-1 px-4 py-8 md:px-8">{children}</main>
+        </div>
       </div>
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
-        <AppHeader session={session} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      </div>
-    </div>
+    </OrgProvider>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
 import Link from "next/link";
-import { LogOut, Settings, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useOrg } from "@/components/layout/org-context";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,68 +15,72 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { ROUTES } from "@/lib/constants";
 import { signOut } from "@/services/auth.service";
-import type { SessionContext } from "@/types/auth";
-import { formatFullName, getInitials } from "@/utils/format";
+import { getErrorMessage } from "@/utils/errors";
 
-interface UserNavProps {
-  session: SessionContext;
+function initials(name: string | null | undefined, email: string | null) {
+  if (name?.trim()) {
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("");
+  }
+  return (email?.[0] ?? "U").toUpperCase();
 }
 
-export function UserNav({ session }: UserNavProps) {
-  const [isPending, startTransition] = useTransition();
-  const name = formatFullName(session.fullName);
+export function UserNav() {
+  const router = useRouter();
+  const { profile } = useOrg();
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to sign out"));
+    }
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="ghost"
-            className="relative h-9 gap-2 rounded-full px-2"
-            aria-label="Open user menu"
-          />
+          <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+            <Avatar className="size-9">
+              {profile.avatar_url ? (
+                <AvatarImage src={profile.avatar_url} alt="" />
+              ) : null}
+              <AvatarFallback>
+                {initials(profile.full_name, profile.email)}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
         }
-      >
-        <Avatar size="sm">
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-            {getInitials(session.fullName)}
-          </AvatarFallback>
-        </Avatar>
-        <span className="hidden max-w-[120px] truncate text-sm font-medium md:inline">
-          {name}
-        </span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col gap-1.5">
-            <p className="text-sm font-medium">{name}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {session.email}
-            </p>
-            <Badge variant="secondary" className="w-fit capitalize">
-              {session.role}
-            </Badge>
+      />
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col space-y-0.5">
+            <span className="text-sm font-medium">
+              {profile.full_name || "User"}
+            </span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {profile.email}
+            </span>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href={ROUTES.settings} />}>
-          <User />
+        <DropdownMenuItem render={<Link href="/profile" />}>
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href={ROUTES.settings} />}>
-          <Settings />
+        <DropdownMenuItem render={<Link href="/settings" />}>
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={isPending}
-          onClick={() => startTransition(() => signOut())}
-        >
-          <LogOut />
-          {isPending ? "Signing out…" : "Sign out"}
+        <DropdownMenuItem onClick={() => void handleSignOut()}>
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 
-import { updateSession } from "@/supabase/middleware";
+// Relative import required: Vercel Edge middleware does not resolve `@/` aliases.
+import { updateSession } from "./lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
   return updateSession(request);
@@ -8,9 +9,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except static assets and image optimization.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|webmanifest)$).*)",
   ],
 };

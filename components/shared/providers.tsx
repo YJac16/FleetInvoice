@@ -2,16 +2,12 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { WhiteLabelTheme } from "@/components/layout/white-label-theme";
 
-interface ProvidersProps {
-  children: React.ReactNode;
-}
-
-export function Providers({ children }: ProvidersProps) {
+export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -25,12 +21,11 @@ export function Providers({ children }: ProvidersProps) {
   );
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider delay={200}>
-          {children}
-          <Toaster richColors position="top-right" closeButton />
-        </TooltipProvider>
+        <WhiteLabelTheme />
+        {children}
+        <Toaster richColors closeButton position="top-right" />
       </QueryClientProvider>
     </ThemeProvider>
   );
