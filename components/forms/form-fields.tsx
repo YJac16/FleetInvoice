@@ -90,17 +90,21 @@ export function TextField<T extends FieldValues>({
                 type={inputType}
                 placeholder={placeholder}
                 autoComplete={autoComplete}
-                className="pr-10"
+                className="pr-11"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-1 -translate-y-1/2 text-foreground/70 hover:text-foreground"
                 onClick={() => setRevealed((value) => !value)}
                 aria-label={revealed ? "Hide password" : "Show password"}
               >
-                {revealed ? <EyeOff /> : <Eye />}
+                {revealed ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
               </Button>
             </div>
           ) : (
