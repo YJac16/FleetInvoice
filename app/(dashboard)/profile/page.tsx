@@ -18,6 +18,9 @@ export default async function Page() {
   if (role === "driver") {
     redirect("/driver/profile");
   }
+  if (role === "company_manager") {
+    redirect("/company/profile");
+  }
 
   return <ProfilePage variant="ops" />;
 }

@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-
 import { AppShell } from "@/components/layout/app-shell";
-import { requireSession } from "@/lib/auth/require-permission";
+import { requireRole } from "@/lib/auth/require-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +8,13 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireSession();
-
-  if (!session.isPlatformOwner && session.memberships.length === 0) {
-    redirect("/awaiting-invite");
-  }
+  const session = await requireRole(
+    "organisation_admin",
+    "manager",
+    "dispatcher",
+    "supervisor",
+    "platform_owner"
+  );
 
   return (
     <AppShell

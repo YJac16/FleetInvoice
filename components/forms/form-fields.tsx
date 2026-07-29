@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
 import {
   Controller,
   type Control,
@@ -8,6 +9,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,12 +27,21 @@ type FieldShellProps = {
   error?: string;
   children: ReactNode;
   className?: string;
+  htmlFor?: string;
 };
 
-export function FieldShell({ label, error, children, className }: FieldShellProps) {
+export function FieldShell({
+  label,
+  error,
+  children,
+  className,
+  htmlFor,
+}: FieldShellProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label className="text-sm">{label}</Label>
+      <Label htmlFor={htmlFor} className="text-sm">
+        {label}
+      </Label>
       {children}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
@@ -43,6 +54,8 @@ type TextFieldProps<T extends FieldValues> = {
   label: string;
   type?: string;
   placeholder?: string;
+  autoComplete?: string;
+  revealable?: boolean;
 };
 
 export function TextField<T extends FieldValues>({
@@ -51,19 +64,55 @@ export function TextField<T extends FieldValues>({
   label,
   type = "text",
   placeholder,
+  autoComplete,
+  revealable = false,
 }: TextFieldProps<T>) {
+  const inputId = useId();
+  const [revealed, setRevealed] = useState(false);
+  const inputType = revealable ? (revealed ? "text" : "password") : type;
+
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <FieldShell label={label} error={fieldState.error?.message}>
-          <Input
-            {...field}
-            value={field.value ?? ""}
-            type={type}
-            placeholder={placeholder}
-          />
+        <FieldShell
+          label={label}
+          error={fieldState.error?.message}
+          htmlFor={inputId}
+        >
+          {revealable ? (
+            <div className="relative">
+              <Input
+                {...field}
+                id={inputId}
+                value={field.value ?? ""}
+                type={inputType}
+                placeholder={placeholder}
+                autoComplete={autoComplete}
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setRevealed((value) => !value)}
+                aria-label={revealed ? "Hide password" : "Show password"}
+              >
+                {revealed ? <EyeOff /> : <Eye />}
+              </Button>
+            </div>
+          ) : (
+            <Input
+              {...field}
+              id={inputId}
+              value={field.value ?? ""}
+              type={inputType}
+              placeholder={placeholder}
+              autoComplete={autoComplete}
+            />
+          )}
         </FieldShell>
       )}
     />

@@ -92,6 +92,8 @@ export function LoginForm() {
               label="Password"
               type="password"
               placeholder="••••••••"
+              autoComplete="current-password"
+              revealable
             />
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Signing in…" : "Sign in"}

@@ -48,7 +48,11 @@ function CompanyHeader() {
           Company hub
         </span>
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" render={<Link href="/profile" />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href="/company/profile" />}
+          >
             {profile.full_name || "Profile"}
           </Button>
           <ThemeToggle />

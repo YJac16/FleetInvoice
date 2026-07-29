@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-
 import { EmployeeShell } from "@/components/layout/employee-shell";
-import { requireSession } from "@/lib/auth/require-permission";
+import { requireRole } from "@/lib/auth/require-permission";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +8,7 @@ export default async function EmployeeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireSession();
-
-  if (!session.isPlatformOwner && session.memberships.length === 0) {
-    redirect("/awaiting-invite");
-  }
+  const session = await requireRole("employee");
 
   return (
     <EmployeeShell
