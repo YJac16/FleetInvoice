@@ -1,25 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   Bus,
   CircleUser,
   Fuel,
-  MapPin,
   QrCode,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/constants";
 import type { Permission } from "@/lib/permissions";
-import { signOut } from "@/services/auth.service";
 import type { MembershipWithOrg, Profile } from "@/types";
-import { getErrorMessage } from "@/utils/errors";
 import { cn } from "@/lib/utils";
 
 type TabItem = {
@@ -44,28 +38,10 @@ const DRIVER_TABS: TabItem[] = [
     icon: Fuel,
     permission: "fuel:self",
   },
-  {
-    href: "/driver/location",
-    label: "Location",
-    icon: MapPin,
-    permission: "gps:publish",
-  },
   { href: "/driver/profile", label: "Profile", icon: CircleUser },
 ];
 
 function DriverHeader() {
-  const router = useRouter();
-
-  async function handleSignOut() {
-    try {
-      await signOut();
-      router.replace("/login");
-      router.refresh();
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Unable to sign out"));
-    }
-  }
-
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
       <Link href="/driver" className="font-heading text-lg tracking-tight">
@@ -74,12 +50,6 @@ function DriverHeader() {
       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         Driver
       </span>
-      <div className="ml-auto flex items-center gap-1">
-        <ThemeToggle />
-        <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
-          Sign out
-        </Button>
-      </div>
     </header>
   );
 }

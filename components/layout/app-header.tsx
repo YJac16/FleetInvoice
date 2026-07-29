@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { OrganisationSwitcher } from "@/components/layout/organisation-switcher";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserNav } from "@/components/layout/user-nav";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +39,6 @@ export function AppHeader() {
       </div>
       <OrganisationSwitcher />
       <div className="ml-auto flex items-center gap-1">
-        <ThemeToggle />
         <UserNav />
       </div>
     </header>

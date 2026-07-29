@@ -546,6 +546,14 @@ export type DashboardCounts = {
   users: number;
 };
 
+export type DashboardOpsSummary = {
+  today_planned: number;
+  today_assigned: number;
+  today_in_progress: number;
+  today_completed: number;
+  unassigned: number;
+};
+
 export type GpsLastPosition = {
   organisation_id: string;
   driver_id: string;

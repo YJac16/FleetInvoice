@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +79,10 @@ export function UserNav() {
         <DropdownMenuItem render={<Link href="/settings" />}>
           Settings
         </DropdownMenuItem>
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <span className="text-sm">Theme</span>
+          <ThemeToggle />
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleSignOut()}>
           Sign out

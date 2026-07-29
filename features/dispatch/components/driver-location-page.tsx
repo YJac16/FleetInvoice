@@ -18,6 +18,7 @@ import {
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { ingestGpsPoints } from "@/services/gps.service";
 import { getErrorMessage } from "@/utils/errors";
+import { formatDateTime } from "@/utils/format";
 
 export function DriverLocationPage() {
   const { can } = useOrg();
@@ -25,6 +26,8 @@ export function DriverLocationPage() {
   const canPublish = can("gps:publish");
   const [sharing, setSharing] = useState(false);
   const [lastPoint, setLastPoint] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [lastSyncedCount, setLastSyncedCount] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const bufferRef = useRef<
     Array<{ lat: number; lng: number; accuracy_m: number | null; recorded_at: string }>
@@ -37,7 +40,8 @@ export function DriverLocationPage() {
       return ingestGpsPoints(organisationId, points);
     },
     onSuccess: (count) => {
-      toast.success(`Sent ${count} GPS point${count === 1 ? "" : "s"}`);
+      setLastSyncedCount(count);
+      setLastSyncedAt(new Date().toISOString());
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -136,6 +140,16 @@ export function DriverLocationPage() {
         <CardContent className="space-y-4">
           {lastPoint ? (
             <p className="font-mono text-sm text-muted-foreground">{lastPoint}</p>
+          ) : null}
+          {lastSyncedAt ? (
+            <p className="text-xs text-muted-foreground">
+              Last sync: {formatDateTime(lastSyncedAt)}
+              {lastSyncedCount
+                ? ` · ${lastSyncedCount} point${lastSyncedCount === 1 ? "" : "s"}`
+                : ""}
+            </p>
+          ) : sharing ? (
+            <p className="text-xs text-muted-foreground">Waiting for first sync…</p>
           ) : null}
           {sharing ? (
             <Button type="button" variant="destructive" onClick={stopSharing}>

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { useOrg } from "@/components/layout/org-context";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { APP_NAME } from "@/lib/constants";
@@ -55,6 +56,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState<Partial<Record<NavGroupId, boolean>>>(
     {}
   );
+  const [filter, setFilter] = useState("");
 
   const primary = useMemo(
     () =>
@@ -71,12 +73,24 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
     [can, canModule]
   );
 
+  const filterQuery = filter.trim().toLowerCase();
+
   const grouped = useMemo(() => {
+    const filtered = filterQuery
+      ? primary.filter((item) => item.title.toLowerCase().includes(filterQuery))
+      : primary;
     return NAV_GROUPS.map((group) => ({
       ...group,
-      items: primary.filter((item) => item.group === group.id),
+      items: filtered.filter((item) => item.group === group.id),
     })).filter((group) => group.items.length > 0);
-  }, [primary]);
+  }, [primary, filterQuery]);
+
+  const filteredSecondary = useMemo(() => {
+    if (!filterQuery) return secondary;
+    return secondary.filter((item) =>
+      item.title.toLowerCase().includes(filterQuery)
+    );
+  }, [secondary, filterQuery]);
 
   const activeGroupId = useMemo(() => {
     for (const group of grouped) {
@@ -90,9 +104,9 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   }, [grouped, pathname]);
 
   function isGroupOpen(groupId: NavGroupId) {
+    if (filterQuery) return true;
     if (collapsed[groupId] !== undefined) return !collapsed[groupId];
-    // Default open for overview and the group matching the current route
-    return groupId === "overview" || groupId === activeGroupId || grouped.length <= 4;
+    return groupId === "overview" || groupId === activeGroupId;
   }
 
   function toggleGroup(groupId: NavGroupId) {
@@ -114,6 +128,15 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
         </Link>
       </div>
       <Separator />
+      <div className="px-3 pt-3">
+        <Input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter pages…"
+          aria-label="Filter pages"
+          className="h-9"
+        />
+      </div>
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-3">
           {grouped.map((group) => {
@@ -154,11 +177,11 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
             );
           })}
         </nav>
-        {secondary.length ? (
+        {filteredSecondary.length ? (
           <>
             <Separator className="my-4" />
             <nav className="space-y-1">
-              {secondary.map((item) => {
+              {filteredSecondary.map((item) => {
                 const active = pathname === item.href;
                 return (
                   <NavLink
@@ -171,6 +194,11 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
               })}
             </nav>
           </>
+        ) : null}
+        {filterQuery && !grouped.length && !filteredSecondary.length ? (
+          <p className="px-3 py-6 text-sm text-muted-foreground">
+            No pages match “{filter.trim()}”.
+          </p>
         ) : null}
       </ScrollArea>
     </aside>

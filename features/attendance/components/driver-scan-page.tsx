@@ -38,7 +38,7 @@ export function DriverScanPage() {
     <div className="mx-auto max-w-lg space-y-6">
       <PageHeader
         title="Scan boarding"
-        description="Paste the boarding token from an employee QR or email."
+        description="Scan the employee QR, or enter the backup code if the camera fails."
       />
       <Card>
         <CardHeader>

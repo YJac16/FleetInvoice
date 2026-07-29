@@ -76,7 +76,9 @@ export async function listMyDriverTrips(
   const supabase = createClient();
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, driver_id, released_at, trips:trip_id (*, routes:route_id (name))")
+    .select(
+      "id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (id, name, registration_number, capacity), trips:trip_id (*, routes:route_id (name))"
+    )
     .eq("organisation_id", organisationId)
     .eq("driver_id", driverId)
     .is("deleted_at", null)
@@ -85,9 +87,34 @@ export async function listMyDriverTrips(
   if (error) throw error;
 
   return ((data ?? []) as unknown as Array<{
+    id: string;
     driver_id: string;
+    vehicle_id: string | null;
+    released_at: string | null;
+    vehicles: TripAssignment["vehicles"];
     trips: Trip | null;
   }>)
     .filter((row) => row.driver_id === driverId && row.trips)
-    .map((row) => row.trips as Trip);
+    .map((row) => {
+      const trip = row.trips as Trip;
+      return {
+        ...trip,
+        trip_assignments: [
+          {
+            id: row.id,
+            organisation_id: organisationId,
+            trip_id: trip.id,
+            driver_id: row.driver_id,
+            vehicle_id: row.vehicle_id,
+            assigned_by: null,
+            assigned_at: trip.created_at,
+            released_at: row.released_at,
+            created_at: trip.created_at,
+            updated_at: trip.updated_at,
+            deleted_at: null,
+            vehicles: row.vehicles ?? null,
+          },
+        ],
+      } satisfies Trip;
+    });
 }

@@ -3,11 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { TextField } from "@/components/forms/form-fields";
@@ -22,6 +24,7 @@ import {
   updateProfile,
   uploadAvatar,
 } from "@/services/profile.service";
+import { signOut } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 
@@ -51,9 +54,11 @@ function initials(name: string | null | undefined, email: string | null) {
 
 export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const organisationId = useActiveOrgId();
   const fileRef = useRef<HTMLInputElement>(null);
   const showHome = variant === "employee";
+  const isFieldPortal = variant === "employee" || variant === "driver";
 
   const profileQuery = useQuery({
     queryKey: queryKeys.profile,
@@ -117,6 +122,16 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
   });
 
   const profile = profileQuery.data;
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to sign out"));
+    }
+  }
 
   return (
     <div>
@@ -211,6 +226,22 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
             </Link>
             .
           </p>
+
+          {isFieldPortal ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleSignOut()}
+              >
+                Sign out
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

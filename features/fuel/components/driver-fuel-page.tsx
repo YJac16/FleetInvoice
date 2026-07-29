@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ import {
 } from "@/features/fuel/schemas/fuel-fillup";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { logFuelFillup } from "@/services/fuel-fillups.service";
+import { listMyDriverTrips } from "@/services/trip-assignments.service";
 import { listVehicles } from "@/services/vehicles.service";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
@@ -49,6 +51,14 @@ export function DriverFuelPage() {
     enabled: Boolean(organisationId) && canSelf,
   });
 
+  const tripsQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.driverTrips(organisationId)
+      : ["driver-trips", "none"],
+    queryFn: () => listMyDriverTrips(organisationId!),
+    enabled: Boolean(organisationId) && canSelf,
+  });
+
   const form = useForm<FuelFillupValues>({
     resolver: zodResolver(fuelFillupSchema),
     defaultValues: {
@@ -60,6 +70,19 @@ export function DriverFuelPage() {
       notes: "",
     },
   });
+
+  useEffect(() => {
+    if (form.getValues("vehicle_id")) return;
+    const active =
+      (tripsQuery.data ?? []).find((t) => t.status === "in_progress") ??
+      (tripsQuery.data ?? []).find((t) => t.status === "assigned");
+    const vehicleId = active?.trip_assignments?.find(
+      (a) => !a.released_at
+    )?.vehicle_id;
+    if (vehicleId) {
+      form.setValue("vehicle_id", vehicleId);
+    }
+  }, [tripsQuery.data, form]);
 
   const mutation = useMutation({
     mutationFn: async (values: FuelFillupValues) => {

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import QRCode from "qrcode";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -62,6 +63,11 @@ export function EmployeeBoardPage() {
   const activeSeat = useMemo(() => {
     return (seatsQuery.data ?? []).find((s) => s.status === "confirmed");
   }, [seatsQuery.data]);
+
+  const requestedSeat = useMemo(() => {
+    if (activeSeat) return null;
+    return (seatsQuery.data ?? []).find((s) => s.status === "requested");
+  }, [activeSeat, seatsQuery.data]);
 
   const initialToken = useMemo(() => tokenFromUrl, [tokenFromUrl]);
 
@@ -138,12 +144,7 @@ export function EmployeeBoardPage() {
 
       {seatsQuery.isLoading ? (
         <LoadingSkeleton rows={2} />
-      ) : !activeSeat ? (
-        <EmptyState
-          title="No seat to board"
-          description="Book a seat first, then generate your boarding QR here."
-        />
-      ) : (
+      ) : activeSeat ? (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -197,6 +198,24 @@ export function EmployeeBoardPage() {
             )}
           </CardContent>
         </Card>
+      ) : requestedSeat ? (
+        <EmptyState
+          title="Seat awaiting confirmation"
+          description={`${requestedSeat.trips?.routes?.name ?? "Your trip"} is requested. You can generate a boarding QR once your seat is confirmed.`}
+          action={
+            <Button variant="outline" render={<Link href="/employee/book" />}>
+              View bookings
+            </Button>
+          }
+        />
+      ) : (
+        <EmptyState
+          title="No seat to board"
+          description="Book a seat first, then generate your boarding QR here."
+          action={
+            <Button render={<Link href="/employee/book" />}>Book a seat</Button>
+          }
+        />
       )}
 
       {initialToken ? (
