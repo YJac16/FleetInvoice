@@ -7,6 +7,7 @@ import {
   Bus,
   CircleUser,
   Fuel,
+  MapPin,
   QrCode,
 } from "lucide-react";
 
@@ -38,6 +39,12 @@ const DRIVER_TABS: TabItem[] = [
     icon: Fuel,
     permission: "fuel:self",
   },
+  {
+    href: "/driver/location",
+    label: "Location",
+    icon: MapPin,
+    permission: "gps:publish",
+  },
   { href: "/driver/profile", label: "Profile", icon: CircleUser },
 ];
 
@@ -62,6 +69,9 @@ function DriverBottomNav() {
     if (tab.href === "/driver" || tab.href === "/driver/profile") return true;
     if (tab.href === "/driver/scan") {
       return can("attendance:manage") || can("trips:self");
+    }
+    if (tab.href === "/driver/location") {
+      return can("gps:publish");
     }
     if (tab.permission) return can(tab.permission);
     return true;

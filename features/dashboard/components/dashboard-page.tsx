@@ -22,10 +22,25 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
+  MAIN_NAV,
+  NAV_GROUPS,
+  type NavGroupId,
+} from "@/lib/navigation";
+import {
   getDashboardCounts,
   getDashboardOpsSummary,
 } from "@/services/dashboard.service";
 import { queryKeys } from "@/utils/query";
+
+const BROWSE_GROUP_ORDER: NavGroupId[] = [
+  "people",
+  "fleet",
+  "places",
+  "planning",
+  "ops",
+  "finance",
+  "system",
+];
 
 export function DashboardPage() {
   const { can, canModule } = useOrg();
@@ -91,6 +106,21 @@ export function DashboardPage() {
     },
   ].filter((link) => link.show);
 
+  const browseGroups = NAV_GROUPS.filter((group) =>
+    BROWSE_GROUP_ORDER.includes(group.id)
+  )
+    .map((group) => ({
+      ...group,
+      items: MAIN_NAV.filter(
+        (item) =>
+          item.group === group.id &&
+          item.href !== "/dashboard" &&
+          can(item.permission) &&
+          canModule(item.module)
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -145,7 +175,13 @@ export function DashboardPage() {
               value={ops.unassigned}
               description="Need a driver"
               icon={Radar}
-              href={can("dispatch:view") ? "/dispatch" : can("trips:view") ? "/trips" : undefined}
+              href={
+                can("dispatch:view")
+                  ? "/dispatch"
+                  : can("trips:view")
+                    ? "/trips"
+                    : undefined
+              }
             />
           </div>
         </div>
@@ -202,6 +238,39 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      {browseGroups.length ? (
+        <div className="space-y-6">
+          <div>
+            <h2 className="font-heading text-lg">Browse modules</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Jump to any area you can access — same destinations as the sidebar.
+            </p>
+          </div>
+          {browseGroups.map((group) => (
+            <div key={group.id}>
+              <h3 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                {group.label}
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-3 py-3 text-sm transition-colors hover:bg-muted/40"
+                    >
+                      <Icon className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="font-medium">{item.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

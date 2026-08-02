@@ -21,7 +21,11 @@ export async function requireRole(
     redirect("/awaiting-invite");
   }
 
-  if (session.isPlatformOwner) return session;
+  // Platform owners only enter hubs that explicitly allow platform_owner
+  // (ops dashboard). Other hubs require a matching membership role.
+  if (session.isPlatformOwner && roles.includes("platform_owner")) {
+    return session;
+  }
 
   if (session.activeRole && roles.includes(session.activeRole)) {
     return session;
