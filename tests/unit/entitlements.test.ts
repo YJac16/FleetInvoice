@@ -9,6 +9,10 @@ import {
 describe("entitlements", () => {
   it("recognises module keys", () => {
     expect(isAppModule("payroll")).toBe(true);
+    expect(isAppModule("white_label")).toBe(true);
+    expect(isAppModule("sso")).toBe(true);
+    expect(isAppModule("integrations")).toBe(true);
+    expect(isAppModule("ai")).toBe(true);
     expect(isAppModule("nope")).toBe(false);
   });
 

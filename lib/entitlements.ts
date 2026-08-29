@@ -9,6 +9,10 @@ export const APP_MODULES = [
   "payroll",
   "reports",
   "portal",
+  "white_label",
+  "sso",
+  "integrations",
+  "ai",
 ] as const;
 
 export type AppModule = (typeof APP_MODULES)[number];
