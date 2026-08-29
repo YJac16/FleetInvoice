@@ -29,6 +29,7 @@ import {
 } from "@/features/fuel/schemas/fuel-fillup";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
+import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import {
   listFuelFillups,
   logFuelFillup,
@@ -99,9 +100,7 @@ function LogFuelForm({
   });
 
   const vehicleOptions = (vehiclesQuery.data ?? []).map((v) => ({
-    label: v.registration_number
-      ? `${v.name} (${v.registration_number})`
-      : v.name,
+    label: formatVehicleLabel(v),
     value: v.id,
   }));
 

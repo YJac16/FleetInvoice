@@ -45,6 +45,10 @@ import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import { MemberScopesDialog } from "@/features/users/components/member-scopes-dialog";
+import {
+  memberDisplayEmail,
+  memberDisplayName,
+} from "@/features/users/lib/member-profile";
 
 const roleOptions = INVITABLE_ROLES.map((role) => ({
   label: ROLE_LABELS[role],
@@ -221,12 +225,12 @@ export function UsersPage() {
       {
         id: "name",
         header: "Name",
-        cell: ({ row }) => row.original.profiles?.full_name ?? "—",
+        cell: ({ row }) => memberDisplayName(row.original),
       },
       {
         id: "email",
         header: "Email",
-        cell: ({ row }) => row.original.profiles?.email ?? "—",
+        cell: ({ row }) => memberDisplayEmail(row.original),
       },
       {
         accessorKey: "role",

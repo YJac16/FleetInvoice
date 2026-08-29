@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ import {
   type FuelFillupValues,
 } from "@/features/fuel/schemas/fuel-fillup";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import { logFuelFillup } from "@/services/fuel-fillups.service";
 import { listMyDriverTrips } from "@/services/trip-assignments.service";
 import { listVehicles } from "@/services/vehicles.service";
@@ -120,6 +121,33 @@ export function DriverFuelPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  const vehicleOptions = useMemo(() => {
+    const byId = new Map<
+      string,
+      { id: string; name?: string | null; registration_number?: string | null }
+    >();
+    for (const vehicle of vehiclesQuery.data ?? []) {
+      byId.set(vehicle.id, vehicle);
+    }
+    for (const trip of tripsQuery.data ?? []) {
+      for (const assignment of trip.trip_assignments ?? []) {
+        if (!assignment.vehicle_id) continue;
+        const existing = byId.get(assignment.vehicle_id);
+        byId.set(assignment.vehicle_id, {
+          id: assignment.vehicle_id,
+          name: assignment.vehicles?.name ?? existing?.name,
+          registration_number:
+            assignment.vehicles?.registration_number ??
+            existing?.registration_number,
+        });
+      }
+    }
+    return [...byId.values()].map((vehicle) => ({
+      value: vehicle.id,
+      label: formatVehicleLabel(vehicle),
+    }));
+  }, [vehiclesQuery.data, tripsQuery.data]);
+
   if (!canSelf) {
     return (
       <div>
@@ -143,13 +171,6 @@ export function DriverFuelPage() {
       </div>
     );
   }
-
-  const vehicleOptions = (vehiclesQuery.data ?? []).map((v) => ({
-    label: v.registration_number
-      ? `${v.name} (${v.registration_number})`
-      : v.name,
-    value: v.id,
-  }));
 
   return (
     <div>
