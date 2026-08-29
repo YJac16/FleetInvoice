@@ -121,30 +121,6 @@ export function DriverFuelPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  if (!canSelf) {
-    return (
-      <div>
-        <PageHeader title="Log fuel" description="Record a vehicle fill-up." />
-        <EmptyState
-          title="Driver access required"
-          description="Link your profile to a driver record to log fuel."
-        />
-      </div>
-    );
-  }
-
-  if (!organisationId) {
-    return (
-      <div>
-        <PageHeader title="Log fuel" description="Record a vehicle fill-up." />
-        <EmptyState
-          title="No organisation"
-          description="You are not an active member of any organisation yet."
-        />
-      </div>
-    );
-  }
-
   const vehicleOptions = useMemo(() => {
     const byId = new Map<
       string,
@@ -171,6 +147,30 @@ export function DriverFuelPage() {
       label: formatVehicleLabel(vehicle),
     }));
   }, [vehiclesQuery.data, tripsQuery.data]);
+
+  if (!canSelf) {
+    return (
+      <div>
+        <PageHeader title="Log fuel" description="Record a vehicle fill-up." />
+        <EmptyState
+          title="Driver access required"
+          description="Link your profile to a driver record to log fuel."
+        />
+      </div>
+    );
+  }
+
+  if (!organisationId) {
+    return (
+      <div>
+        <PageHeader title="Log fuel" description="Record a vehicle fill-up." />
+        <EmptyState
+          title="No organisation"
+          description="You are not an active member of any organisation yet."
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
