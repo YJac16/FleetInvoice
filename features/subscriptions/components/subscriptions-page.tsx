@@ -248,7 +248,12 @@ export function SubscriptionsPage() {
         description="Vehicle-based plans in South African Rand. Extra vehicles are a soft cap — we nudge you to upgrade before you hit the ceiling."
       />
 
-      {currentQuery.isLoading || plansQuery.isLoading ? (
+      {plansQuery.isError ? (
+        <EmptyState
+          title="Could not load plans"
+          description="Check that migration 00016 is applied and you can read active plans."
+        />
+      ) : currentQuery.isLoading || plansQuery.isLoading ? (
         <LoadingSkeleton rows={4} />
       ) : (
         <>
