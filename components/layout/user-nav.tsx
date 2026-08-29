@@ -84,7 +84,10 @@ export function UserNav() {
           <ThemeToggle />
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void handleSignOut()}>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => void handleSignOut()}
+        >
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -34,6 +34,17 @@ import {
   type ReportType,
 } from "@/features/reports/schemas/report";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import {
+  ATTENDANCE_EVENT_TYPE_LABELS,
+  INVOICE_STATUS_LABELS,
+  PAYROLL_RUN_STATUS_LABELS,
+  TRIP_STATUS_LABELS,
+  type AttendanceEventTypeConst,
+  type InvoiceStatus,
+  type PayrollRunStatus,
+  type TripStatus,
+} from "@/lib/constants";
+import { formatDate, formatDateTime } from "@/utils/format";
 import { getDashboardCounts } from "@/services/dashboard.service";
 import {
   buildOpsReport,
@@ -46,11 +57,23 @@ import {
 } from "@/services/reports.service";
 import { queryKeys } from "@/utils/query";
 
+function tripStatusLabel(status: string) {
+  return TRIP_STATUS_LABELS[status as TripStatus] ?? status.replaceAll("_", " ");
+}
+
 function TripsResults({ report }: { report: TripsReport }) {
   const columns = useMemo<ColumnDef<(typeof report.rows)[number], unknown>[]>(
     () => [
-      { accessorKey: "planned_start", header: "Planned start" },
-      { accessorKey: "status", header: "Status" },
+      {
+        accessorKey: "planned_start",
+        header: "Planned start",
+        cell: ({ row }) => formatDateTime(row.original.planned_start),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => tripStatusLabel(row.original.status),
+      },
       { accessorKey: "route", header: "Route" },
     ],
     []
@@ -60,7 +83,7 @@ function TripsResults({ report }: { report: TripsReport }) {
       <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
         {Object.entries(report.statusCounts).map(([status, count]) => (
           <span key={status} className="rounded-md bg-muted px-2 py-1">
-            {status}: {count}
+            {tripStatusLabel(status)}: {count}
           </span>
         ))}
       </div>
@@ -76,7 +99,11 @@ function TripsResults({ report }: { report: TripsReport }) {
 function FuelResults({ report }: { report: FuelReport }) {
   const columns = useMemo<ColumnDef<(typeof report.rows)[number], unknown>[]>(
     () => [
-      { accessorKey: "filled_at", header: "Filled at" },
+      {
+        accessorKey: "filled_at",
+        header: "Filled at",
+        cell: ({ row }) => formatDateTime(row.original.filled_at),
+      },
       { accessorKey: "vehicle", header: "Vehicle" },
       { accessorKey: "company", header: "Company" },
       { accessorKey: "litres", header: "Litres" },
@@ -106,10 +133,21 @@ function FuelResults({ report }: { report: FuelReport }) {
 function AttendanceResults({ report }: { report: AttendanceReport }) {
   const columns = useMemo<ColumnDef<(typeof report.rows)[number], unknown>[]>(
     () => [
-      { accessorKey: "created_at", header: "When" },
+      {
+        accessorKey: "created_at",
+        header: "When",
+        cell: ({ row }) => formatDateTime(row.original.created_at),
+      },
       { accessorKey: "employee", header: "Employee" },
       { accessorKey: "trip", header: "Trip" },
-      { accessorKey: "event_type", header: "Event" },
+      {
+        accessorKey: "event_type",
+        header: "Event",
+        cell: ({ row }) =>
+          ATTENDANCE_EVENT_TYPE_LABELS[
+            row.original.event_type as AttendanceEventTypeConst
+          ] ?? row.original.event_type,
+      },
     ],
     []
   );
@@ -133,9 +171,23 @@ function CommercialResults({ report }: { report: CommercialReport }) {
   >(
     () => [
       { accessorKey: "company", header: "Company" },
-      { accessorKey: "period_start", header: "Start" },
-      { accessorKey: "period_end", header: "End" },
-      { accessorKey: "status", header: "Status" },
+      {
+        accessorKey: "period_start",
+        header: "Start",
+        cell: ({ row }) => formatDate(row.original.period_start),
+      },
+      {
+        accessorKey: "period_end",
+        header: "End",
+        cell: ({ row }) => formatDate(row.original.period_end),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) =>
+          INVOICE_STATUS_LABELS[row.original.status as InvoiceStatus] ??
+          row.original.status,
+      },
       { accessorKey: "total", header: "Total" },
     ],
     []
@@ -144,9 +196,24 @@ function CommercialResults({ report }: { report: CommercialReport }) {
     ColumnDef<(typeof report.payrollRows)[number], unknown>[]
   >(
     () => [
-      { accessorKey: "period_start", header: "Start" },
-      { accessorKey: "period_end", header: "End" },
-      { accessorKey: "status", header: "Status" },
+      {
+        accessorKey: "period_start",
+        header: "Start",
+        cell: ({ row }) => formatDate(row.original.period_start),
+      },
+      {
+        accessorKey: "period_end",
+        header: "End",
+        cell: ({ row }) => formatDate(row.original.period_end),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) =>
+          PAYROLL_RUN_STATUS_LABELS[
+            row.original.status as PayrollRunStatus
+          ] ?? row.original.status,
+      },
       { accessorKey: "total", header: "Total" },
     ],
     []

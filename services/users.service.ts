@@ -1,3 +1,9 @@
+import { hydrateMemberProfiles } from "@/features/users/actions";
+import {
+  attachMemberProfiles,
+  normalizeProfileEmbed,
+  type MemberProfile,
+} from "@/features/users/lib/member-profile";
 import type { AppRole } from "@/lib/constants";
 import { ROLE_LABELS } from "@/lib/constants";
 import { env } from "@/lib/env";
@@ -20,7 +26,78 @@ export async function listMembers(
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as OrganisationMember[];
+
+  const members = ((data ?? []) as OrganisationMember[]).map((member) => ({
+    ...member,
+    profiles: normalizeProfileEmbed(member.profiles),
+  }));
+
+  const missingIds = members
+    .filter((member) => !member.profiles)
+    .map((member) => member.user_id);
+  if (missingIds.length === 0) return members;
+
+  const extras: MemberProfile[] = [];
+  try {
+    extras.push(
+      ...(await hydrateMemberProfiles(organisationId, missingIds))
+    );
+  } catch {
+    // Service-role hydrate is best-effort; ops-table fallback still runs.
+  }
+
+  const stillMissing = missingIds.filter(
+    (id) => !extras.some((profile) => profile.id === id)
+  );
+  if (stillMissing.length > 0) {
+    extras.push(
+      ...(await listLinkedOpsProfiles(organisationId, stillMissing))
+    );
+  }
+
+  return attachMemberProfiles(members, extras);
+}
+
+async function listLinkedOpsProfiles(
+  organisationId: string,
+  userIds: string[]
+): Promise<MemberProfile[]> {
+  if (userIds.length === 0) return [];
+  const supabase = createClient();
+  const [drivers, employees] = await Promise.all([
+    supabase
+      .from("drivers")
+      .select("profile_id, full_name, email")
+      .eq("organisation_id", organisationId)
+      .in("profile_id", userIds)
+      .is("deleted_at", null),
+    supabase
+      .from("employees")
+      .select("profile_id, full_name, email")
+      .eq("organisation_id", organisationId)
+      .in("profile_id", userIds)
+      .is("deleted_at", null),
+  ]);
+
+  const byId = new Map<string, MemberProfile>();
+  for (const row of [
+    ...(drivers.data ?? []),
+    ...(employees.data ?? []),
+  ] as Array<{
+    profile_id: string | null;
+    full_name: string | null;
+    email: string | null;
+  }>) {
+    if (!row.profile_id || byId.has(row.profile_id)) continue;
+    byId.set(row.profile_id, {
+      id: row.profile_id,
+      email: row.email,
+      full_name: row.full_name,
+      avatar_url: null,
+      phone: null,
+    });
+  }
+  return [...byId.values()];
 }
 
 export async function updateMemberRole(

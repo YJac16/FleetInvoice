@@ -227,21 +227,25 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
             .
           </p>
 
-          {isFieldPortal ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            {isFieldPortal ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Theme</span>
                 <ThemeToggle />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleSignOut()}
-              >
-                Sign out
-              </Button>
-            </div>
-          ) : null}
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Signed out users return to the login page.
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleSignOut()}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
       )}
     </div>

@@ -20,6 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  resolveSelectLabel,
+  type SelectOption,
+} from "@/components/forms/select-label";
 import { cn } from "@/lib/utils";
 
 type FieldShellProps = {
@@ -154,8 +158,6 @@ export function TextAreaField<T extends FieldValues>({
   );
 }
 
-type SelectOption = { label: string; value: string };
-
 type SelectFieldProps<T extends FieldValues> = {
   control: Control<T>;
   name: FieldPath<T>;
@@ -178,13 +180,19 @@ export function SelectField<T extends FieldValues>({
       render={({ field, fieldState }) => (
         <FieldShell label={label} error={fieldState.error?.message}>
           <Select
-            value={field.value ?? ""}
-            onValueChange={field.onChange}
+            key={`${String(name)}:${options.map((option) => option.value).join(",")}`}
+            items={options}
+            value={field.value === "" || field.value == null ? null : field.value}
+            onValueChange={(value) => {
+              field.onChange(value ?? "");
+            }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder={placeholder} />
+              <SelectValue placeholder={placeholder}>
+                {(value) => resolveSelectLabel(options, value, placeholder)}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false} align="start">
               {options.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
