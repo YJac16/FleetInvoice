@@ -8,4 +8,9 @@ select exists (
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = 'org_entitled_modules'
 ) as rpc_ok;
-select count(*) >= 2 as plans_seeded from public.plans where code in ('starter', 'growth');
+select count(*) >= 3 as plans_seeded from public.plans where code in ('starter', 'growth', 'scale');
+select count(*) = 1 as scale_priced
+  from public.plans
+  where code = 'scale'
+    and monthly_price_cents = 699000
+    and included_vehicles = 60;

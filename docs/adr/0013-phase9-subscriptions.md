@@ -19,4 +19,6 @@ WorkOps needs self-serve SaaS packaging: attach a plan to an organisation and hi
 ## Consequences
 
 - Apply `00013` on the WorkOps Supabase project before relying on gating.
+- Apply `00016_membership_three_tiers.sql` for ZAR vehicle-based Starter / Growth / Scale pricing. The live project already has `membership_three_tiers`; the repo file is an idempotent equivalent.
+- `/subscriptions` is the signed-in membership page (not a public marketing landing).
 - Next: Phase 9b company portal polish; Phase 9c white-label.

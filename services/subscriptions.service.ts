@@ -4,7 +4,8 @@ import {
   isAppModule,
   type AppModule,
 } from "@/lib/entitlements";
-import type { Plan, Subscription } from "@/types";
+import { mapPlanWithModules } from "@/lib/plans";
+import type { Plan, PlanWithModules, Subscription } from "@/types";
 
 export async function listPlans(): Promise<Plan[]> {
   const supabase = createClient();
@@ -15,6 +16,32 @@ export async function listPlans(): Promise<Plan[]> {
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Plan[];
+}
+
+export async function listPlansWithEntitlements(): Promise<PlanWithModules[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("plans")
+    .select("*, module_entitlements(module_key)")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) =>
+    mapPlanWithModules(row as Parameters<typeof mapPlanWithModules>[0])
+  );
+}
+
+export async function countOrganisationVehicles(
+  organisationId: string
+): Promise<number> {
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from("vehicles")
+    .select("id", { count: "exact", head: true })
+    .eq("organisation_id", organisationId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export async function listAllPlans(): Promise<Plan[]> {

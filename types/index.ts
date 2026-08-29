@@ -625,8 +625,18 @@ export type Plan = {
   stripe_price_id: string | null;
   is_active: boolean;
   sort_order: number;
+  currency: string;
+  tagline: string | null;
+  monthly_price_cents: number | null;
+  included_vehicles: number | null;
+  extra_vehicle_cents: number | null;
+  max_vehicles: number | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PlanWithModules = Plan & {
+  module_keys: string[];
 };
 
 export type ModuleEntitlement = {
