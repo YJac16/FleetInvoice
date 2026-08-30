@@ -160,3 +160,18 @@
   }
 }
 
+@media print {
+  body:has(.driver-invoice-print) {
+    background: #fff !important;
+  }
+
+  .driver-invoice-print .driver-invoice-sheet {
+    box-shadow: none !important;
+  }
+
+  .driver-invoice-print a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
+

@@ -11,13 +11,20 @@ import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { FormDialog } from "@/components/forms/form-dialog";
-import { SelectField, TextField } from "@/components/forms/form-fields";
+import { SelectField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateSlash } from "@/features/invoices/lib/print-format";
+import {
+  defaultServiceWeekMonday,
+  invoiceDateFromWeekStart,
+  recentServiceWeekMondays,
+  serviceWeekSunday,
+} from "@/features/invoices/lib/week";
 import {
   generateDriverWeeklyInvoiceSchema,
   type GenerateDriverWeeklyInvoiceValues,
@@ -29,14 +36,18 @@ import {
   generateDriverWeeklyInvoice,
   listInvoiceLines,
   listInvoices,
-  mondayOfWeek,
   setInvoiceStatus,
-  weekPeriodEnd,
 } from "@/services/invoices.service";
 import type { Invoice, InvoiceLine } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
-import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
+
+function serviceWeekLabel(weekStart: string): string {
+  const from = formatDateSlash(weekStart);
+  const to = formatDateSlash(serviceWeekSunday(weekStart));
+  const invoiceDate = formatDateSlash(invoiceDateFromWeekStart(weekStart));
+  return `Service ${from} – ${to} (invoice ${invoiceDate})`;
+}
 
 function GenerateDriverWeeklyInvoiceForm({
   organisationId,
@@ -45,13 +56,21 @@ function GenerateDriverWeeklyInvoiceForm({
   organisationId: string;
   onDone: () => void;
 }) {
-  const weekStart = mondayOfWeek();
+  const defaultWeek = defaultServiceWeekMonday();
+  const weekOptions = useMemo(
+    () =>
+      recentServiceWeekMondays(8).map((weekStart) => ({
+        label: serviceWeekLabel(weekStart),
+        value: weekStart,
+      })),
+    []
+  );
+
   const form = useForm<GenerateDriverWeeklyInvoiceValues>({
     resolver: zodResolver(generateDriverWeeklyInvoiceSchema),
     defaultValues: {
       driver_id: "",
-      period_start: weekStart,
-      period_end: weekPeriodEnd(weekStart),
+      week_start: defaultWeek,
     },
   });
 
@@ -74,8 +93,7 @@ function GenerateDriverWeeklyInvoiceForm({
       generateDriverWeeklyInvoice(
         organisationId,
         values.driver_id,
-        values.period_start,
-        values.period_end
+        values.week_start
       ),
     onSuccess: (invoice) => {
       toast.success(
@@ -96,19 +114,15 @@ function GenerateDriverWeeklyInvoiceForm({
         name="driver_id"
         label="Driver"
         options={driverOptions}
-        placeholder={driversQuery.isLoading ? "Loading drivers…" : "Select driver"}
+        placeholder={
+          driversQuery.isLoading ? "Loading drivers…" : "Select driver"
+        }
       />
-      <TextField
+      <SelectField
         control={form.control}
-        name="period_start"
-        label="Week start (Monday)"
-        type="date"
-      />
-      <TextField
-        control={form.control}
-        name="period_end"
-        label="Week end (exclusive)"
-        type="date"
+        name="week_start"
+        label="Service week"
+        options={weekOptions}
       />
       <Button
         type="submit"
@@ -188,16 +202,27 @@ export function InvoicesPage({
             : "\u2014"),
       },
       {
-        id: "bill_to",
-        header: "Bill to",
-        cell: ({ row }) =>
-          row.original.companies?.name ?? row.original.company_id.slice(0, 8),
+        id: "invoice_date",
+        header: "Invoice date",
+        cell: ({ row }) => {
+          if (!row.original.driver_id) {
+            return formatDateSlash(row.original.period_end);
+          }
+          return formatDateSlash(
+            invoiceDateFromWeekStart(row.original.period_start)
+          );
+        },
       },
       {
-        id: "period",
-        header: "Period",
-        cell: ({ row }) =>
-          `${formatDate(row.original.period_start)} \u2192 ${formatDate(row.original.period_end)}`,
+        id: "service_week",
+        header: "Service week",
+        cell: ({ row }) => {
+          const from = formatDateSlash(row.original.period_start);
+          const to = formatDateSlash(
+            serviceWeekSunday(row.original.period_start)
+          );
+          return `${from} – ${to}`;
+        },
       },
       {
         accessorKey: "status",
@@ -300,7 +325,13 @@ export function InvoicesPage({
         description={description}
         actions={
           showGenerate && canManage && organisationId ? (
+<<<<<<< HEAD
             <Button onClick={() => setOpen(true)}>Generate weekly invoice</Button>
+=======
+            <Button onClick={() => setOpen(true)}>
+              Generate weekly invoice
+            </Button>
+>>>>>>> c180ce8 (feat(invoices): SAST week generate + founder trip invoice print layout)
           ) : null
         }
       />
@@ -345,7 +376,11 @@ export function InvoicesPage({
           open={open}
           onOpenChange={setOpen}
           title="Generate weekly invoice"
+<<<<<<< HEAD
           description="One draft invoice per driver per week. All companies appear as trip lines; bill-to is WCL Trading CC."
+=======
+          description="One draft per driver per service week (Mon–Sun SAST). Bill-to WCL Trading CC."
+>>>>>>> c180ce8 (feat(invoices): SAST week generate + founder trip invoice print layout)
         >
           <GenerateDriverWeeklyInvoiceForm
             organisationId={organisationId}

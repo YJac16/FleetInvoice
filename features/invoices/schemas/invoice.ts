@@ -20,8 +20,7 @@ export type GeneratePeriodInvoiceValues = z.infer<
 
 export const generateDriverWeeklyInvoiceSchema = z.object({
   driver_id: z.string().uuid("Select a driver"),
-  period_start: z.string().min(1, "Period start is required"),
-  period_end: z.string().min(1, "Period end is required"),
+  week_start: z.string().min(1, "Week start is required"),
 });
 
 export type GenerateDriverWeeklyInvoiceValues = z.infer<

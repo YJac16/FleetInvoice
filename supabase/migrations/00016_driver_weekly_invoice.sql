@@ -171,8 +171,8 @@ begin
       t.id,
       t.planned_start,
       coalesce(t.company_id, r.company_id) as company_id,
-      coalesce(tc.name, 'Unknown company') as company_name,
-      coalesce(a.name, 'Unknown area') as area_name,
+      coalesce(tc.name, '') as company_name,
+      coalesce(a.name, '') as area_name,
       (
         select count(*)::int
         from public.trip_passengers tp
@@ -199,8 +199,8 @@ begin
     where t.organisation_id = p_organisation_id
       and t.deleted_at is null
       and t.status = 'completed'
-      and t.planned_start >= p_period_start::timestamptz
-      and t.planned_start < p_period_end::timestamptz
+      and t.planned_start >= (p_period_start::timestamp at time zone 'Africa/Johannesburg')
+      and t.planned_start < (p_period_end::timestamp at time zone 'Africa/Johannesburg')
     order by t.planned_start
   loop
     trip_company_id := trip_row.company_id;
@@ -243,9 +243,9 @@ begin
       trip_row.id,
       format(
         '%s · %s · %s · %s pax',
-        trip_row.company_name,
-        to_char(trip_row.planned_start at time zone 'UTC', 'YYYY-MM-DD HH24:MI'),
-        trip_row.area_name,
+        nullif(trip_row.company_name, ''),
+        to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
+        nullif(trip_row.area_name, ''),
         pax_count::text
       ),
       1,
@@ -267,4 +267,4 @@ $$;
 grant execute on function public.generate_driver_weekly_invoice(uuid, uuid, date, date) to authenticated;
 
 comment on function public.generate_driver_weekly_invoice is
-  'Idempotent draft invoice for one driver [period_start, period_end). Bill-to WCL; trip lines from all companies.';
+  'Idempotent draft invoice for one driver [period_start, period_end) in Africa/Johannesburg. Bill-to WCL; trip lines from all companies.';

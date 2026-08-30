@@ -11,6 +11,7 @@ import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   getInvoice,
   listInvoiceLines,
+  listInvoicePrintTripLines,
 } from "@/services/invoices.service";
 import { getOrganisation } from "@/services/organisations.service";
 import { queryKeys } from "@/utils/query";
@@ -52,6 +53,17 @@ export function InvoicePrintPage({
     enabled: Boolean(organisationId && invoiceId) && canView,
   });
 
+  const driverId = invoiceQuery.data?.driver_id ?? null;
+  const tripLinesQuery = useQuery({
+    queryKey:
+      organisationId && invoiceId && driverId
+        ? ["invoice-print-trip-lines", organisationId, invoiceId, driverId]
+        : ["invoice-print-trip-lines", "none"],
+    queryFn: () =>
+      listInvoicePrintTripLines(organisationId!, invoiceId, driverId),
+    enabled: Boolean(organisationId && invoiceId && driverId) && canView,
+  });
+
   if (!canView) {
     return (
       <EmptyState
@@ -73,7 +85,8 @@ export function InvoicePrintPage({
   if (
     orgQuery.isLoading ||
     invoiceQuery.isLoading ||
-    linesQuery.isLoading
+    linesQuery.isLoading ||
+    (driverId && tripLinesQuery.isLoading)
   ) {
     return (
       <div className="p-6">
@@ -104,6 +117,7 @@ export function InvoicePrintPage({
       organisation={organisation}
       invoice={invoice}
       lines={linesQuery.data ?? []}
+      tripLines={driverId ? (tripLinesQuery.data ?? []) : undefined}
       backHref={backHref}
     />
   );
