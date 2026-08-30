@@ -35,6 +35,7 @@ export function InvoicePrintView({
 
   const companyName =
     invoice.companies?.name ?? invoice.company_id.slice(0, 8);
+  const driverName = invoice.drivers?.full_name;
 
   return (
     <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
@@ -89,6 +90,12 @@ export function InvoicePrintView({
               Bill to
             </p>
             <p className="mt-1 text-lg font-medium">{companyName}</p>
+            {driverName ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Driver:{" "}
+                <span className="text-foreground">{driverName}</span>
+              </p>
+            ) : null}
           </div>
           <div className="sm:text-right">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

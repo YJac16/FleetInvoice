@@ -305,6 +305,7 @@ export type Invoice = {
   id: string;
   organisation_id: string;
   company_id: string;
+  driver_id: string | null;
   period_start: string;
   period_end: string;
   status: InvoiceStatus;
@@ -319,6 +320,7 @@ export type Invoice = {
   updated_at: string;
   deleted_at: string | null;
   companies?: Pick<Company, "id" | "name"> | null;
+  drivers?: Pick<Driver, "id" | "full_name"> | null;
 };
 
 export type InvoiceLine = {

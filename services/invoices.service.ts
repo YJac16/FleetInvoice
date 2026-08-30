@@ -9,7 +9,8 @@ export { mondayOfWeek, weekPeriodEnd, isFilledAtInWeek } from "@/features/invoic
 
 const TABLE = "invoices";
 
-const INVOICE_SELECT = "*, companies:company_id (id, name)";
+const INVOICE_SELECT =
+  "*, companies:company_id (id, name), drivers:driver_id (id, full_name)";
 
 export function listInvoices(
   organisationId: string,
@@ -78,6 +79,23 @@ export async function generatePeriodInvoice(
   const { data, error } = await supabase.rpc("generate_period_invoice", {
     p_organisation_id: organisationId,
     p_company_id: companyId,
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+  });
+  if (error) throw error;
+  return data as Invoice;
+}
+
+export async function generateDriverWeeklyInvoice(
+  organisationId: string,
+  driverId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<Invoice> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("generate_driver_weekly_invoice", {
+    p_organisation_id: organisationId,
+    p_driver_id: driverId,
     p_period_start: periodStart,
     p_period_end: periodEnd,
   });

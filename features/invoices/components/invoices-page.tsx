@@ -18,14 +18,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
-  generatePeriodInvoiceSchema,
-  type GeneratePeriodInvoiceValues,
+  generateDriverWeeklyInvoiceSchema,
+  type GenerateDriverWeeklyInvoiceValues,
 } from "@/features/invoices/schemas/invoice";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { useEntityOptions } from "@/hooks/use-entity-options";
 import { INVOICE_LINE_TYPE_LABELS } from "@/lib/constants";
+import { listDrivers } from "@/services/drivers.service";
 import {
-  generatePeriodInvoice,
+  generateDriverWeeklyInvoice,
   listInvoiceLines,
   listInvoices,
   mondayOfWeek,
@@ -37,35 +37,48 @@ import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 
-function GeneratePeriodInvoiceForm({
+function GenerateDriverWeeklyInvoiceForm({
   organisationId,
   onDone,
 }: {
   organisationId: string;
   onDone: () => void;
 }) {
-  const { companies } = useEntityOptions(organisationId);
   const weekStart = mondayOfWeek();
-  const form = useForm<GeneratePeriodInvoiceValues>({
-    resolver: zodResolver(generatePeriodInvoiceSchema),
+  const form = useForm<GenerateDriverWeeklyInvoiceValues>({
+    resolver: zodResolver(generateDriverWeeklyInvoiceSchema),
     defaultValues: {
-      company_id: "",
+      driver_id: "",
       period_start: weekStart,
       period_end: weekPeriodEnd(weekStart),
     },
   });
 
+  const driversQuery = useQuery({
+    queryKey: queryKeys.drivers(organisationId),
+    queryFn: () => listDrivers(organisationId),
+  });
+
+  const driverOptions = useMemo(
+    () =>
+      (driversQuery.data ?? []).map((driver) => ({
+        label: driver.full_name,
+        value: driver.id,
+      })),
+    [driversQuery.data]
+  );
+
   const mutation = useMutation({
-    mutationFn: (values: GeneratePeriodInvoiceValues) =>
-      generatePeriodInvoice(
+    mutationFn: (values: GenerateDriverWeeklyInvoiceValues) =>
+      generateDriverWeeklyInvoice(
         organisationId,
-        values.company_id,
+        values.driver_id,
         values.period_start,
         values.period_end
       ),
     onSuccess: (invoice) => {
       toast.success(
-        `Invoice ${invoice.status} — total ${invoice.currency} ${invoice.total}`
+        `Draft invoice — total ${invoice.currency} ${invoice.total}`
       );
       onDone();
     },
@@ -79,24 +92,29 @@ function GeneratePeriodInvoiceForm({
     >
       <SelectField
         control={form.control}
-        name="company_id"
-        label="Company"
-        options={companies}
+        name="driver_id"
+        label="Driver"
+        options={driverOptions}
+        placeholder={driversQuery.isLoading ? "Loading drivers…" : "Select driver"}
       />
       <TextField
         control={form.control}
         name="period_start"
-        label="Period start"
+        label="Week start (Monday)"
         type="date"
       />
       <TextField
         control={form.control}
         name="period_end"
-        label="Period end (exclusive)"
+        label="Week end (exclusive)"
         type="date"
       />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Generating…" : "Generate period invoice"}
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={mutation.isPending || driversQuery.isLoading}
+      >
+        {mutation.isPending ? "Generating…" : "Generate week"}
       </Button>
     </form>
   );
@@ -104,13 +122,16 @@ function GeneratePeriodInvoiceForm({
 
 export function InvoicesPage({
   title = "Invoices",
-  description = "Company invoices from fuel, trips, and rate cards.",
+  description = "Driver weekly invoices billed to WCL — trip lines from all companies.",
   printBasePath = "/invoices",
+  showGenerate = true,
 }: {
   title?: string;
   description?: string;
   /** Base path for print view links (`/invoices` or `/company/invoices`). */
   printBasePath?: string;
+  /** Ops admin generate dialog; hidden on company hub. */
+  showGenerate?: boolean;
 } = {}) {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
@@ -159,8 +180,17 @@ export function InvoicesPage({
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
       {
-        id: "company",
-        header: "Company",
+        id: "driver",
+        header: "Driver",
+        cell: ({ row }) =>
+          row.original.drivers?.full_name ??
+          (row.original.driver_id
+            ? row.original.driver_id.slice(0, 8)
+            : "—"),
+      },
+      {
+        id: "bill_to",
+        header: "Bill to",
         cell: ({ row }) =>
           row.original.companies?.name ?? row.original.company_id.slice(0, 8),
       },
@@ -270,8 +300,8 @@ export function InvoicesPage({
         title={title}
         description={description}
         actions={
-          canManage && organisationId ? (
-            <Button onClick={() => setOpen(true)}>Generate period</Button>
+          showGenerate && canManage && organisationId ? (
+            <Button onClick={() => setOpen(true)}>Generate week</Button>
           ) : null
         }
       />
@@ -287,7 +317,7 @@ export function InvoicesPage({
         <DataTable
           columns={columns}
           data={invoicesQuery.data ?? []}
-          emptyMessage="No invoices yet. Generate a period invoice for a company."
+          emptyMessage="No invoices yet. Generate a weekly invoice for a driver."
         />
       )}
 
@@ -311,14 +341,14 @@ export function InvoicesPage({
         </div>
       ) : null}
 
-      {organisationId ? (
+      {showGenerate && organisationId ? (
         <FormDialog
           open={open}
           onOpenChange={setOpen}
-          title="Generate period invoice"
-          description="Builds fuel, trip, and fixed-fee lines. Idempotent for the same company and period."
+          title="Generate week"
+          description="One draft invoice per driver per week. All companies appear as trip lines; bill-to is WCL Trading CC."
         >
-          <GeneratePeriodInvoiceForm
+          <GenerateDriverWeeklyInvoiceForm
             organisationId={organisationId}
             onDone={async () => {
               setOpen(false);
