@@ -3,12 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { TextField } from "@/components/forms/form-fields";
 import {
   loginSchema,
@@ -18,11 +20,17 @@ import { signInWithPassword } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
 import { APP_NAME } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/env";
+import { readKeepSignedInPreference } from "@/lib/supabase/auth-persistence";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
+
+  useEffect(() => {
+    setKeepSignedIn(readKeepSignedInPreference());
+  }, []);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -37,7 +45,7 @@ export function LoginForm() {
 
     setSubmitting(true);
     try {
-      await signInWithPassword(values.email, values.password);
+      await signInWithPassword(values.email, values.password, keepSignedIn);
       toast.success("Signed in");
       const redirect = searchParams.get("redirect") || "/hub";
       router.replace(redirect);
@@ -94,6 +102,19 @@ export function LoginForm() {
               autoComplete="current-password"
               revealable
             />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="keep-signed-in"
+                checked={keepSignedIn}
+                onCheckedChange={(value) => setKeepSignedIn(value === true)}
+              />
+              <Label
+                htmlFor="keep-signed-in"
+                className="text-sm font-normal text-muted-foreground"
+              >
+                Keep signed in
+              </Label>
+            </div>
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Signing in…" : "Sign in"}
             </Button>

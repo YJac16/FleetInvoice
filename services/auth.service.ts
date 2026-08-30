@@ -1,8 +1,26 @@
-import { createClient } from "@/lib/supabase/client";
+import {
+  setKeepSignedIn,
+} from "@/lib/supabase/auth-persistence";
+import {
+  createClient,
+  resetBrowserClientCache,
+} from "@/lib/supabase/client";
 import { env } from "@/lib/env";
 
-export async function signInWithPassword(email: string, password: string) {
+export async function signInWithPassword(
+  email: string,
+  password: string,
+  keepSignedIn = true
+) {
+  setKeepSignedIn(keepSignedIn);
+  resetBrowserClientCache();
+
   const supabase = createClient();
+
+  if (!keepSignedIn) {
+    await supabase.auth.signOut();
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
