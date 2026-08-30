@@ -1,4 +1,4 @@
-"use client";
+use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -114,7 +114,7 @@ function GenerateDriverWeeklyInvoiceForm({
         className="w-full"
         disabled={mutation.isPending || driversQuery.isLoading}
       >
-        {mutation.isPending ? "Generating…" : "Generate week"}
+        {mutation.isPending ? "Generating…" : "Generate weekly invoice"}
       </Button>
     </form>
   );
@@ -301,7 +301,7 @@ export function InvoicesPage({
         description={description}
         actions={
           showGenerate && canManage && organisationId ? (
-            <Button onClick={() => setOpen(true)}>Generate week</Button>
+            <Button onClick={() => setOpen(true)}>Generate weekly invoice</Button>
           ) : null
         }
       />
@@ -345,7 +345,7 @@ export function InvoicesPage({
         <FormDialog
           open={open}
           onOpenChange={setOpen}
-          title="Generate week"
+          title="Generate weekly invoice"
           description="One draft invoice per driver per week. All companies appear as trip lines; bill-to is WCL Trading CC."
         >
           <GenerateDriverWeeklyInvoiceForm
