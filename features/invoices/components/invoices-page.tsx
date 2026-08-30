@@ -1,4 +1,4 @@
-use client";
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -186,7 +186,7 @@ export function InvoicesPage({
           row.original.drivers?.full_name ??
           (row.original.driver_id
             ? row.original.driver_id.slice(0, 8)
-            : "—"),
+            : "\u2014"),
       },
       {
         id: "bill_to",
