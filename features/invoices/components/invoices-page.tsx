@@ -1,3 +1,4 @@
+/* WorkOps invoices */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -128,9 +129,7 @@ export function InvoicesPage({
 }: {
   title?: string;
   description?: string;
-  /** Base path for print view links (`/invoices` or `/company/invoices`). */
   printBasePath?: string;
-  /** Ops admin generate dialog; hidden on company hub. */
   showGenerate?: boolean;
 } = {}) {
   const { can } = useOrg();
@@ -198,7 +197,7 @@ export function InvoicesPage({
         id: "period",
         header: "Period",
         cell: ({ row }) =>
-          `${formatDate(row.original.period_start)} → ${formatDate(row.original.period_end)}`,
+          `${formatDate(row.original.period_start)} \u2192 ${formatDate(row.original.period_end)}`,
       },
       {
         accessorKey: "status",
