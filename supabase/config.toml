@@ -1,0 +1,11 @@
+# WorkOps remote auth settings (pushed via supabase config push)
+project_id = "tggxnvombexvxblsntsm"
+
+[auth]
+enabled = true
+site_url = "https://workops-yaseens-projects-1765104f.vercel.app"
+additional_redirect_urls = [
+  "https://workops-yaseens-projects-1765104f.vercel.app/auth/callback",
+  "https://workops-mu.vercel.app/auth/callback",
+  "http://localhost:3000/auth/callback"
+]

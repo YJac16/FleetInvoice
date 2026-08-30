@@ -1,0 +1,145 @@
+{
+  "url": "https://tggxnvombexvxblsntsm.supabase.co",
+  "configured": true,
+  "tables": {
+    "organisations": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "profiles": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "member_scopes": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "audit_logs": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "notification_outbox": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "vehicle_documents": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "drivers": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "routes": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "route_stops": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "schedules": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "trips": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "trip_assignments": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "trip_events": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "fuel_fillups": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "invoices": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "invoice_lines": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "qr_tokens": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "attendance_events": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "gps_points": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "gps_last_positions": {
+      "status": 400,
+      "present": true,
+      "missing": false
+    },
+    "geofences": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "geofence_events": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "rate_cards": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "pay_rates": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "payroll_runs": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    },
+    "payroll_lines": {
+      "status": 200,
+      "present": true,
+      "missing": false
+    }
+  },
+  "bucket": {
+    "ok": true,
+    "existed": true
+  },
+  "errors": [],
+  "recommendations": [
+    "P0 optional: set RESEND_API_KEY for invite email delivery",
+    "P0 optional: set NEXT_PUBLIC_MAPBOX_TOKEN for /dispatch map"
+  ]
+}
