@@ -96,8 +96,6 @@ declare
   running_total numeric := 0;
   trip_rate numeric;
   trip_card_id uuid;
-  trip_company_id uuid;
-  pax_count int;
   default_trip_rate constant numeric := 300;
 begin
   if auth.uid() is null then
@@ -170,16 +168,14 @@ begin
     select
       t.id,
       t.planned_start,
-      coalesce(t.company_id, r.company_id) as company_id,
-      coalesce(tc.name, '') as company_name,
-      coalesce(a.name, '') as area_name,
+      t.notes,
+      coalesce(nullif(trim(r.name), ''), '') as route_name,
       (
-        select count(*)::int
-        from public.trip_passengers tp
-        where tp.trip_id = t.id
-          and tp.organisation_id = t.organisation_id
-          and tp.status <> 'cancelled'
-      ) as pax_count
+        select (regexp_match(t.notes, '(\d+)\s*pax', 'i'))[1]::int
+      ) as pax_from_notes,
+      (
+        select trim(split_part(t.notes, '|', 3))
+      ) as area_from_notes
     from public.trips t
     join public.trip_assignments ta
       on ta.trip_id = t.id
@@ -190,12 +186,6 @@ begin
     join public.routes r
       on r.id = t.route_id
      and r.deleted_at is null
-    left join public.companies tc
-      on tc.id = coalesce(t.company_id, r.company_id)
-     and tc.deleted_at is null
-    left join public.areas a
-      on a.id = r.area_id
-     and a.deleted_at is null
     where t.organisation_id = p_organisation_id
       and t.deleted_at is null
       and t.status = 'completed'
@@ -203,7 +193,6 @@ begin
       and t.planned_start < (p_period_end::timestamp at time zone 'Africa/Johannesburg')
     order by t.planned_start
   loop
-    trip_company_id := trip_row.company_id;
     trip_rate := null;
     trip_card_id := null;
 
@@ -213,16 +202,30 @@ begin
       and rc.deleted_at is null
       and rc.line_type = 'trip'
       and rc.unit = 'trip'
-      and (rc.company_id = trip_company_id or rc.company_id is null)
+      and rc.company_id is null
       and rc.effective_from <= p_period_start
       and (rc.effective_to is null or rc.effective_to >= p_period_start)
-    order by rc.company_id nulls last, rc.effective_from desc
+    order by rc.effective_from desc
     limit 1;
+
+    if trip_rate is null then
+      select rc.unit_amount, rc.id into trip_rate, trip_card_id
+      from public.rate_cards rc
+      join public.companies c on c.id = rc.company_id
+      where rc.organisation_id = p_organisation_id
+        and rc.deleted_at is null
+        and rc.line_type = 'trip'
+        and rc.unit = 'trip'
+        and lower(trim(c.name)) = lower(trim(trip_row.route_name))
+        and rc.effective_from <= p_period_start
+        and (rc.effective_to is null or rc.effective_to >= p_period_start)
+      order by rc.effective_from desc
+      limit 1;
+    end if;
 
     trip_rate := coalesce(trip_rate, default_trip_rate);
     line_amount := round(trip_rate, 2);
     running_total := running_total + line_amount;
-    pax_count := coalesce(trip_row.pax_count, 0);
 
     insert into public.invoice_lines (
       organisation_id,
@@ -242,11 +245,11 @@ begin
       trip_card_id,
       trip_row.id,
       format(
-        '%s · %s · %s · %s pax',
-        nullif(trip_row.company_name, ''),
+        '%s · %s · %s · %s',
+        nullif(trip_row.route_name, ''),
         to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
-        nullif(trip_row.area_name, ''),
-        pax_count::text
+        nullif(trim(trip_row.area_from_notes), ''),
+        coalesce(trip_row.pax_from_notes::text, '')
       ),
       1,
       trip_rate,

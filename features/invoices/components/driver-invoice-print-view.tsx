@@ -53,8 +53,13 @@ export function DriverInvoicePrintView({
   const serviceRange = `${serviceFrom} - ${serviceTo}`;
 
   const driverLabel = driverFirstNameUpper(invoice.drivers?.full_name);
-  const regNo =
-    tripLines.find((l) => l.registration_number)?.registration_number ?? "";
+  const regNo = useMemo(() => {
+    for (const line of tripLines) {
+      const reg = line.registration_number?.trim();
+      if (reg) return reg;
+    }
+    return "";
+  }, [tripLines]);
 
   const tableRows = useMemo(
     () =>
@@ -73,7 +78,7 @@ export function DriverInvoicePrintView({
   const total = formatAmountRand(Number(invoice.total));
 
   return (
-    <div className="driver-invoice-print mx-auto max-w-[820px] px-4 py-6 print:max-w-none print:px-0 print:py-0">
+    <div className="driver-invoice-print mx-auto max-w-[820px] bg-white px-4 py-6 text-black print:max-w-none print:bg-white print:px-0 print:py-0">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Button variant="outline" render={<Link href={backHref} />}>
           Back to invoices

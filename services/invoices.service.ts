@@ -1,10 +1,15 @@
 import { createClient } from "@/lib/supabase/client";
 import {
+  parseTripLogNotes,
+  resolveTripServiceCompany,
+  resolveVehicleRegistration,
+} from "@/features/invoices/lib/trip-notes";
+import { weekPeriodEnd } from "@/features/invoices/lib/week";
+import {
   listTenantRows,
   type ListTenantOptions,
 } from "@/services/tenant-entity.service";
 import type { Invoice, InvoiceLine, InvoicePrintTripLine } from "@/types";
-import { weekPeriodEnd } from "@/features/invoices/lib/week";
 
 export {
   addDaysYmd,
@@ -69,23 +74,22 @@ export async function listInvoiceLines(
 type TripPrintRow = {
   id: string;
   planned_start: string;
-  company_id: string | null;
-  companies: { name: string | null } | null;
+  notes: string | null;
   routes: {
-    company_id: string | null;
-    areas: { name: string | null } | null;
-    companies: { name: string | null } | null;
+    name: string | null;
   } | null;
   trip_assignments: Array<{
     driver_id: string;
     released_at: string | null;
     deleted_at: string | null;
-    vehicles: { registration_number: string | null } | null;
+    vehicles: {
+      name: string | null;
+      registration_number: string | null;
+    } | null;
   }> | null;
-  trip_passengers: Array<{ status: string }> | null;
 };
 
-/** Trip invoice lines joined to trips/routes/companies/areas — for print layout. */
+/** Trip invoice lines for print — route.name = company, notes = pax/area, vehicle reg. */
 export async function listInvoicePrintTripLines(
   organisationId: string,
   invoiceId: string,
@@ -100,7 +104,7 @@ export async function listInvoicePrintTripLines(
   const { data, error } = await supabase
     .from("trips")
     .select(
-      "id, planned_start, company_id, companies:company_id (name), routes:route_id (company_id, areas:area_id (name), companies:company_id (name)), trip_assignments (driver_id, released_at, deleted_at, vehicles:vehicle_id (registration_number)), trip_passengers (status)"
+      "id, planned_start, notes, routes:route_id (name), trip_assignments (driver_id, released_at, deleted_at, vehicles:vehicle_id (name, registration_number))"
     )
     .eq("organisation_id", organisationId)
     .in("id", tripIds);
@@ -115,10 +119,7 @@ export async function listInvoicePrintTripLines(
     const trip = tripById.get(line.trip_id!);
     if (!trip) continue;
 
-    const route = trip.routes;
-    const companyName =
-      trip.companies?.name ?? route?.companies?.name ?? null;
-
+    const parsed = parseTripLogNotes(trip.notes);
     const assignments = (trip.trip_assignments ?? []).filter(
       (a) =>
         !a.deleted_at &&
@@ -126,18 +127,17 @@ export async function listInvoicePrintTripLines(
         (!driverId || a.driver_id === driverId)
     );
     const assignment = assignments[0];
-    const paxCount = (trip.trip_passengers ?? []).filter(
-      (p) => p.status !== "cancelled"
-    ).length;
 
     enriched.push({
       id: line.id,
       planned_start: trip.planned_start,
-      company_name: companyName,
-      area_name: route?.areas?.name ?? null,
-      pax_count: paxCount > 0 ? paxCount : null,
-      registration_number:
-        assignment?.vehicles?.registration_number ?? null,
+      company_name: resolveTripServiceCompany(trip.routes?.name, trip.notes),
+      area_name: parsed.area,
+      pax_count: parsed.pax,
+      registration_number: resolveVehicleRegistration(
+        assignment?.vehicles?.registration_number,
+        assignment?.vehicles?.name
+      ),
       amount: amountByTripId.get(trip.id) ?? line.amount,
     });
   }

@@ -163,9 +163,13 @@
 @media print {
   body:has(.driver-invoice-print) {
     background: #fff !important;
+    color: #000 !important;
   }
 
+  .driver-invoice-print,
   .driver-invoice-print .driver-invoice-sheet {
+    background: #fff !important;
+    color: #000 !important;
     box-shadow: none !important;
   }
 

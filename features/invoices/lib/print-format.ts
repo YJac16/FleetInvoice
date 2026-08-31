@@ -87,7 +87,7 @@ export function buildTripInvoiceTableRows(
       showDate,
       time: formatTimeSast(line.plannedStart),
       company: line.company ?? "",
-      pax: line.pax != null && line.pax > 0 ? String(line.pax) : "",
+      pax: line.pax != null ? String(line.pax) : "",
       area: line.area ?? "",
       amount: formatAmountRand(line.amount),
     };

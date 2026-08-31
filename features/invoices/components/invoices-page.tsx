@@ -325,13 +325,9 @@ export function InvoicesPage({
         description={description}
         actions={
           showGenerate && canManage && organisationId ? (
-<<<<<<< HEAD
-            <Button onClick={() => setOpen(true)}>Generate weekly invoice</Button>
-=======
             <Button onClick={() => setOpen(true)}>
               Generate weekly invoice
             </Button>
->>>>>>> c180ce8 (feat(invoices): SAST week generate + founder trip invoice print layout)
           ) : null
         }
       />
@@ -376,11 +372,7 @@ export function InvoicesPage({
           open={open}
           onOpenChange={setOpen}
           title="Generate weekly invoice"
-<<<<<<< HEAD
-          description="One draft invoice per driver per week. All companies appear as trip lines; bill-to is WCL Trading CC."
-=======
           description="One draft per driver per service week (Mon–Sun SAST). Bill-to WCL Trading CC."
->>>>>>> c180ce8 (feat(invoices): SAST week generate + founder trip invoice print layout)
         >
           <GenerateDriverWeeklyInvoiceForm
             organisationId={organisationId}
