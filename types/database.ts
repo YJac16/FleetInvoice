@@ -73,6 +73,15 @@ export type Database = {
         };
         Returns: Record<string, unknown>;
       };
+      generate_driver_weekly_invoice: {
+        Args: {
+          p_organisation_id: string;
+          p_driver_id: string;
+          p_period_start: string;
+          p_period_end: string;
+        };
+        Returns: Record<string, unknown>;
+      };
     };
     Enums: {
       app_role:

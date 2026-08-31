@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { DriverInvoicePrintView } from "@/features/invoices/components/driver-invoice-print-view";
 import { Button } from "@/components/ui/button";
 import { INVOICE_LINE_TYPE_LABELS } from "@/lib/constants";
 import type { Invoice, InvoiceLine, Organisation } from "@/types";
@@ -14,7 +15,8 @@ function money(currency: string, amount: number | string) {
   return `${currency} ${Number.isFinite(n) ? n.toFixed(2) : amount}`;
 }
 
-export function InvoicePrintView({
+/** Legacy SaaS-style print for company-period / fuel invoices. */
+function LegacyInvoicePrintView({
   organisation,
   invoice,
   lines,
@@ -73,13 +75,6 @@ export function InvoicePrintView({
               Status
             </p>
             <p className="text-lg capitalize">{invoice.status}</p>
-            <p className="mt-3 text-muted-foreground">
-              Invoice ID
-              <br />
-              <span className="font-mono text-xs text-foreground">
-                {invoice.id}
-              </span>
-            </p>
           </div>
         </header>
 
@@ -98,16 +93,6 @@ export function InvoicePrintView({
               {formatDate(invoice.period_start)} →{" "}
               {formatDate(invoice.period_end)}
             </p>
-            {invoice.issued_at ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Issued {formatDate(invoice.issued_at)}
-              </p>
-            ) : null}
-            {invoice.paid_at ? (
-              <p className="text-sm text-muted-foreground">
-                Paid {formatDate(invoice.paid_at)}
-              </p>
-            ) : null}
           </div>
         </section>
 
@@ -122,57 +107,73 @@ export function InvoicePrintView({
             </tr>
           </thead>
           <tbody>
-            {lines.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-6 text-center text-muted-foreground"
-                >
-                  No line items
+            {lines.map((line) => (
+              <tr key={line.id} className="border-b border-border/60">
+                <td className="py-2.5 pr-2 align-top">
+                  {INVOICE_LINE_TYPE_LABELS[line.line_type] ?? line.line_type}
+                </td>
+                <td className="py-2.5 pr-2 align-top">{line.description}</td>
+                <td className="py-2.5 pr-2 text-right align-top tabular-nums">
+                  {line.quantity}
+                </td>
+                <td className="py-2.5 pr-2 text-right align-top tabular-nums">
+                  {money(invoice.currency, line.unit_price)}
+                </td>
+                <td className="py-2.5 text-right align-top tabular-nums">
+                  {money(invoice.currency, line.amount)}
                 </td>
               </tr>
-            ) : (
-              lines.map((line) => (
-                <tr key={line.id} className="border-b border-border/60">
-                  <td className="py-2.5 pr-2 align-top">
-                    {INVOICE_LINE_TYPE_LABELS[line.line_type] ?? line.line_type}
-                  </td>
-                  <td className="py-2.5 pr-2 align-top">{line.description}</td>
-                  <td className="py-2.5 pr-2 text-right align-top tabular-nums">
-                    {line.quantity}
-                  </td>
-                  <td className="py-2.5 pr-2 text-right align-top tabular-nums">
-                    {money(invoice.currency, line.unit_price)}
-                  </td>
-                  <td className="py-2.5 text-right align-top tabular-nums">
-                    {money(invoice.currency, line.amount)}
-                  </td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
 
         <footer className="mt-8 flex flex-col items-end gap-1">
-          <p className="text-sm text-muted-foreground">
-            Subtotal{" "}
-            <span className="ml-4 tabular-nums text-foreground">
-              {money(invoice.currency, invoice.subtotal)}
-            </span>
-          </p>
           <p className="font-heading text-xl">
             Total{" "}
             <span className="ml-4 tabular-nums">
               {money(invoice.currency, invoice.total)}
             </span>
           </p>
-          {invoice.notes ? (
-            <p className="mt-4 max-w-md self-start text-sm text-muted-foreground">
-              {invoice.notes}
-            </p>
-          ) : null}
         </footer>
       </article>
     </div>
+  );
+}
+
+export function InvoicePrintView({
+  organisation,
+  invoice,
+  lines,
+  tripLines,
+  backHref,
+  autoPrint = false,
+}: {
+  organisation: Organisation;
+  invoice: Invoice;
+  lines: InvoiceLine[];
+  tripLines?: import("@/types").InvoicePrintTripLine[];
+  backHref: string;
+  autoPrint?: boolean;
+}) {
+  if (invoice.driver_id && tripLines) {
+    return (
+      <DriverInvoicePrintView
+        organisation={organisation}
+        invoice={invoice}
+        tripLines={tripLines}
+        backHref={backHref}
+        autoPrint={autoPrint}
+      />
+    );
+  }
+
+  return (
+    <LegacyInvoicePrintView
+      organisation={organisation}
+      invoice={invoice}
+      lines={lines}
+      backHref={backHref}
+      autoPrint={autoPrint}
+    />
   );
 }

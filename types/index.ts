@@ -305,6 +305,7 @@ export type Invoice = {
   id: string;
   organisation_id: string;
   company_id: string;
+  driver_id: string | null;
   period_start: string;
   period_end: string;
   status: InvoiceStatus;
@@ -318,7 +319,8 @@ export type Invoice = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  companies?: Pick<Company, "id" | "name"> | null;
+  companies?: Pick<Company, "id" | "name" | "address" | "contact_phone"> | null;
+  drivers?: Pick<Driver, "id" | "full_name"> | null;
 };
 
 export type InvoiceLine = {
@@ -334,6 +336,17 @@ export type InvoiceLine = {
   unit_price: number;
   amount: number;
   created_at: string;
+};
+
+/** Enriched trip line for driver-week invoice print (from trip joins, not description). */
+export type InvoicePrintTripLine = {
+  id: string;
+  planned_start: string;
+  company_name: string | null;
+  area_name: string | null;
+  pax_count: number | null;
+  registration_number: string | null;
+  amount: number;
 };
 
 export type RateCard = {

@@ -8,6 +8,7 @@ export default function Page() {
       title="Invoices"
       description="Period invoices for your companies — open Print for a browser PDF."
       printBasePath="/company/invoices"
+      showGenerate={false}
     />
   );
 }

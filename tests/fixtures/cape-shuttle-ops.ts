@@ -369,6 +369,7 @@ export const demoInvoice = {
   id: "ac000000-0000-4000-8000-000000000001",
   organisation_id: ORG_ID,
   company_id: ACM_ID,
+  driver_id: null,
   period_start: "2026-07-13",
   period_end: "2026-07-19",
   status: "issued",
