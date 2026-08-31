@@ -283,9 +283,14 @@ async function main() {
       "P0: set NOTIFICATIONS_PROCESS_SECRET for POST /api/notifications/process"
     );
   }
-  if (!env.RESEND_API_KEY) {
+  if (!env.MAILERSEND_API_KEY) {
     report.recommendations.push(
-      "P0 optional: set RESEND_API_KEY for invite email delivery"
+      "P0 optional: set MAILERSEND_API_KEY for invite email delivery"
+    );
+  }
+  if (!env.YOCO_SECRET_KEY) {
+    report.recommendations.push(
+      "P0 optional: set YOCO_SECRET_KEY for membership checkout"
     );
   }
   if (!env.NEXT_PUBLIC_MAPBOX_TOKEN) {

@@ -150,13 +150,13 @@ async function main() {
     }
   }
 
-  if (isBlank(env.RESEND_API_KEY)) {
+  if (isBlank(env.MAILERSEND_API_KEY)) {
     warnings.push(
-      "RESEND_API_KEY empty — invite emails will be skipped (copy-URL still works)"
+      "MAILERSEND_API_KEY empty — invite emails will be skipped (copy-URL still works)"
     );
-    console.log("WARN RESEND_API_KEY not set");
+    console.log("WARN MAILERSEND_API_KEY not set");
   } else {
-    console.log("OK  RESEND_API_KEY");
+    console.log("OK  MAILERSEND_API_KEY");
   }
 
   if (isBlank(env.NEXT_PUBLIC_MAPBOX_TOKEN)) {
@@ -168,13 +168,22 @@ async function main() {
     console.log("OK  NEXT_PUBLIC_MAPBOX_TOKEN");
   }
 
-  if (isBlank(env.STRIPE_SECRET_KEY)) {
+  if (isBlank(env.YOCO_SECRET_KEY)) {
     warnings.push(
-      "STRIPE_SECRET_KEY empty — plan assign still works; Checkout/Portal disabled"
+      "YOCO_SECRET_KEY empty — plan assign still works; Yoco Checkout disabled"
     );
-    console.log("WARN STRIPE_SECRET_KEY not set");
+    console.log("WARN YOCO_SECRET_KEY not set");
   } else {
-    console.log("OK  STRIPE_SECRET_KEY");
+    console.log("OK  YOCO_SECRET_KEY");
+  }
+
+  if (isBlank(env.YOCO_WEBHOOK_SECRET)) {
+    warnings.push(
+      "YOCO_WEBHOOK_SECRET empty — membership payments will not auto-activate subscriptions"
+    );
+    console.log("WARN YOCO_WEBHOOK_SECRET not set");
+  } else {
+    console.log("OK  YOCO_WEBHOOK_SECRET");
   }
 
   if (warnings.length) {
@@ -186,7 +195,7 @@ async function main() {
     console.log("\nErrors:");
     for (const e of errors) console.log(" -", e);
     console.log(
-      "\nSee docs/runbooks/env-checklist.md — paste secrets from Supabase / Resend / Mapbox."
+      "\nSee docs/runbooks/env-checklist.md — paste secrets from Supabase / MailerSend / Mapbox / Yoco."
     );
     process.exit(1);
   }

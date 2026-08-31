@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlanCard } from "@/features/subscriptions/components/plan-card";
-import { isStripeConfigured } from "@/lib/env";
+import { isYocoConfigured } from "@/lib/env";
 import {
   formatZarFromCents,
   isRecommendedPlan,
@@ -114,21 +114,6 @@ export function SubscriptionsPage() {
     }
   }
 
-  async function openPortal(organisationId: string) {
-    try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organisationId }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Portal failed");
-      window.location.href = data.url;
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  }
-
   const columns = useMemo<ColumnDef<SubRow, unknown>[]>(
     () => [
       {
@@ -190,9 +175,9 @@ export function SubscriptionsPage() {
               >
                 Assign
               </Button>
-              {isStripeConfigured() &&
+              {isYocoConfigured() &&
               allPlansQuery.data?.find((p) => p.id === selected)
-                ?.stripe_price_id ? (
+                ?.monthly_price_cents ? (
                 <Button
                   size="sm"
                   variant="ghost"
@@ -200,16 +185,7 @@ export function SubscriptionsPage() {
                     void startCheckout(sub.organisation_id, selected)
                   }
                 >
-                  Checkout
-                </Button>
-              ) : null}
-              {sub.stripe_customer_id ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void openPortal(sub.organisation_id)}
-                >
-                  Portal
+                  Pay with Yoco
                 </Button>
               ) : null}
             </div>
@@ -312,8 +288,8 @@ export function SubscriptionsPage() {
                 }
                 checkoutEnabled={
                   canManage &&
-                  isStripeConfigured() &&
-                  Boolean(plan.stripe_price_id) &&
+                  isYocoConfigured() &&
+                  Boolean(plan.monthly_price_cents) &&
                   Boolean(activeOrganisationId)
                 }
                 onCheckout={
@@ -334,8 +310,8 @@ export function SubscriptionsPage() {
               Assign plans
             </h2>
             <p className="text-sm text-muted-foreground">
-              Platform owners can move organisations between plans. Stripe
-              Checkout stays optional when a price ID is set.
+              Platform owners can move organisations between plans. Yoco
+              Checkout is available when a monthly price is configured.
             </p>
           </div>
           {subsQuery.isLoading ? (
