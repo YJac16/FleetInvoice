@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/client";
 import {
   createTenantRow,
   listTenantRows,
@@ -9,6 +10,22 @@ import {
 import type { Company } from "@/types";
 
 const TABLE = "companies";
+
+export async function getCompany(
+  organisationId: string,
+  companyId: string
+): Promise<Company | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .eq("organisation_id", organisationId)
+    .eq("id", companyId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Company | null;
+}
 
 export function listCompanies(
   organisationId: string,

@@ -23,16 +23,16 @@ import {
 } from "@/features/invoices/schemas/invoice";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
-import { INVOICE_LINE_TYPE_LABELS } from "@/lib/constants";
 import {
   generatePeriodInvoice,
-  listInvoiceLines,
+  listInvoiceLinesWithTrips,
   listInvoices,
   mondayOfWeek,
   setInvoiceStatus,
   weekPeriodEnd,
 } from "@/services/invoices.service";
-import type { Invoice, InvoiceLine } from "@/types";
+import type { Invoice } from "@/types";
+import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -133,7 +133,7 @@ export function InvoicesPage({
       organisationId && selectedId
         ? queryKeys.invoiceLines(organisationId, selectedId)
         : ["invoice-lines", "none"],
-    queryFn: () => listInvoiceLines(organisationId!, selectedId!),
+    queryFn: () => listInvoiceLinesWithTrips(organisationId!, selectedId!),
     enabled: Boolean(organisationId && selectedId),
   });
 
@@ -235,19 +235,20 @@ export function InvoicesPage({
     [canManage, printBasePath, statusMutation]
   );
 
-  const lineColumns = useMemo<ColumnDef<InvoiceLine, unknown>[]>(
+  const printRows = useMemo(
+    () => buildInvoicePrintRows(linesQuery.data ?? []),
+    [linesQuery.data]
+  );
+
+  const lineColumns = useMemo<ColumnDef<(typeof printRows)[number], unknown>[]>(
     () => [
-      {
-        id: "line_type",
-        header: "Type",
-        cell: ({ row }) =>
-          INVOICE_LINE_TYPE_LABELS[row.original.line_type] ??
-          row.original.line_type,
-      },
-      { accessorKey: "description", header: "Description" },
-      { accessorKey: "quantity", header: "Qty" },
-      { accessorKey: "unit_price", header: "Unit" },
-      { accessorKey: "amount", header: "Amount" },
+      { accessorKey: "lineNumber", header: "N0." },
+      { accessorKey: "date", header: "DATE" },
+      { accessorKey: "time", header: "TIME" },
+      { accessorKey: "company", header: "COMPANY" },
+      { accessorKey: "pax", header: "PAX" },
+      { accessorKey: "area", header: "Area" },
+      { accessorKey: "amount", header: "AMOUNT" },
     ],
     []
   );
@@ -304,7 +305,7 @@ export function InvoicesPage({
           ) : (
             <DataTable
               columns={lineColumns}
-              data={linesQuery.data ?? []}
+              data={printRows}
               emptyMessage="No lines on this invoice."
             />
           )}

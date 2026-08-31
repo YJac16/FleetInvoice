@@ -7,10 +7,12 @@ import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { InvoicePrintView } from "@/features/invoices/components/invoice-print-view";
+import { parseInvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { getCompany } from "@/services/companies.service";
 import {
   getInvoice,
-  listInvoiceLines,
+  listInvoiceLinesWithTrips,
 } from "@/services/invoices.service";
 import { getOrganisation } from "@/services/organisations.service";
 import { queryKeys } from "@/utils/query";
@@ -43,12 +45,22 @@ export function InvoicePrintPage({
     enabled: Boolean(organisationId && invoiceId) && canView,
   });
 
+  const companyQuery = useQuery({
+    queryKey:
+      organisationId && invoiceQuery.data?.company_id
+        ? ["company", organisationId, invoiceQuery.data.company_id]
+        : ["company", "none"],
+    queryFn: () =>
+      getCompany(organisationId!, invoiceQuery.data!.company_id),
+    enabled: Boolean(organisationId && invoiceQuery.data?.company_id) && canView,
+  });
+
   const linesQuery = useQuery({
     queryKey:
       organisationId && invoiceId
         ? queryKeys.invoiceLines(organisationId, invoiceId)
         : ["invoice-lines", "none"],
-    queryFn: () => listInvoiceLines(organisationId!, invoiceId),
+    queryFn: () => listInvoiceLinesWithTrips(organisationId!, invoiceId),
     enabled: Boolean(organisationId && invoiceId) && canView,
   });
 
@@ -73,7 +85,8 @@ export function InvoicePrintPage({
   if (
     orgQuery.isLoading ||
     invoiceQuery.isLoading ||
-    linesQuery.isLoading
+    linesQuery.isLoading ||
+    companyQuery.isLoading
   ) {
     return (
       <div className="p-6">
@@ -102,8 +115,10 @@ export function InvoicePrintPage({
   return (
     <InvoicePrintView
       organisation={organisation}
+      company={companyQuery.data ?? null}
       invoice={invoice}
       lines={linesQuery.data ?? []}
+      printSettings={parseInvoicePrintSettings(organisation)}
       backHref={backHref}
     />
   );

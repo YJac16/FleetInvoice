@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { InvoiceTripEmbed } from "@/features/invoices/lib/invoice-trip-row";
 import {
   listTenantRows,
   type ListTenantOptions,
@@ -51,6 +52,40 @@ export async function listInvoiceLines(
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as InvoiceLine[];
+}
+
+const INVOICE_LINE_TRIP_SELECT = `
+  *,
+  trips:trip_id (
+    id,
+    planned_start,
+    notes,
+    companies:company_id ( name ),
+    routes:route_id ( name ),
+    trip_passengers ( id, status ),
+    trip_assignments (
+      drivers:driver_id ( full_name )
+    )
+  )
+`;
+
+export type InvoiceLineWithTrip = InvoiceLine & {
+  trips?: InvoiceTripEmbed | null;
+};
+
+export async function listInvoiceLinesWithTrips(
+  organisationId: string,
+  invoiceId: string
+): Promise<InvoiceLineWithTrip[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invoice_lines")
+    .select(INVOICE_LINE_TRIP_SELECT)
+    .eq("organisation_id", organisationId)
+    .eq("invoice_id", invoiceId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as InvoiceLineWithTrip[];
 }
 
 export async function generateWeeklyFuelInvoice(

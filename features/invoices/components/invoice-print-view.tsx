@@ -2,28 +2,34 @@
 
 import { Printer } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
-import { INVOICE_LINE_TYPE_LABELS } from "@/lib/constants";
-import type { Invoice, InvoiceLine, Organisation } from "@/types";
-import { formatDate } from "@/utils/format";
-
-function money(currency: string, amount: number | string) {
-  const n = typeof amount === "string" ? Number(amount) : amount;
-  return `${currency} ${Number.isFinite(n) ? n.toFixed(2) : amount}`;
-}
+import type { InvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  formatInvoiceDate,
+  formatInvoicePeriod,
+  formatZarAmount,
+} from "@/features/invoices/lib/invoice-print-format";
+import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import { resolveDriverLabel } from "@/features/invoices/lib/invoice-trip-row";
+import type { InvoiceLineWithTrip } from "@/services/invoices.service";
+import type { Company, Invoice, Organisation } from "@/types";
 
 export function InvoicePrintView({
   organisation,
+  company,
   invoice,
   lines,
+  printSettings,
   backHref,
   autoPrint = false,
 }: {
-  organisation: Pick<Organisation, "name" | "logo_url">;
+  organisation: Pick<Organisation, "name" | "logo_url" | "settings">;
+  company: Company | null;
   invoice: Invoice;
-  lines: InvoiceLine[];
+  lines: InvoiceLineWithTrip[];
+  printSettings: InvoicePrintSettings;
   backHref: string;
   autoPrint?: boolean;
 }) {
@@ -33,8 +39,28 @@ export function InvoicePrintView({
     return () => window.clearTimeout(t);
   }, [autoPrint]);
 
-  const companyName =
-    invoice.companies?.name ?? invoice.company_id.slice(0, 8);
+  const tripEmbeds = useMemo(
+    () =>
+      lines
+        .map((line) => line.trips)
+        .filter((trip): trip is NonNullable<typeof trip> => Boolean(trip)),
+    [lines]
+  );
+
+  const rows = useMemo(() => buildInvoicePrintRows(lines), [lines]);
+
+  const supplier = printSettings.supplier ?? { name: organisation.name };
+  const banking = printSettings.banking;
+  const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
+  const invoiceDate = formatInvoiceDate(invoice.issued_at ?? invoice.created_at);
+  const servicePeriod = formatInvoicePeriod(
+    invoice.period_start,
+    invoice.period_end
+  );
+  const companyName = company?.name ?? invoice.companies?.name ?? "—";
+  const companyAddress = company?.address?.trim();
+  const companyPhone = company?.contact_phone?.trim();
+  const regNo = company?.code?.trim();
 
   return (
     <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
@@ -52,100 +78,77 @@ export function InvoicePrintView({
         </Button>
       </div>
 
-      <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 shadow-none print:border-0 print:p-0">
-        <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-6">
-          <div className="space-y-2">
+      <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:border-0 print:p-0">
+        <header className="grid gap-6 border-b border-black/20 pb-4 sm:grid-cols-2">
+          <div className="space-y-0.5 leading-snug">
             {organisation.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={organisation.logo_url}
                 alt={organisation.name}
-                className="mb-2 h-12 w-auto object-contain"
+                className="mb-2 h-10 w-auto object-contain"
               />
             ) : null}
-            <p className="font-heading text-2xl tracking-tight">
-              {organisation.name}
-            </p>
-            <p className="text-sm text-muted-foreground">Tax invoice</p>
+            <p className="text-base font-semibold">{supplier.name}</p>
+            {supplier.address_lines?.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+            {supplier.phone ? <p>{supplier.phone}</p> : null}
           </div>
-          <div className="text-right text-sm">
-            <p className="font-medium uppercase tracking-wide text-muted-foreground">
-              Status
+          <div className="space-y-1 sm:text-right">
+            <p>
+              <span className="font-medium">Date:</span> {invoiceDate}
             </p>
-            <p className="text-lg capitalize">{invoice.status}</p>
-            <p className="mt-3 text-muted-foreground">
-              Invoice ID
-              <br />
-              <span className="font-mono text-xs text-foreground">
-                {invoice.id}
-              </span>
+            <p>
+              <span className="font-medium">Service from</span> {servicePeriod}
             </p>
           </div>
         </header>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Bill to
-            </p>
-            <p className="mt-1 text-lg font-medium">{companyName}</p>
-          </div>
-          <div className="sm:text-right">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Period
-            </p>
-            <p className="mt-1">
-              {formatDate(invoice.period_start)} →{" "}
-              {formatDate(invoice.period_end)}
-            </p>
-            {invoice.issued_at ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                Issued {formatDate(invoice.issued_at)}
-              </p>
-            ) : null}
-            {invoice.paid_at ? (
-              <p className="text-sm text-muted-foreground">
-                Paid {formatDate(invoice.paid_at)}
-              </p>
-            ) : null}
-          </div>
+        <section className="mt-5 space-y-1 leading-snug">
+          <p className="text-xs font-semibold tracking-wide">INVOICE TO</p>
+          <p className="text-base font-semibold">{companyName}</p>
+          {companyAddress ? (
+            companyAddress.split(/\n+/).map((line) => <p key={line}>{line}</p>)
+          ) : null}
+          {companyPhone ? <p>{companyPhone}</p> : null}
+          <p className="pt-1 text-xs uppercase tracking-wide">
+            {regNo ? <>REG NO: {regNo} </> : null}
+            {driverLabel !== "—" ? <>DRIVER: {driverLabel}</> : null}
+          </p>
+          <p>{servicePeriod}</p>
         </section>
 
-        <table className="mt-8 w-full border-collapse text-sm">
+        <table className="mt-6 w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="py-2 pr-2 font-medium">Type</th>
-              <th className="py-2 pr-2 font-medium">Description</th>
-              <th className="py-2 pr-2 text-right font-medium">Qty</th>
-              <th className="py-2 pr-2 text-right font-medium">Unit</th>
-              <th className="py-2 text-right font-medium">Amount</th>
+            <tr className="border-b border-black/30 text-left text-xs uppercase">
+              <th className="w-10 py-2 pr-2 font-semibold">N0.</th>
+              <th className="py-2 pr-2 font-semibold">DATE</th>
+              <th className="py-2 pr-2 font-semibold">TIME</th>
+              <th className="py-2 pr-2 font-semibold">COMPANY</th>
+              <th className="w-12 py-2 pr-2 font-semibold">PAX</th>
+              <th className="py-2 pr-2 font-semibold">Area</th>
+              <th className="py-2 text-right font-semibold">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
-            {lines.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={5}
-                  className="py-6 text-center text-muted-foreground"
-                >
+                <td colSpan={7} className="py-6 text-center text-muted-foreground">
                   No line items
                 </td>
               </tr>
             ) : (
-              lines.map((line) => (
-                <tr key={line.id} className="border-b border-border/60">
-                  <td className="py-2.5 pr-2 align-top">
-                    {INVOICE_LINE_TYPE_LABELS[line.line_type] ?? line.line_type}
-                  </td>
-                  <td className="py-2.5 pr-2 align-top">{line.description}</td>
-                  <td className="py-2.5 pr-2 text-right align-top tabular-nums">
-                    {line.quantity}
-                  </td>
-                  <td className="py-2.5 pr-2 text-right align-top tabular-nums">
-                    {money(invoice.currency, line.unit_price)}
-                  </td>
-                  <td className="py-2.5 text-right align-top tabular-nums">
-                    {money(invoice.currency, line.amount)}
+              rows.map((row) => (
+                <tr key={row.lineNumber} className="border-b border-black/10 align-top">
+                  <td className="py-2 pr-2 tabular-nums">{row.lineNumber}</td>
+                  <td className="py-2 pr-2 whitespace-nowrap">{row.date}</td>
+                  <td className="py-2 pr-2 whitespace-nowrap">{row.time}</td>
+                  <td className="py-2 pr-2">{row.company}</td>
+                  <td className="py-2 pr-2 tabular-nums">{row.pax}</td>
+                  <td className="py-2 pr-2">{row.area}</td>
+                  <td className="py-2 text-right tabular-nums whitespace-nowrap">
+                    {row.amount}
                   </td>
                 </tr>
               ))
@@ -153,23 +156,51 @@ export function InvoicePrintView({
           </tbody>
         </table>
 
-        <footer className="mt-8 flex flex-col items-end gap-1">
-          <p className="text-sm text-muted-foreground">
-            Subtotal{" "}
-            <span className="ml-4 tabular-nums text-foreground">
-              {money(invoice.currency, invoice.subtotal)}
-            </span>
-          </p>
-          <p className="font-heading text-xl">
-            Total{" "}
-            <span className="ml-4 tabular-nums">
-              {money(invoice.currency, invoice.total)}
-            </span>
-          </p>
-          {invoice.notes ? (
-            <p className="mt-4 max-w-md self-start text-sm text-muted-foreground">
-              {invoice.notes}
+        <footer className="mt-4 space-y-6">
+          <div className="flex justify-end border-t border-black/20 pt-3">
+            <p className="text-base font-semibold">
+              Total:{" "}
+              <span className="ml-6 tabular-nums">
+                {formatZarAmount(invoice.total)}
+              </span>
             </p>
+          </div>
+
+          {banking &&
+          (banking.bank ||
+            banking.account_name ||
+            banking.account_number ||
+            banking.branch_code ||
+            banking.account_type) ? (
+            <div className="space-y-1 leading-snug">
+              <p className="text-xs font-semibold tracking-wide">
+                BANKING DETAILS
+              </p>
+              {banking.bank ? <p>Bank: {banking.bank}</p> : null}
+              {banking.account_name ? (
+                <p>Account Name: {banking.account_name}</p>
+              ) : null}
+              {banking.account_number ? (
+                <p>Account Number: {banking.account_number}</p>
+              ) : null}
+              {banking.branch_code ? (
+                <p>Branch Code: {banking.branch_code}</p>
+              ) : null}
+              {banking.account_type ? (
+                <p>Account Type: {banking.account_type}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="space-y-0.5 leading-snug">
+            {supplier.name ? <p className="font-medium">{supplier.name}</p> : null}
+            {supplier.phone ? <p>{supplier.phone}</p> : null}
+            {supplier.email ? <p>{supplier.email}</p> : null}
+            <p className="pt-2">Thank You</p>
+          </div>
+
+          {invoice.notes ? (
+            <p className="text-xs text-muted-foreground">{invoice.notes}</p>
           ) : null}
         </footer>
       </article>

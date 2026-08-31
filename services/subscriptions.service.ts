@@ -26,8 +26,8 @@ export async function listPlansWithEntitlements(): Promise<PlanWithModules[]> {
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) =>
-    mapPlanWithModules(row as Parameters<typeof mapPlanWithModules>[0])
+  return (data ?? []).map((row: Parameters<typeof mapPlanWithModules>[0]) =>
+    mapPlanWithModules(row)
   );
 }
 
