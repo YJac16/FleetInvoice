@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { env } from "@/lib/env";
-import { getStripe } from "@/lib/stripe";
+import { createYocoCheckout } from "@/lib/yoco";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
+  if (!env.YOCO_SECRET_KEY) {
+    return NextResponse.json({ error: "Yoco not configured" }, { status: 503 });
   }
 
   const supabase = await createClient();
@@ -32,9 +31,9 @@ export async function POST(request: Request) {
     .select("*")
     .eq("id", body.planId)
     .maybeSingle();
-  if (planError || !plan?.stripe_price_id) {
+  if (planError || !plan?.monthly_price_cents || plan.monthly_price_cents <= 0) {
     return NextResponse.json(
-      { error: "Plan has no Stripe price" },
+      { error: "Plan has no monthly price configured" },
       { status: 400 }
     );
   }
@@ -44,42 +43,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Service role missing" }, { status: 503 });
   }
 
-  const { data: sub } = await admin
-    .from("subscriptions")
-    .select("*")
-    .eq("organisation_id", body.organisationId)
-    .maybeSingle();
-
-  let customerId = sub?.stripe_customer_id as string | null | undefined;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      metadata: { organisation_id: body.organisationId },
-    });
-    customerId = customer.id;
-    await admin.from("subscriptions").upsert(
-      {
-        organisation_id: body.organisationId,
-        plan_id: body.planId,
-        status: "incomplete",
-        stripe_customer_id: customerId,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "organisation_id" }
-    );
-  }
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
-    success_url: `${env.NEXT_PUBLIC_APP_URL}/subscriptions?checkout=success`,
-    cancel_url: `${env.NEXT_PUBLIC_APP_URL}/subscriptions?checkout=cancel`,
+  const checkout = await createYocoCheckout({
+    amountCents: plan.monthly_price_cents,
+    currency: plan.currency ?? "ZAR",
+    successUrl: `${env.NEXT_PUBLIC_APP_URL}/subscriptions?checkout=success`,
+    cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/subscriptions?checkout=cancel`,
     metadata: {
       organisation_id: body.organisationId,
       plan_id: body.planId,
     },
+    idempotencyKey: `${body.organisationId}:${body.planId}:${plan.monthly_price_cents}`,
   });
 
-  return NextResponse.json({ url: session.url });
+  await admin.from("subscriptions").upsert(
+    {
+      organisation_id: body.organisationId,
+      plan_id: body.planId,
+      status: "incomplete",
+      stripe_customer_id: checkout.id,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "organisation_id" }
+  );
+
+  return NextResponse.json({ url: checkout.redirectUrl });
 }

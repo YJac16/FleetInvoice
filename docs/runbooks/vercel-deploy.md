@@ -31,9 +31,9 @@ Do **not** use framework preset **Other** — set **Next.js** (CLI-created proje
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only |
 | `CRON_SECRET` | Same value Vercel Cron uses as Bearer token |
 | `NOTIFICATIONS_PROCESS_SECRET` | Optional alias; cron uses `CRON_SECRET` |
-| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Verified domain |
+| `MAILERSEND_API_KEY` / `MAILERSEND_FROM_EMAIL` | Verified domain |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | URL-restrict in Mapbox |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Phase 9a |
+| `YOCO_SECRET_KEY` / `YOCO_WEBHOOK_SECRET` / `NEXT_PUBLIC_YOCO_PUBLIC_KEY` | Phase 9a |
 
 ## 3. Cron
 
