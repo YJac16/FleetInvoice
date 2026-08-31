@@ -310,8 +310,10 @@ export function SubscriptionsPage() {
               Assign plans
             </h2>
             <p className="text-sm text-muted-foreground">
-              Platform owners can move organisations between plans. Yoco
-              Checkout is available when a monthly price is configured.
+              Platform owners can move organisations between plans manually.
+              {isYocoConfigured()
+                ? " Yoco Checkout is available when a monthly price is configured."
+                : " Yoco checkout is not configured yet — use Assign until your Yoco account is ready."}
             </p>
           </div>
           {subsQuery.isLoading ? (

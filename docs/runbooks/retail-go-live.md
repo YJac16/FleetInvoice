@@ -6,17 +6,17 @@ Complete these on the **deployment host** before selling managed or self-serve r
 
 ## 1. Secrets & public config
 
-| Variable | Where |
+| Variable | Status |
 |----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Host env (WorkOps project `tggxnvombexvxblsntsm`) |
-| `NEXT_PUBLIC_APP_URL` | Production hostname (`https://…`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only |
-| `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Server only (`CRON_SECRET` required for Vercel Cron) |
-| `MAILERSEND_API_KEY` + `MAILERSEND_FROM_EMAIL` | Verified sending domain |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | Restrict by URL in Mapbox |
-| Phase 9: `YOCO_SECRET_KEY`, `YOCO_WEBHOOK_SECRET`, `NEXT_PUBLIC_YOCO_PUBLIC_KEY` | After subscriptions live |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Required |
+| `NEXT_PUBLIC_APP_URL` | Required — production hostname |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required (server only) |
+| `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Required (server only) |
+| `MAILERSEND_API_KEY` + `MAILERSEND_FROM_EMAIL` | **Connected** — invite email delivery |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | **Connected** — `/dispatch` map |
+| `YOCO_SECRET_KEY`, `YOCO_WEBHOOK_SECRET`, `NEXT_PUBLIC_YOCO_PUBLIC_KEY` | **Pending** — see [`yoco-setup.md`](./yoco-setup.md) |
 
-Register Yoco webhook → `https://workops-mu.vercel.app/api/webhooks/yoco` (or your production hostname).
+Until Yoco is configured, assign membership plans manually at `/subscriptions` (platform owner **Assign** button). Checkout and self-serve billing are optional.
 
 ## 2. Supabase Auth
 

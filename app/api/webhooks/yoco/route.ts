@@ -3,39 +3,9 @@ import { NextResponse } from "next/server";
 
 import { env } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { verifyYocoWebhookSignature } from "@/lib/yoco-webhook";
 
 export const runtime = "nodejs";
-
-function verifyWebhookSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  secret: string
-): boolean {
-  if (!signatureHeader) return false;
-
-  const parts = signatureHeader.split(",").map((part) => part.trim());
-  for (const part of parts) {
-    const [version, signature] = part.split("=");
-    if (version !== "v1" || !signature) continue;
-    const expected = createHmac("sha256", secret)
-      .update(rawBody, "utf8")
-      .digest("hex");
-    try {
-      if (
-        timingSafeEqual(
-          Buffer.from(signature, "hex"),
-          Buffer.from(expected, "hex")
-        )
-      ) {
-        return true;
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return false;
-}
 
 function readMetadata(
   payload: Record<string, unknown>
@@ -95,11 +65,21 @@ export async function POST(request: Request) {
   }
 
   const rawBody = await request.text();
-  const signature =
+  const webhookId = request.headers.get("webhook-id");
+  const webhookTimestamp = request.headers.get("webhook-timestamp");
+  const webhookSignature =
     request.headers.get("webhook-signature") ??
     request.headers.get("x-yoco-signature");
 
-  if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+  if (
+    !verifyYocoWebhookSignature({
+      rawBody,
+      webhookId,
+      webhookTimestamp,
+      webhookSignature,
+      secret: webhookSecret,
+    })
+  ) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
