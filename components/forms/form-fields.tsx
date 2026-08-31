@@ -10,6 +10,7 @@ import {
 } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -201,6 +202,50 @@ export function SelectField<T extends FieldValues>({
             </SelectContent>
           </Select>
         </FieldShell>
+      )}
+    />
+  );
+}
+
+type CheckboxFieldProps<T extends FieldValues> = {
+  control: Control<T>;
+  name: FieldPath<T>;
+  label: string;
+  description?: string;
+};
+
+export function CheckboxField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  description,
+}: CheckboxFieldProps<T>) {
+  const inputId = useId();
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <div className="space-y-1.5">
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id={inputId}
+              checked={Boolean(field.value)}
+              onCheckedChange={(checked) => field.onChange(checked === true)}
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor={inputId} className="text-sm">
+                {label}
+              </Label>
+              {description ? (
+                <p className="text-xs text-muted-foreground">{description}</p>
+              ) : null}
+            </div>
+          </div>
+          {fieldState.error ? (
+            <p className="text-xs text-destructive">{fieldState.error.message}</p>
+          ) : null}
+        </div>
       )}
     />
   );

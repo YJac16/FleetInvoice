@@ -37,7 +37,7 @@ const LINKS = [
   {
     href: "/company/invoices",
     title: "Invoices",
-    description: "Period invoices — open Print for a browser PDF.",
+    description: "Period invoices — billed company, drivers, and Download PDF.",
     icon: FileText,
     permission: "invoices:view" as const,
   },

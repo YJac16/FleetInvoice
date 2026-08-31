@@ -139,6 +139,12 @@ export type Driver = {
   email: string | null;
   phone: string | null;
   license_number: string | null;
+  license_code: string | null;
+  license_expiry: string | null;
+  pdp_number: string | null;
+  pdp_expiry: string | null;
+  tour_guide: boolean;
+  additional_qualifications: string | null;
   status: EntityStatus;
   created_by: string | null;
   created_at: string;
@@ -270,12 +276,41 @@ export type Vehicle = {
   registration_number: string | null;
   vehicle_type: VehicleType;
   capacity: number | null;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  title_holder: string | null;
+  owner_name: string | null;
+  department: string | null;
+  assigned_driver_id: string | null;
+  permit_number: string | null;
+  permit_expiry: string | null;
+  licence_expiry: string | null;
+  licence_type: string | null;
+  comments: string | null;
+  original_natis_in_file: boolean;
+  authority: string | null;
+  current_odometer_km: number | null;
   status: EntityStatus;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
   companies?: Pick<Company, "id" | "name"> | null;
+  assigned_driver?: Pick<Driver, "id" | "full_name"> | null;
+};
+
+export type VehicleUpdate = {
+  id: string;
+  organisation_id: string;
+  vehicle_id: string;
+  note: string;
+  odometer_km: number | null;
+  recorded_at: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
 };
 
 export type FuelFillup = {
@@ -305,6 +340,7 @@ export type Invoice = {
   id: string;
   organisation_id: string;
   company_id: string;
+  invoice_number: string | null;
   period_start: string;
   period_end: string;
   status: InvoiceStatus;

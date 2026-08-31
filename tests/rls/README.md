@@ -4,12 +4,12 @@ WorkOps enforces multi-tenant isolation in Postgres via Row Level Security. Auto
 
 ## Prerequisites
 
-1. Apply migrations `00001` through `00012` (run `00005` alone before `00006`; run `00010` alone before `00011`)
+1. Apply migrations `00001` through `00017` (run `00005` alone before `00006`; run `00010` alone before `00011`)
 2. Create two Auth users and two organisations with memberships
 
 ## Quick checks
 
-Run [`foundation_checks.sql`](./foundation_checks.sql), [`phase4_checks.sql`](./phase4_checks.sql), [`phase5_checks.sql`](./phase5_checks.sql), [`phase6_checks.sql`](./phase6_checks.sql), [`phase7_checks.sql`](./phase7_checks.sql), [`phase8_checks.sql`](./phase8_checks.sql), and [`phase8_payroll_checks.sql`](./phase8_payroll_checks.sql) in the Supabase SQL editor.
+Run [`foundation_checks.sql`](./foundation_checks.sql), [`phase4_checks.sql`](./phase4_checks.sql), [`phase5_checks.sql`](./phase5_checks.sql), [`phase6_checks.sql`](./phase6_checks.sql), [`phase7_checks.sql`](./phase7_checks.sql), [`phase8_checks.sql`](./phase8_checks.sql), [`phase8_payroll_checks.sql`](./phase8_payroll_checks.sql), and [`phase11_fleet_identity_checks.sql`](./phase11_fleet_identity_checks.sql) in the Supabase SQL editor.
 
 ## Required manual scenarios
 
@@ -42,6 +42,9 @@ Run [`foundation_checks.sql`](./foundation_checks.sql), [`phase4_checks.sql`](./
 | 25 | `generate_payroll_run` with trips + rates | Draft run + lines |
 | 26 | `finalize_payroll_run` | Status finalized |
 | 27 | Direct insert into `payroll_lines` | Denied (RPC only) |
+| 28 | Ops insert `vehicle_updates` for org vehicle | Succeeds; odometer updates `vehicles.current_odometer_km` when higher |
+| 29 | Driver role insert `vehicle_updates` | Denied by RLS |
+| 30 | `generate_period_invoice` sets `invoice_number` like `INV-YYYY-0001` | Unique per org among active invoices |
 
 ## P0 go-live gate
 

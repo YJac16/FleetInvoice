@@ -50,6 +50,8 @@ type EntityCrudPageProps<T extends { id: string }> = {
   createLabel?: string;
   headerActions?: ReactNode;
   rowActions?: (row: T) => ReactNode;
+  archiveDescription?: (row: T) => string;
+  formDialogClassName?: string;
 };
 
 export function EntityCrudPage<T extends { id: string }>({
@@ -70,6 +72,8 @@ export function EntityCrudPage<T extends { id: string }>({
   createLabel = "Add",
   headerActions,
   rowActions,
+  archiveDescription,
+  formDialogClassName,
 }: EntityCrudPageProps<T>) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -290,6 +294,7 @@ export function EntityCrudPage<T extends { id: string }>({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? `Edit ${title.slice(0, -1) || title}` : createLabel}
+        className={formDialogClassName}
       >
         {renderForm({
           mode: editing ? "edit" : "create",
@@ -306,7 +311,11 @@ export function EntityCrudPage<T extends { id: string }>({
         open={Boolean(deleting)}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Archive record?"
-        description="This soft-deletes the record. You can restore it from the Archived tab."
+        description={
+          deleting && archiveDescription
+            ? archiveDescription(deleting)
+            : "This soft-deletes the record. You can restore it from the Archived tab."
+        }
         confirmLabel="Archive"
         loading={deleteMutation.isPending}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
