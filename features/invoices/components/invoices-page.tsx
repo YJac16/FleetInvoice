@@ -26,13 +26,18 @@ import { useEntityOptions } from "@/hooks/use-entity-options";
 import {
   generatePeriodInvoice,
   listInvoiceLinesWithTrips,
+  listInvoiceLinesWithTripsForInvoices,
   listInvoices,
   mondayOfWeek,
   setInvoiceStatus,
   weekPeriodEnd,
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
-import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import {
+  buildInvoicePrintRows,
+  collectInvoiceParties,
+} from "@/features/invoices/lib/invoice-print-rows";
+import { formatLabelList } from "@/features/invoices/lib/invoice-trip-row";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -104,7 +109,7 @@ function GeneratePeriodInvoiceForm({
 
 export function InvoicesPage({
   title = "Invoices",
-  description = "Company invoices from fuel, trips, and rate cards.",
+  description = "Company invoices from fuel, trips, and rate cards. Each row shows who is billed, which drivers and vehicles are on the invoice, and Download PDF.",
   printBasePath = "/invoices",
 }: {
   title?: string;
@@ -127,6 +132,34 @@ export function InvoicesPage({
     queryFn: () => listInvoices(organisationId!),
     enabled: Boolean(organisationId) && canView,
   });
+
+  const invoiceIds = useMemo(
+    () => (invoicesQuery.data ?? []).map((invoice) => invoice.id),
+    [invoicesQuery.data]
+  );
+
+  const partiesQuery = useQuery({
+    queryKey: organisationId
+      ? [...queryKeys.invoices(organisationId), "parties", invoiceIds.join(",")]
+      : ["invoice-parties", "none"],
+    queryFn: () =>
+      listInvoiceLinesWithTripsForInvoices(organisationId!, invoiceIds),
+    enabled: Boolean(organisationId) && canView && invoiceIds.length > 0,
+  });
+
+  const partiesByInvoiceId = useMemo(() => {
+    const grouped = new Map<string, NonNullable<typeof partiesQuery.data>>();
+    for (const line of partiesQuery.data ?? []) {
+      const list = grouped.get(line.invoice_id) ?? [];
+      list.push(line);
+      grouped.set(line.invoice_id, list);
+    }
+    const clean = new Map<string, { drivers: string[]; vehicles: string[] }>();
+    for (const [id, group] of grouped) {
+      clean.set(id, collectInvoiceParties(group));
+    }
+    return clean;
+  }, [partiesQuery.data]);
 
   const linesQuery = useQuery({
     queryKey:
@@ -159,10 +192,28 @@ export function InvoicesPage({
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
       {
+        id: "invoice_number",
+        header: "Invoice",
+        cell: ({ row }) =>
+          row.original.invoice_number ?? row.original.id.slice(0, 8),
+      },
+      {
         id: "company",
-        header: "Company",
+        header: "Billed to",
         cell: ({ row }) =>
           row.original.companies?.name ?? row.original.company_id.slice(0, 8),
+      },
+      {
+        id: "drivers",
+        header: "Drivers",
+        cell: ({ row }) =>
+          formatLabelList(partiesByInvoiceId.get(row.original.id)?.drivers ?? []),
+      },
+      {
+        id: "vehicles",
+        header: "Vehicles",
+        cell: ({ row }) =>
+          formatLabelList(partiesByInvoiceId.get(row.original.id)?.vehicles ?? []),
       },
       {
         id: "period",
@@ -200,7 +251,7 @@ export function InvoicesPage({
                 size="sm"
                 render={<Link href={`${printBasePath}/${inv.id}/print`} />}
               >
-                Print
+                Download PDF
               </Button>
               {canManage && inv.status === "issued" ? (
                 <Button
@@ -232,7 +283,7 @@ export function InvoicesPage({
         },
       },
     ],
-    [canManage, printBasePath, statusMutation]
+    [canManage, partiesByInvoiceId, printBasePath, statusMutation]
   );
 
   const printRows = useMemo(
@@ -240,12 +291,24 @@ export function InvoicesPage({
     [linesQuery.data]
   );
 
+  const selectedInvoice = (invoicesQuery.data ?? []).find(
+    (invoice) => invoice.id === selectedId
+  );
+  const selectedParties = selectedId
+    ? partiesByInvoiceId.get(selectedId)
+    : undefined;
+  const selectedLinesHeading = selectedInvoice
+    ? `Lines — ${selectedInvoice.companies?.name ?? "Company"} · ${formatDate(selectedInvoice.period_start)} → ${formatDate(selectedInvoice.period_end)} · Drivers: ${formatLabelList(selectedParties?.drivers ?? collectInvoiceParties(linesQuery.data ?? []).drivers)}`
+    : "Invoice lines";
+
   const lineColumns = useMemo<ColumnDef<(typeof printRows)[number], unknown>[]>(
     () => [
       { accessorKey: "lineNumber", header: "N0." },
       { accessorKey: "date", header: "DATE" },
       { accessorKey: "time", header: "TIME" },
       { accessorKey: "company", header: "COMPANY" },
+      { accessorKey: "driver", header: "Driver" },
+      { accessorKey: "vehicle", header: "Vehicle" },
       { accessorKey: "pax", header: "PAX" },
       { accessorKey: "area", header: "Area" },
       { accessorKey: "amount", header: "AMOUNT" },
@@ -295,7 +358,7 @@ export function InvoicesPage({
       {selectedId ? (
         <div className="mt-8 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-heading text-xl">Invoice lines</h2>
+            <h2 className="font-heading text-xl">{selectedLinesHeading}</h2>
             <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
               Close
             </Button>

@@ -64,7 +64,8 @@ Apply in order:
 14. `database/migrations/00014_phase9_white_label.sql`
 15. `database/migrations/00015_phase10_hub_ux.sql`
 16. `database/migrations/00016_membership_three_tiers.sql`
-17. Promote platform owner via `database/seed.example.sql`
+17. `database/migrations/00017_fleet_identity_clarity.sql`
+18. Promote platform owner via `database/seed.example.sql`
 
 Optional for Phase 7 dispatcher map:
 

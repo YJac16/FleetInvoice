@@ -18,6 +18,8 @@ export function listVehicles(
 ) {
   return listTenantRows<Vehicle>(TABLE, organisationId, {
     orderBy: "name",
+    select:
+      "*, companies:company_id (id, name), assigned_driver:assigned_driver_id (id, full_name)",
     ...options,
   });
 }

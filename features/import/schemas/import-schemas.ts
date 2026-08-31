@@ -18,6 +18,18 @@ export const driverImportSchema = z.object({
   email: z.string().optional(),
   phone: z.string().optional(),
   license_number: z.string().optional(),
+  license_code: z.string().optional(),
+  license_expiry: z.string().optional(),
+  pdp_number: z.string().optional(),
+  pdp_expiry: z.string().optional(),
+  tour_guide: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const normalized = (value ?? "").trim().toLowerCase();
+      return ["yes", "true", "1", "y"].includes(normalized);
+    }),
+  additional_qualifications: z.string().optional(),
   status: optionalStatus,
 });
 
@@ -30,9 +42,29 @@ export const employeeImportSchema = z.object({
   status: optionalStatus,
 });
 
+const optionalNumber = z
+  .string()
+  .optional()
+  .transform((value) => {
+    if (!value?.trim()) return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  });
+
+const optionalBool = z
+  .string()
+  .optional()
+  .transform((value) => {
+    const normalized = (value ?? "").trim().toLowerCase();
+    return ["yes", "true", "1", "y"].includes(normalized);
+  });
+
 export const vehicleImportSchema = z.object({
   name: z.string().min(1, "name is required"),
   registration_number: z.string().optional(),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  year: optionalNumber,
   vehicle_type: z
     .string()
     .optional()
@@ -43,14 +75,18 @@ export const vehicleImportSchema = z.object({
       }
       return "other" as const;
     }),
-  capacity: z
-    .string()
-    .optional()
-    .transform((value) => {
-      if (!value?.trim()) return null;
-      const n = Number(value);
-      return Number.isFinite(n) ? n : null;
-    }),
+  capacity: optionalNumber,
+  title_holder: z.string().optional(),
+  owner_name: z.string().optional(),
+  department: z.string().optional(),
+  permit_number: z.string().optional(),
+  permit_expiry: z.string().optional(),
+  licence_expiry: z.string().optional(),
+  licence_type: z.string().optional(),
+  comments: z.string().optional(),
+  original_natis_in_file: optionalBool,
+  authority: z.string().optional(),
+  current_odometer_km: optionalNumber,
   status: optionalStatus,
 });
 

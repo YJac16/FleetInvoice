@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
-import type { InvoiceTripEmbed } from "@/features/invoices/lib/invoice-trip-row";
+import type {
+  InvoiceFuelEmbed,
+  InvoiceTripEmbed,
+} from "@/features/invoices/lib/invoice-trip-row";
 import {
   listTenantRows,
   type ListTenantOptions,
@@ -64,13 +67,22 @@ const INVOICE_LINE_TRIP_SELECT = `
     routes:route_id ( name ),
     trip_passengers ( id, status ),
     trip_assignments (
-      drivers:driver_id ( full_name )
+      drivers:driver_id ( full_name ),
+      vehicles:vehicle_id ( name, registration_number )
     )
+  ),
+  fuel_fillups:fuel_fillup_id (
+    id,
+    filled_at,
+    odometer_km,
+    drivers:driver_id ( full_name ),
+    vehicles:vehicle_id ( name, registration_number )
   )
 `;
 
 export type InvoiceLineWithTrip = InvoiceLine & {
   trips?: InvoiceTripEmbed | null;
+  fuel_fillups?: InvoiceFuelEmbed | null;
 };
 
 export async function listInvoiceLinesWithTrips(
@@ -83,6 +95,22 @@ export async function listInvoiceLinesWithTrips(
     .select(INVOICE_LINE_TRIP_SELECT)
     .eq("organisation_id", organisationId)
     .eq("invoice_id", invoiceId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as InvoiceLineWithTrip[];
+}
+
+export async function listInvoiceLinesWithTripsForInvoices(
+  organisationId: string,
+  invoiceIds: string[]
+): Promise<InvoiceLineWithTrip[]> {
+  if (invoiceIds.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invoice_lines")
+    .select(INVOICE_LINE_TRIP_SELECT)
+    .eq("organisation_id", organisationId)
+    .in("invoice_id", invoiceIds)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as InvoiceLineWithTrip[];

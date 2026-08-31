@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 
@@ -11,8 +11,14 @@ import {
   formatInvoicePeriod,
   formatZarAmount,
 } from "@/features/invoices/lib/invoice-print-format";
-import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
-import { resolveDriverLabel } from "@/features/invoices/lib/invoice-trip-row";
+import {
+  buildInvoicePrintRows,
+  collectInvoiceParties,
+} from "@/features/invoices/lib/invoice-print-rows";
+import {
+  formatLabelList,
+  resolveDriverLabel,
+} from "@/features/invoices/lib/invoice-trip-row";
 import type { InvoiceLineWithTrip } from "@/services/invoices.service";
 import type { Company, Invoice, Organisation } from "@/types";
 
@@ -47,11 +53,18 @@ export function InvoicePrintView({
     [lines]
   );
 
+  const parties = useMemo(() => collectInvoiceParties(lines), [lines]);
+
   const rows = useMemo(() => buildInvoicePrintRows(lines), [lines]);
 
   const supplier = printSettings.supplier ?? { name: organisation.name };
   const banking = printSettings.banking;
-  const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
+  const driverLabel = resolveDriverLabel(
+    printSettings.driver_label,
+    tripEmbeds,
+    parties.drivers
+  );
+  const vehicleLabel = formatLabelList(parties.vehicles);
   const invoiceDate = formatInvoiceDate(invoice.issued_at ?? invoice.created_at);
   const servicePeriod = formatInvoicePeriod(
     invoice.period_start,
@@ -61,6 +74,7 @@ export function InvoicePrintView({
   const companyAddress = company?.address?.trim();
   const companyPhone = company?.contact_phone?.trim();
   const regNo = company?.code?.trim();
+  const invoiceNumber = invoice.invoice_number?.trim() || invoice.id.slice(0, 8);
 
   return (
     <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
@@ -68,14 +82,19 @@ export function InvoicePrintView({
         <Button variant="outline" render={<Link href={backHref} />}>
           Back to invoices
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => window.print()}
-          className="gap-2"
-        >
-          <Printer className="size-4" />
-          Print / Save PDF
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            variant="outline"
+            onClick={() => window.print()}
+            className="gap-2"
+          >
+            <Download className="size-4" />
+            Download PDF
+          </Button>
+          <p className="max-w-xs text-right text-xs text-muted-foreground">
+            In the print dialog, choose Save as PDF.
+          </p>
+        </div>
       </div>
 
       <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:border-0 print:p-0">
@@ -97,6 +116,9 @@ export function InvoicePrintView({
           </div>
           <div className="space-y-1 sm:text-right">
             <p>
+              <span className="font-medium">Invoice:</span> {invoiceNumber}
+            </p>
+            <p>
               <span className="font-medium">Date:</span> {invoiceDate}
             </p>
             <p>
@@ -113,9 +135,15 @@ export function InvoicePrintView({
           ) : null}
           {companyPhone ? <p>{companyPhone}</p> : null}
           <p className="pt-1 text-xs uppercase tracking-wide">
-            {regNo ? <>REG NO: {regNo} </> : null}
-            {driverLabel !== "—" ? <>DRIVER: {driverLabel}</> : null}
+            Invoice {invoiceNumber} for {companyName}
           </p>
+          {regNo ? <p className="text-xs uppercase tracking-wide">REG NO: {regNo}</p> : null}
+          {driverLabel !== "—" ? (
+            <p className="text-xs uppercase tracking-wide">Drivers: {driverLabel}</p>
+          ) : null}
+          {vehicleLabel !== "—" ? (
+            <p className="text-xs uppercase tracking-wide">Vehicles: {vehicleLabel}</p>
+          ) : null}
           <p>{servicePeriod}</p>
         </section>
 
@@ -127,6 +155,8 @@ export function InvoicePrintView({
               <th className="py-2 pr-2 font-semibold">TIME</th>
               <th className="py-2 pr-2 font-semibold">COMPANY</th>
               <th className="w-12 py-2 pr-2 font-semibold">PAX</th>
+              <th className="py-2 pr-2 font-semibold">Driver</th>
+              <th className="py-2 pr-2 font-semibold">Vehicle</th>
               <th className="py-2 pr-2 font-semibold">Area</th>
               <th className="py-2 text-right font-semibold">AMOUNT</th>
             </tr>
@@ -134,7 +164,7 @@ export function InvoicePrintView({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-muted-foreground">
+                <td colSpan={9} className="py-6 text-center text-muted-foreground">
                   No line items
                 </td>
               </tr>
@@ -146,6 +176,8 @@ export function InvoicePrintView({
                   <td className="py-2 pr-2 whitespace-nowrap">{row.time}</td>
                   <td className="py-2 pr-2">{row.company}</td>
                   <td className="py-2 pr-2 tabular-nums">{row.pax}</td>
+                  <td className="py-2 pr-2">{row.driver}</td>
+                  <td className="py-2 pr-2 whitespace-nowrap">{row.vehicle}</td>
                   <td className="py-2 pr-2">{row.area}</td>
                   <td className="py-2 text-right tabular-nums whitespace-nowrap">
                     {row.amount}

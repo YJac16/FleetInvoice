@@ -6,7 +6,7 @@ export default function Page() {
   return (
     <InvoicesPage
       title="Invoices"
-      description="Period invoices for your companies — open Print for a browser PDF."
+      description="Period invoices for your companies. Each row shows billed company, drivers, vehicles, and Download PDF."
       printBasePath="/company/invoices"
     />
   );
