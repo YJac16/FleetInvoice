@@ -46,4 +46,9 @@ export const queryKeys = {
   ) => ["ops-report", orgId, reportType, periodStart, periodEnd] as const,
   dashboard: (orgId: string) => ["dashboard", orgId] as const,
   profile: ["profile"] as const,
+  plans: ["plans", "active"] as const,
+  organisationSubscription: (orgId: string) =>
+    ["subscription", orgId] as const,
+  organisationVehiclesCount: (orgId: string) =>
+    ["vehicles-count", orgId] as const,
 };

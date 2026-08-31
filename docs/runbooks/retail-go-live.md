@@ -38,6 +38,7 @@ Apply Phase 9 SQL on **WorkOps** Supabase (`tggxnvombexvxblsntsm`) in the SQL ed
 
 1. `database/migrations/00013_phase9_subscriptions.sql`
 2. `database/migrations/00014_phase9_white_label.sql`
+3. `database/migrations/00016_membership_three_tiers.sql` (idempotent; live already has `membership_three_tiers`)
 
 Then run `tests/rls/phase9_checks.sql`. Do **not** apply these to UniCab/other projects.
 

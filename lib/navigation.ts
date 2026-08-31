@@ -101,7 +101,7 @@ export const MAIN_NAV: NavItem[] = [
   item("Payroll", "/payroll", FileText, "payroll:view", "finance", "payroll"),
   item("Reports", "/reports", BarChart3, "reports:view", "finance", "reports"),
   item("Organisations", "/organisations", Building, "organisations:view", "system"),
-  item("Subscriptions", "/subscriptions", CreditCard, "subscriptions:view", "system", "core"),
+  item("Membership", "/subscriptions", CreditCard, "subscriptions:view", "system", "core"),
   item("White-label", "/white-label", Building, "organisations:manage", "system", "core"),
 ];
 
