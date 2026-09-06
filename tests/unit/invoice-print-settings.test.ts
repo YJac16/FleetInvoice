@@ -66,6 +66,7 @@ describe("parseInvoicePrintSettings", () => {
         invoice_print: {
           banking: { bank: "FNB" },
           contact: { name: "Yaseen Jacobs", email: "yaseenjacobs97@gmail.com" },
+          vehicle_reg: "GR 11 WP",
         },
       },
     });
@@ -76,6 +77,7 @@ describe("parseInvoicePrintSettings", () => {
       "Cape Town",
     ]);
     expect(settings.driver_label).toBe("YASEEN");
+    expect(settings.vehicle_reg).toBe("GR 11 WP");
     expect(settings.banking?.bank).toBe("FNB");
     expect(settings.contact?.email).toBe("yaseenjacobs97@gmail.com");
   });

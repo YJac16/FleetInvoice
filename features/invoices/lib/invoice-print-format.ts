@@ -9,6 +9,52 @@ export function formatInvoiceDate(value: string | null | undefined): string {
   return `${day}/${month}/${year}`;
 }
 
+/**
+ * Invoice print date = Monday after the service week.
+ * Weekly periods store Mon–Sun; `period_end` may be inclusive Sunday or exclusive Monday.
+ */
+export function computeInvoiceDateFromPeriodEnd(
+  periodEnd: string | null | undefined
+): string | null {
+  if (!periodEnd?.trim()) return null;
+
+  const dateOnly = periodEnd.trim().slice(0, 10);
+  const d = new Date(`${dateOnly}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const day = d.getUTCDay();
+
+  if (day === 1) {
+    return dateOnly;
+  }
+
+  if (day === 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  const daysToSunday = 7 - day;
+  d.setUTCDate(d.getUTCDate() + daysToSunday + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Customer-facing invoice Date — never falls back to created_at. */
+export function resolveInvoicePrintDate(input: {
+  issued_at?: string | null;
+  period_end?: string | null;
+}): string {
+  if (input.issued_at) {
+    return formatInvoiceDate(input.issued_at);
+  }
+
+  const computed = computeInvoiceDateFromPeriodEnd(input.period_end);
+  if (computed) {
+    return formatInvoiceDate(computed);
+  }
+
+  return "—";
+}
+
 /** 18h00 / 12h30 — matches shuttle invoice time column */
 export function formatInvoiceTime(value: string | null | undefined): string {
   if (!value) return "—";

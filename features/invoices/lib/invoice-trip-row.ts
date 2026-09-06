@@ -20,6 +20,10 @@ export type InvoiceTripEmbed = {
   trip_assignments?:
     | {
         drivers?: { full_name: string } | { full_name: string }[] | null;
+        vehicles?:
+          | { registration_number: string | null }
+          | { registration_number: string | null }[]
+          | null;
       }[]
     | null;
 };
@@ -51,6 +55,19 @@ function firstDriverName(
     const drivers = assignment.drivers;
     const row = Array.isArray(drivers) ? drivers[0] : drivers;
     if (row?.full_name?.trim()) return row.full_name.trim();
+  }
+  return null;
+}
+
+function firstVehicleRegistration(
+  assignments: InvoiceTripEmbed["trip_assignments"]
+): string | null {
+  if (!assignments?.length) return null;
+  for (const assignment of assignments) {
+    const vehicles = assignment.vehicles;
+    const row = Array.isArray(vehicles) ? vehicles[0] : vehicles;
+    const reg = row?.registration_number?.trim();
+    if (reg) return reg;
   }
   return null;
 }
@@ -143,4 +160,19 @@ export function resolveDriverLabel(
   if (names.size === 1) return [...names][0]!;
   if (names.size > 1) return "VARIOUS";
   return "—";
+}
+
+export function resolveVehicleReg(
+  settingsReg: string | undefined,
+  trips: InvoiceTripEmbed[]
+): string | null {
+  if (settingsReg?.trim()) return settingsReg.trim();
+  const regs = new Set<string>();
+  for (const trip of trips) {
+    const reg = firstVehicleRegistration(trip.trip_assignments);
+    if (reg) regs.add(reg);
+  }
+  if (regs.size === 1) return [...regs][0]!;
+  if (regs.size > 1) return "VARIOUS";
+  return null;
 }
