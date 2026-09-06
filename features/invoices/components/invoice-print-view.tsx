@@ -7,12 +7,15 @@ import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { InvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
 import {
-  formatInvoiceDate,
   formatInvoicePeriod,
   formatZarAmount,
+  resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
-import { resolveDriverLabel } from "@/features/invoices/lib/invoice-trip-row";
+import {
+  resolveDriverLabel,
+  resolveVehicleReg,
+} from "@/features/invoices/lib/invoice-trip-row";
 import type { InvoiceLineWithTrip } from "@/services/invoices.service";
 import type { Company, Invoice, Organisation } from "@/types";
 
@@ -53,7 +56,11 @@ export function InvoicePrintView({
   const banking = printSettings.banking;
   const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
-  const invoiceDate = formatInvoiceDate(invoice.issued_at ?? invoice.created_at);
+  const vehicleReg = resolveVehicleReg(printSettings.vehicle_reg, tripEmbeds);
+  const invoiceDate = resolveInvoicePrintDate({
+    issued_at: invoice.issued_at,
+    period_end: invoice.period_end,
+  });
   const servicePeriod = formatInvoicePeriod(
     invoice.period_start,
     invoice.period_end
@@ -61,7 +68,6 @@ export function InvoicePrintView({
   const companyName = company?.name ?? invoice.companies?.name ?? "—";
   const companyAddress = company?.address?.trim();
   const companyPhone = company?.contact_phone?.trim();
-  const regNo = company?.code?.trim();
 
   return (
     <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
@@ -114,7 +120,7 @@ export function InvoicePrintView({
           ) : null}
           {companyPhone ? <p>{companyPhone}</p> : null}
           <p className="pt-1 text-xs uppercase tracking-wide">
-            {regNo ? <>REG NO: {regNo} </> : null}
+            {vehicleReg ? <>REG NO: {vehicleReg} </> : null}
             {driverLabel !== "—" ? <>DRIVER: {driverLabel}</> : null}
           </p>
           <p>{servicePeriod}</p>

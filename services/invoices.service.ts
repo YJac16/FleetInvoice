@@ -64,7 +64,8 @@ const INVOICE_LINE_TRIP_SELECT = `
     routes:route_id ( name ),
     trip_passengers ( id, status ),
     trip_assignments (
-      drivers:driver_id ( full_name )
+      drivers:driver_id ( full_name ),
+      vehicles:vehicle_id ( registration_number )
     )
   )
 `;

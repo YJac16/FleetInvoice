@@ -25,6 +25,8 @@ export type InvoicePrintSettings = {
   supplier?: InvoiceSupplierSettings;
   banking?: InvoiceBankingSettings;
   contact?: InvoiceContactSettings;
+  /** Shown as REG NO: {value} — vehicle registration, not company code */
+  vehicle_reg?: string;
   /** Shown as DRIVER: {label} when set; otherwise derived from trip assignments */
   driver_label?: string;
 };
@@ -190,6 +192,14 @@ export function parseInvoicePrintSettings(
       ? printRecord.driver_label
       : undefined);
 
+  const vehicleReg =
+    (printRecord && typeof printRecord.vehicle_reg === "string"
+      ? printRecord.vehicle_reg
+      : undefined) ??
+    (invoiceRecord && typeof invoiceRecord.vehicle_reg === "string"
+      ? invoiceRecord.vehicle_reg
+      : undefined);
+
   if (!invoiceRecord && !printRecord) {
     return {
       supplier: { name: organisation.name },
@@ -202,6 +212,7 @@ export function parseInvoicePrintSettings(
     supplier: parseSupplier(supplierRaw, organisation.name),
     banking,
     contact,
+    vehicle_reg: vehicleReg,
     driver_label: driverLabel,
   };
 }

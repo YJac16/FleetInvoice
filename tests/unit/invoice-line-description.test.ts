@@ -1,11 +1,37 @@
 import { describe, expect, it } from "vitest";
 
-import { parseInvoiceLineDescription } from "@/features/invoices/lib/invoice-line-description";
+import {
+  parseInvoiceLineDescription,
+  sanitizeInvoiceArea,
+} from "@/features/invoices/lib/invoice-line-description";
 import { buildTripPrintRow } from "@/features/invoices/lib/invoice-trip-row";
 import type { InvoiceLine } from "@/types";
 
+describe("sanitizeInvoiceArea", () => {
+  it("strips trailing WEX pickup for Head Office trips", () => {
+    expect(
+      sanitizeInvoiceArea("Central / WEX William St", "Lewis Head Office")
+    ).toBe("Central");
+    expect(
+      sanitizeInvoiceArea("Cape Town CBD / WEX William St", "Lewis Head Office")
+    ).toBe("Cape Town CBD");
+  });
+
+  it("strips trailing WEX pickup even when company is not Head Office", () => {
+    expect(
+      sanitizeInvoiceArea("Central / WEX William St", "Lewis Compliance")
+    ).toBe("Central");
+  });
+
+  it("leaves compliance areas without WEX unchanged", () => {
+    expect(
+      sanitizeInvoiceArea("Woodstock / Cape Town CBD", "Lewis Compliance")
+    ).toBe("Woodstock / Cape Town CBD");
+  });
+});
+
 describe("parseInvoiceLineDescription", () => {
-  it("parses pipe-separated waybill descriptions", () => {
+  it("parses Head Office rows without WEX in AREA", () => {
     expect(
       parseInvoiceLineDescription(
         "31/08/2026 18:00 | Lewis Head Office | 1 pax | Central / WEX William St"
@@ -15,7 +41,19 @@ describe("parseInvoiceLineDescription", () => {
       time: "18h00",
       company: "Lewis Head Office",
       pax: 1,
-      area: "Central / WEX William St",
+      area: "Central",
+    });
+
+    expect(
+      parseInvoiceLineDescription(
+        "02/09/2026 18:00 | Lewis Head Office | 1 pax | Cape Town CBD / WEX William St"
+      )
+    ).toEqual({
+      date: "02/09/2026",
+      time: "18h00",
+      company: "Lewis Head Office",
+      pax: 1,
+      area: "Cape Town CBD",
     });
   });
 
@@ -55,7 +93,7 @@ describe("buildTripPrintRow pipe descriptions", () => {
     created_at: "2026-08-31T00:00:00.000Z",
   } satisfies InvoiceLine;
 
-  it("uses description segments instead of invoice customer embeds", () => {
+  it("uses description segments without WEX pickup in AREA", () => {
     const row = buildTripPrintRow(
       line,
       {
@@ -72,7 +110,7 @@ describe("buildTripPrintRow pipe descriptions", () => {
 
     expect(row.company).toBe("Lewis Head Office");
     expect(row.pax).toBe("1");
-    expect(row.area).toBe("Central / WEX William St");
+    expect(row.area).toBe("Central");
     expect(row.date).toBe("31/08/2026");
     expect(row.time).toBe("18h00");
     expect(row.amount).toBe("R300.00");

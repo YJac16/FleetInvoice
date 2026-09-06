@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeInvoiceDateFromPeriodEnd,
   formatInvoiceDate,
   formatInvoicePeriod,
   formatInvoiceTime,
   formatZarAmount,
+  resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
-import { buildTripPrintRow } from "@/features/invoices/lib/invoice-trip-row";
+import {
+  buildTripPrintRow,
+  resolveVehicleReg,
+} from "@/features/invoices/lib/invoice-trip-row";
 import type { InvoiceLine } from "@/types";
 
 describe("invoice print formatters", () => {
@@ -32,6 +37,90 @@ describe("invoice print formatters", () => {
     expect(
       formatInvoicePeriod("2026-08-17", "2026-08-23")
     ).toBe("17/08/2026 - 23/08/2026");
+  });
+});
+
+describe("resolveInvoicePrintDate", () => {
+  it("prefers issued_at when set", () => {
+    expect(
+      resolveInvoicePrintDate({
+        issued_at: "2026-09-07T08:00:00.000Z",
+        period_end: "2026-09-06",
+      })
+    ).toBe("07/09/2026");
+  });
+
+  it("computes Monday after inclusive Sunday period_end", () => {
+    expect(
+      resolveInvoicePrintDate({
+        issued_at: null,
+        period_end: "2026-09-06",
+      })
+    ).toBe("07/09/2026");
+  });
+
+  it("uses exclusive Monday period_end as the invoice date", () => {
+    expect(
+      resolveInvoicePrintDate({
+        issued_at: null,
+        period_end: "2026-09-07",
+      })
+    ).toBe("07/09/2026");
+  });
+
+  it("never falls back to created_at", () => {
+    expect(
+      resolveInvoicePrintDate({
+        issued_at: null,
+        period_end: "2026-09-06",
+      })
+    ).toBe("07/09/2026");
+  });
+});
+
+describe("computeInvoiceDateFromPeriodEnd", () => {
+  it("returns Monday after Sunday service week end", () => {
+    expect(computeInvoiceDateFromPeriodEnd("2026-09-06")).toBe("2026-09-07");
+  });
+
+  it("returns the same Monday when period_end is already exclusive Monday", () => {
+    expect(computeInvoiceDateFromPeriodEnd("2026-09-07")).toBe("2026-09-07");
+  });
+});
+
+describe("resolveVehicleReg", () => {
+  it("prefers org settings vehicle_reg", () => {
+    expect(
+      resolveVehicleReg("GR 11 WP", [
+        {
+          id: "trip-1",
+          planned_start: "2026-08-31T16:00:00.000Z",
+          notes: null,
+          trip_assignments: [
+            {
+              vehicles: { registration_number: "CA 123 GP" },
+            },
+          ],
+        },
+      ])
+    ).toBe("GR 11 WP");
+  });
+
+  it("resolves registration from trip assignment vehicles", () => {
+    expect(
+      resolveVehicleReg(undefined, [
+        {
+          id: "trip-1",
+          planned_start: "2026-08-31T16:00:00.000Z",
+          notes: null,
+          trip_assignments: [
+            {
+              vehicles: { registration_number: "GR 11 WP" },
+            },
+          ],
+        },
+      ])
+    ).toBe("GR 11 WP");
   });
 });
 
