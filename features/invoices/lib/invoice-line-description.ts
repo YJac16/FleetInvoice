@@ -8,6 +8,61 @@ export type ParsedInvoiceLineDescription = {
 
 const PAX_PATTERN = /(\d+)\s*pax/i;
 
+/** WEX Head Office pickup — never belongs in the printed AREA column. */
+const WEX_PICKUP_TRAILING =
+  /\s*\/\s*WEX(?:\s*[–-]\s*)?\s*(?:William\s*(?:Street|St\.?)?)?\s*$/i;
+
+const WEX_PICKUP_SEGMENT =
+  /^WEX(?:\s*[–-]\s*)?\s*(?:William\s*(?:Street|St\.?)?)?$/i;
+
+const WILLIAM_STREET_PICKUP_SEGMENT = /^William\s*(?:Street|St\.?)$/i;
+
+const HEAD_OFFICE_COMPANY = /Head\s+Office/i;
+
+function containsWexPickupTokens(text: string): boolean {
+  return /\bWEX\b|\bWilliam\s*Street\b|\bWilliam\s*St\.?\b/i.test(text);
+}
+
+function isWexPickupSegment(segment: string): boolean {
+  return (
+    WEX_PICKUP_SEGMENT.test(segment) ||
+    WILLIAM_STREET_PICKUP_SEGMENT.test(segment)
+  );
+}
+
+/**
+ * Removes WEX / William Street pickup tokens from an invoice AREA value.
+ * Head Office trips never show the pickup hub in AREA; trailing `/ WEX…` is
+ * stripped for all companies so legacy descriptions still print cleanly.
+ */
+export function sanitizeInvoiceArea(area: string, company?: string): string {
+  let cleaned = area.trim();
+  if (!cleaned) return cleaned;
+
+  cleaned = cleaned.replace(WEX_PICKUP_TRAILING, "").trim();
+
+  const shouldStripPickupTokens =
+    (company != null && HEAD_OFFICE_COMPANY.test(company)) ||
+    containsWexPickupTokens(area);
+
+  if (!shouldStripPickupTokens) return cleaned;
+
+  const segments = cleaned
+    .split(/\s*\/\s*/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && !isWexPickupSegment(segment));
+
+  cleaned = segments.join(" / ").trim();
+
+  cleaned = cleaned
+    .replace(/\bWEX(?:\s*[–-]\s*)?\s*(?:William\s*(?:Street|St\.?)?)?\b/gi, "")
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/\s*\/\s*$/, "")
+    .trim();
+
+  return cleaned;
+}
+
 function formatDescriptionTime(time: string): string {
   const trimmed = time.trim();
   const colonMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
@@ -57,6 +112,6 @@ export function parseInvoiceLineDescription(
     time: formatDescriptionTime(timeRaw),
     company,
     pax: paxMatch ? Number(paxMatch[1]) : null,
-    area,
+    area: sanitizeInvoiceArea(area, company),
   };
 }

@@ -1,6 +1,9 @@
 import type { InvoiceLine } from "@/types";
 
-import { parseInvoiceLineDescription } from "@/features/invoices/lib/invoice-line-description";
+import {
+  parseInvoiceLineDescription,
+  sanitizeInvoiceArea,
+} from "@/features/invoices/lib/invoice-line-description";
 import {
   formatInvoiceDate,
   formatInvoiceTime,
@@ -87,17 +90,23 @@ export function buildTripPrintRow(
     };
   }
 
-  const area =
+  const company = firstName(trip.companies) || "—";
+  const rawArea =
     firstName(trip.routes) ||
     trip.notes?.trim() ||
     line.description.replace(/^Completed trip\s+/i, "") ||
     "—";
+  const area =
+    rawArea === "—"
+      ? rawArea
+      : sanitizeInvoiceArea(rawArea, company === "—" ? undefined : company) ||
+        "—";
 
   return {
     lineNumber,
     date: formatInvoiceDate(trip.planned_start),
     time: formatInvoiceTime(trip.planned_start),
-    company: firstName(trip.companies) || "—",
+    company,
     pax: resolvePax(null, paxCount),
     area,
     amount: formatZarAmount(line.amount),
