@@ -51,6 +51,7 @@ export function InvoicePrintView({
 
   const supplier = printSettings.supplier ?? { name: organisation.name };
   const banking = printSettings.banking;
+  const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
   const invoiceDate = formatInvoiceDate(invoice.issued_at ?? invoice.created_at);
   const servicePeriod = formatInvoicePeriod(
@@ -193,15 +194,11 @@ export function InvoicePrintView({
           ) : null}
 
           <div className="space-y-0.5 leading-snug">
-            {supplier.name ? <p className="font-medium">{supplier.name}</p> : null}
-            {supplier.phone ? <p>{supplier.phone}</p> : null}
-            {supplier.email ? <p>{supplier.email}</p> : null}
+            {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
+            {contact?.phone ? <p>{contact.phone}</p> : null}
+            {contact?.email ? <p>{contact.email}</p> : null}
             <p className="pt-2">Thank You</p>
           </div>
-
-          {invoice.notes ? (
-            <p className="text-xs text-muted-foreground">{invoice.notes}</p>
-          ) : null}
         </footer>
       </article>
     </div>
