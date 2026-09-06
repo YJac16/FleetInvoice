@@ -51,6 +51,7 @@ export function InvoicePrintView({
 
   const supplier = printSettings.supplier ?? { name: organisation.name };
   const banking = printSettings.banking;
+  const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
   const invoiceDate = formatInvoiceDate(invoice.issued_at ?? invoice.created_at);
   const servicePeriod = formatInvoicePeriod(
@@ -119,7 +120,34 @@ export function InvoicePrintView({
           <p>{servicePeriod}</p>
         </section>
 
-        <table className="mt-6 w-full border-collapse text-sm">
+        <div className="mt-6 space-y-3 md:hidden print:hidden">
+          {rows.length === 0 ? (
+            <p className="py-6 text-center text-muted-foreground">No line items</p>
+          ) : (
+            rows.map((row) => (
+              <div
+                key={row.lineNumber}
+                className="rounded-lg border border-black/15 p-3 text-sm leading-snug"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium tabular-nums">#{row.lineNumber}</p>
+                  <p className="font-semibold tabular-nums whitespace-nowrap">
+                    {row.amount}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs uppercase tracking-wide text-muted-foreground">
+                  <span>{row.date}</span>
+                  <span>{row.time}</span>
+                  <span>PAX {row.pax}</span>
+                </div>
+                <p className="mt-2 font-medium">{row.company}</p>
+                <p className="mt-1">{row.area}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        <table className="mt-6 hidden w-full border-collapse text-sm md:table print:table">
           <thead>
             <tr className="border-b border-black/30 text-left text-xs uppercase">
               <th className="w-10 py-2 pr-2 font-semibold">N0.</th>
@@ -193,15 +221,11 @@ export function InvoicePrintView({
           ) : null}
 
           <div className="space-y-0.5 leading-snug">
-            {supplier.name ? <p className="font-medium">{supplier.name}</p> : null}
-            {supplier.phone ? <p>{supplier.phone}</p> : null}
-            {supplier.email ? <p>{supplier.email}</p> : null}
+            {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
+            {contact?.phone ? <p>{contact.phone}</p> : null}
+            {contact?.email ? <p>{contact.email}</p> : null}
             <p className="pt-2">Thank You</p>
           </div>
-
-          {invoice.notes ? (
-            <p className="text-xs text-muted-foreground">{invoice.notes}</p>
-          ) : null}
         </footer>
       </article>
     </div>
