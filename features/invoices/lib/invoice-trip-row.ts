@@ -1,5 +1,6 @@
 import type { InvoiceLine } from "@/types";
 
+import { parseInvoiceLineDescription } from "@/features/invoices/lib/invoice-line-description";
 import {
   formatInvoiceDate,
   formatInvoiceTime,
@@ -56,12 +57,36 @@ function countPax(passengers: InvoiceTripEmbed["trip_passengers"]): number {
   return passengers.filter((p) => p.status !== "cancelled").length;
 }
 
+function resolvePax(
+  parsedPax: number | null | undefined,
+  tripPassengerCount: number
+): string {
+  if (parsedPax != null && parsedPax > 0) return String(parsedPax);
+  if (tripPassengerCount > 0) return String(tripPassengerCount);
+  return "—";
+}
+
 export function buildTripPrintRow(
   line: InvoiceLine,
   trip: InvoiceTripEmbed,
   lineNumber: number
 ): InvoicePrintRow {
+  const parsed = parseInvoiceLineDescription(line.description);
   const paxCount = countPax(trip.trip_passengers);
+
+  if (parsed) {
+    return {
+      lineNumber,
+      date: parsed.date,
+      time: parsed.time,
+      company: parsed.company,
+      pax: resolvePax(parsed.pax, paxCount),
+      area: parsed.area,
+      amount: formatZarAmount(line.amount),
+      lineType: line.line_type,
+    };
+  }
+
   const area =
     firstName(trip.routes) ||
     trip.notes?.trim() ||
@@ -73,7 +98,7 @@ export function buildTripPrintRow(
     date: formatInvoiceDate(trip.planned_start),
     time: formatInvoiceTime(trip.planned_start),
     company: firstName(trip.companies) || "—",
-    pax: paxCount > 0 ? String(paxCount) : "—",
+    pax: resolvePax(null, paxCount),
     area,
     amount: formatZarAmount(line.amount),
     lineType: line.line_type,
