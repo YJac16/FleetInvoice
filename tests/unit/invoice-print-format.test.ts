@@ -5,6 +5,7 @@ import {
   formatInvoiceDate,
   formatInvoicePeriod,
   formatInvoiceTime,
+  formatServiceWeekPeriod,
   formatZarAmount,
   resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
@@ -36,6 +37,12 @@ describe("invoice print formatters", () => {
   it("formats service periods", () => {
     expect(
       formatInvoicePeriod("2026-08-17", "2026-08-23")
+    ).toBe("17/08/2026 - 23/08/2026");
+  });
+
+  it("formats Mon–Sun service week from exclusive Monday period_end", () => {
+    expect(
+      formatServiceWeekPeriod("2026-08-17", "2026-08-24")
     ).toBe("17/08/2026 - 23/08/2026");
   });
 });

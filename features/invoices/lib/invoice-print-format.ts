@@ -81,3 +81,21 @@ export function formatInvoicePeriod(
 ): string {
   return `${formatInvoiceDate(start)} - ${formatInvoiceDate(end)}`;
 }
+
+/** Mon–Sun label when period_end is the exclusive Monday after the service week. */
+export function formatServiceWeekPeriod(
+  periodStart: string | null | undefined,
+  periodEndExclusive: string | null | undefined
+): string {
+  if (!periodStart || !periodEndExclusive) {
+    return formatInvoicePeriod(periodStart, periodEndExclusive);
+  }
+
+  const endDate = new Date(`${periodEndExclusive.slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(endDate.getTime())) {
+    return formatInvoicePeriod(periodStart, periodEndExclusive);
+  }
+
+  endDate.setUTCDate(endDate.getUTCDate() - 1);
+  return formatInvoicePeriod(periodStart, endDate.toISOString().slice(0, 10));
+}

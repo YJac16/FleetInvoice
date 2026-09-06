@@ -12,6 +12,7 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { OrgLogoField } from "@/features/settings/components/org-logo-field";
 import {
   organisationSchema,
   type OrganisationValues,
@@ -98,22 +99,37 @@ export function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        description="Update the active organisation name and slug."
+        description="Organisation profile, invoice logo, and identifiers."
       />
 
       {orgQuery.isLoading ? (
         <LoadingSkeleton rows={3} />
       ) : (
-        <form
-          className="max-w-lg space-y-4"
-          onSubmit={form.handleSubmit((values) => updateMutation.mutate(values))}
-        >
-          <TextField control={form.control} name="name" label="Organisation name" />
-          <TextField control={form.control} name="slug" label="Slug" />
-          <Button type="submit" disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </form>
+        <div className="max-w-lg space-y-8">
+          {orgQuery.data ? (
+            <OrgLogoField
+              organisationId={organisationId}
+              logoUrl={orgQuery.data.logo_url}
+              organisationName={orgQuery.data.name}
+              onUpdated={async () => {
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.organisation(organisationId),
+                });
+              }}
+            />
+          ) : null}
+
+          <form
+            className="space-y-4"
+            onSubmit={form.handleSubmit((values) => updateMutation.mutate(values))}
+          >
+            <TextField control={form.control} name="name" label="Organisation name" />
+            <TextField control={form.control} name="slug" label="Slug" />
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </form>
+        </div>
       )}
     </div>
   );

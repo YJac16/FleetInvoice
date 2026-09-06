@@ -160,3 +160,20 @@
   }
 }
 
+@media print {
+  @page {
+    margin: 12mm;
+    size: A4;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .invoice-print-root .invoice-print-sheet {
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+}
+

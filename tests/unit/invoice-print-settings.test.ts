@@ -38,17 +38,15 @@ describe("parseInvoicePrintSettings", () => {
     });
   });
 
-  it("falls back to Personal defaults when invoice_print is missing", () => {
+  it("returns no banking or contact when invoice_print is missing", () => {
     const settings = parseInvoicePrintSettings({
       name: "Yaseen Org",
       settings: {},
     });
 
-    expect(settings.banking?.bank).toBe("FNB");
-    expect(settings.banking?.account_number).toBe("62731713170");
-    expect(settings.contact?.name).toBe("Yaseen Jacobs");
-    expect(settings.contact?.phone).toBe("082 327 7446");
-    expect(settings.contact?.email).toBe("yaseenjacobs97@gmail.com");
+    expect(settings.banking).toBeUndefined();
+    expect(settings.contact).toBeUndefined();
+    expect(settings.supplier?.name).toBe("Yaseen Org");
   });
 
   it("still reads supplier header fields from settings.invoice", () => {

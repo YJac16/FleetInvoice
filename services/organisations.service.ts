@@ -3,6 +3,8 @@ import { writeAuditLog } from "@/services/audit.service";
 import type { Organisation } from "@/types";
 import { slugify } from "@/utils/format";
 
+export const ORG_LOGOS_BUCKET = "org-logos";
+
 export async function listOrganisations(): Promise<Organisation[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -114,6 +116,54 @@ export async function softDeleteOrganisation(id: string): Promise<void> {
   } catch {
     // best-effort
   }
+}
+
+export async function uploadOrganisationLogo(
+  organisationId: string,
+  file: File
+): Promise<string> {
+  const supabase = createClient();
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Choose an image file");
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error("Image must be under 2 MB");
+  }
+
+  const ext =
+    file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+        ? "webp"
+        : file.type === "image/gif"
+          ? "gif"
+          : file.type === "image/svg+xml"
+            ? "svg"
+            : "jpg";
+  const storagePath = `${organisationId}/logo.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(ORG_LOGOS_BUCKET)
+    .upload(storagePath, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from(ORG_LOGOS_BUCKET)
+    .getPublicUrl(storagePath);
+  const url = `${data.publicUrl}?v=${Date.now()}`;
+
+  await updateOrganisation(organisationId, { logo_url: url });
+  return url;
+}
+
+export async function removeOrganisationLogo(
+  organisationId: string
+): Promise<void> {
+  await updateOrganisation(organisationId, { logo_url: null });
 }
 
 export async function getOrganisation(

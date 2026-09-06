@@ -31,20 +31,6 @@ export type InvoicePrintSettings = {
   driver_label?: string;
 };
 
-const DEFAULT_BANKING: InvoiceBankingSettings = {
-  bank: "FNB",
-  account_name: "Yaseen Jacobs",
-  account_number: "62731713170",
-  branch_code: "250655",
-  account_type: "Cheque Account",
-};
-
-const DEFAULT_CONTACT: InvoiceContactSettings = {
-  name: "Yaseen Jacobs",
-  phone: "082 327 7446",
-  email: "yaseenjacobs97@gmail.com",
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -175,14 +161,10 @@ export function parseInvoicePrintSettings(
   });
 
   const bankingMerged = mergeBanking(bankingFromPrint, bankingFromInvoice);
-  const banking = hasBankingDetails(bankingMerged)
-    ? bankingMerged
-    : DEFAULT_BANKING;
+  const banking = hasBankingDetails(bankingMerged) ? bankingMerged : undefined;
 
   const contactMerged = mergeContact(contactFromPrint, contactFromSupplier);
-  const contact = hasContactDetails(contactMerged)
-    ? contactMerged
-    : DEFAULT_CONTACT;
+  const contact = hasContactDetails(contactMerged) ? contactMerged : undefined;
 
   const driverLabel =
     (invoiceRecord && typeof invoiceRecord.driver_label === "string"
@@ -203,8 +185,6 @@ export function parseInvoicePrintSettings(
   if (!invoiceRecord && !printRecord) {
     return {
       supplier: { name: organisation.name },
-      banking,
-      contact,
     };
   }
 

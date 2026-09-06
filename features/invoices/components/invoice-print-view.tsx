@@ -7,7 +7,7 @@ import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { InvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
 import {
-  formatInvoicePeriod,
+  formatServiceWeekPeriod,
   formatZarAmount,
   resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
@@ -61,7 +61,7 @@ export function InvoicePrintView({
     issued_at: invoice.issued_at,
     period_end: invoice.period_end,
   });
-  const servicePeriod = formatInvoicePeriod(
+  const servicePeriod = formatServiceWeekPeriod(
     invoice.period_start,
     invoice.period_end
   );
@@ -93,10 +93,18 @@ export function InvoicePrintView({
               <img
                 src={organisation.logo_url}
                 alt={organisation.name}
-                className="mb-2 h-10 w-auto object-contain"
+                className="mb-2 h-12 max-w-[220px] w-auto object-contain object-left"
               />
             ) : null}
-            <p className="text-base font-semibold">{supplier.name}</p>
+            <p
+              className={
+                organisation.logo_url
+                  ? "text-base font-semibold"
+                  : "text-xl font-bold tracking-tight"
+              }
+            >
+              {supplier.name}
+            </p>
             {supplier.address_lines?.map((line) => (
               <p key={line}>{line}</p>
             ))}
@@ -123,7 +131,6 @@ export function InvoicePrintView({
             {vehicleReg ? <>REG NO: {vehicleReg} </> : null}
             {driverLabel !== "—" ? <>DRIVER: {driverLabel}</> : null}
           </p>
-          <p>{servicePeriod}</p>
         </section>
 
         <div className="mt-6 space-y-3 md:hidden print:hidden">
@@ -226,10 +233,15 @@ export function InvoicePrintView({
             </div>
           ) : null}
 
-          <div className="space-y-0.5 leading-snug">
-            {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
-            {contact?.phone ? <p>{contact.phone}</p> : null}
-            {contact?.email ? <p>{contact.email}</p> : null}
+          {(contact?.name || contact?.phone || contact?.email) ? (
+            <div className="space-y-0.5 leading-snug">
+              {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
+              {contact?.phone ? <p>{contact.phone}</p> : null}
+              {contact?.email ? <p>{contact.email}</p> : null}
+            </div>
+          ) : null}
+
+          <div className="leading-snug">
             <p className="pt-2">Thank You</p>
           </div>
         </footer>

@@ -33,8 +33,11 @@ import {
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import {
+  formatServiceWeekPeriod,
+  resolveInvoicePrintDate,
+} from "@/features/invoices/lib/invoice-print-format";
 import { getErrorMessage } from "@/utils/errors";
-import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 
 function GeneratePeriodInvoiceForm({
@@ -86,15 +89,19 @@ function GeneratePeriodInvoiceForm({
       <TextField
         control={form.control}
         name="period_start"
-        label="Period start"
+        label="Period start (Monday)"
         type="date"
       />
       <TextField
         control={form.control}
         name="period_end"
-        label="Period end (exclusive)"
+        label="Period end (exclusive Monday)"
         type="date"
       />
+      <p className="text-sm text-muted-foreground">
+        Service week is Monday–Sunday. Period end should be the Monday after the
+        service week (invoice date). Defaults to the current week.
+      </p>
       <Button type="submit" className="w-full" disabled={mutation.isPending}>
         {mutation.isPending ? "Generating…" : "Generate period invoice"}
       </Button>
@@ -166,9 +173,21 @@ export function InvoicesPage({
       },
       {
         id: "period",
-        header: "Period",
+        header: "Service week",
         cell: ({ row }) =>
-          `${formatDate(row.original.period_start)} → ${formatDate(row.original.period_end)}`,
+          formatServiceWeekPeriod(
+            row.original.period_start,
+            row.original.period_end
+          ),
+      },
+      {
+        id: "invoice_date",
+        header: "Invoice date",
+        cell: ({ row }) =>
+          resolveInvoicePrintDate({
+            issued_at: row.original.issued_at,
+            period_end: row.original.period_end,
+          }),
       },
       {
         accessorKey: "status",
@@ -198,9 +217,15 @@ export function InvoicesPage({
               <Button
                 variant="ghost"
                 size="sm"
-                render={<Link href={`${printBasePath}/${inv.id}/print`} />}
+                render={
+                  <Link
+                    href={`${printBasePath}/${inv.id}/print`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
               >
-                Print
+                Print / Preview
               </Button>
               {canManage && inv.status === "issued" ? (
                 <Button
@@ -317,7 +342,7 @@ export function InvoicesPage({
           open={open}
           onOpenChange={setOpen}
           title="Generate period invoice"
-          description="Builds fuel, trip, and fixed-fee lines. Idempotent for the same company and period."
+          description="Builds fuel, trip, and fixed-fee lines for a Mon–Sun service week. Idempotent for the same company and period."
         >
           <GeneratePeriodInvoiceForm
             organisationId={organisationId}
