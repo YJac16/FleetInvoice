@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { AssignTripDialog } from "@/features/trips/components/assign-trip-dialog";
 import { GenerateTripsDialog } from "@/features/trips/components/generate-trips-dialog";
 import { TripPassengersDialog } from "@/features/trips/components/trip-passengers-dialog";
@@ -26,6 +27,7 @@ import type { Trip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
+import Link from "next/link";
 
 export function TripsPage() {
   const { can } = useOrg();
@@ -36,6 +38,7 @@ export function TripsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [assignStaffOpen, setAssignStaffOpen] = useState(false);
   const [cancelling, setCancelling] = useState<Trip | null>(null);
   const [assigningTripId, setAssigningTripId] = useState<string | null>(null);
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
@@ -169,10 +172,18 @@ export function TripsPage() {
         description="Planned trips generated from route schedules."
         actions={
           canManage ? (
-            <Button onClick={() => setGenerateOpen(true)}>
-              <Plus className="size-4" />
-              Generate trips
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" render={<Link href="/staff-transport" />}>
+                Monitor
+              </Button>
+              <Button variant="secondary" onClick={() => setAssignStaffOpen(true)}>
+                Assign staff trip
+              </Button>
+              <Button onClick={() => setGenerateOpen(true)}>
+                <Plus className="size-4" />
+                Generate trips
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -194,6 +205,24 @@ export function TripsPage() {
       ) : (
         <DataTable columns={columns} data={rows} />
       )}
+
+      <AssignStaffTripDialog
+        open={assignStaffOpen}
+        onOpenChange={setAssignStaffOpen}
+        organisationId={organisationId}
+        onAssigned={() => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.trips(organisationId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.staffTripsAdmin(
+              organisationId,
+              new Date().toISOString().slice(0, 10),
+              new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+            ),
+          });
+        }}
+      />
 
       <GenerateTripsDialog
         open={generateOpen}

@@ -247,3 +247,32 @@ export const ATTENDANCE_EVENT_TYPE_LABELS: Record<
   confirmed: "Confirmed",
   rejected: "Rejected",
 };
+
+export const STAFF_TRANSPORT_COMPANIES = [
+  "lewis_compliance",
+  "lewis_head_office",
+  "teleperformance",
+  "inspire",
+] as const;
+export type StaffTransportCompany = (typeof STAFF_TRANSPORT_COMPANIES)[number];
+
+export const STAFF_TRANSPORT_COMPANY_LABELS: Record<
+  StaffTransportCompany,
+  string
+> = {
+  lewis_compliance: "Lewis Compliance",
+  lewis_head_office: "Lewis Head Office",
+  teleperformance: "Teleperformance",
+  inspire: "Inspire",
+};
+
+/** Flat per-trip rate (ZAR) for all staff transport companies in MVP. */
+export const STAFF_TRANSPORT_FLAT_RATE_ZAR = 300;
+
+export const DRIVER_NOTIFICATION_TYPES = [
+  "admin_message",
+  "trip_assigned",
+  "trip_updated",
+  "trip_cancelled",
+] as const;
+export type DriverNotificationType = (typeof DRIVER_NOTIFICATION_TYPES)[number];

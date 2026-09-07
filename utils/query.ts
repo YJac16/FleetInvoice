@@ -19,6 +19,15 @@ export const queryKeys = {
   schedules: (orgId: string) => ["schedules", orgId] as const,
   trips: (orgId: string) => ["trips", orgId] as const,
   driverTrips: (orgId: string) => ["driver-trips", orgId] as const,
+  staffTrips: (orgId: string, from: string, to: string) =>
+    ["staff-trips", orgId, from, to] as const,
+  staffTripsAdmin: (orgId: string, from: string, to: string) =>
+    ["staff-trips-admin", orgId, from, to] as const,
+  driverNotifications: (orgId: string) =>
+    ["driver-notifications", orgId] as const,
+  noTripDays: (orgId: string, from: string, to: string) =>
+    ["no-trip-days", orgId, from, to] as const,
+  driverPresence: (orgId: string) => ["driver-presence", orgId] as const,
   employeeTrips: (orgId: string) => ["employee-trips", orgId] as const,
   myTripPassengers: (orgId: string) => ["my-trip-passengers", orgId] as const,
   tripPassengers: (orgId: string, tripId: string) =>

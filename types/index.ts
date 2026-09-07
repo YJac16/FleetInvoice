@@ -491,6 +491,51 @@ export type Trip = {
   trip_assignments?: TripAssignment[];
 };
 
+export type StaffTrip = Trip & {
+  route_id: string | null;
+  is_staff_transport: boolean;
+  staff_company: import("@/lib/constants").StaffTransportCompany | null;
+  area_text: string | null;
+  pax_count: number | null;
+  opening_km: number | null;
+  closing_km: number | null;
+  total_km: number | null;
+  waybill_confirmed_at: string | null;
+  staff_started_at: string | null;
+  staff_completed_at: string | null;
+};
+
+export type DriverInboxNotification = {
+  id: string;
+  organisation_id: string;
+  driver_id: string;
+  notification_type: import("@/lib/constants").DriverNotificationType;
+  title: string;
+  body: string;
+  trip_id: string | null;
+  read_at: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type DriverPresence = {
+  driver_id: string;
+  organisation_id: string;
+  last_seen_at: string;
+  updated_at: string;
+  drivers?: Pick<Driver, "id" | "full_name"> | null;
+};
+
+export type DriverNoTripDay = {
+  id: string;
+  organisation_id: string;
+  driver_id: string;
+  trip_date: string;
+  created_by: string | null;
+  created_at: string;
+  deleted_at: string | null;
+};
+
 export type TripAssignment = {
   id: string;
   organisation_id: string;
