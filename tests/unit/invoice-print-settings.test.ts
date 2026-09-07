@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseInvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  parseInvoicePrintSettings,
+  resolvePrintSupplierName,
+} from "@/features/invoices/lib/invoice-print-settings";
 
 describe("parseInvoicePrintSettings", () => {
   it("reads banking and contact from settings.invoice_print", () => {
@@ -80,5 +83,33 @@ describe("parseInvoicePrintSettings", () => {
     expect(settings.vehicle_reg).toBe("GR 11 WP");
     expect(settings.banking?.bank).toBe("FNB");
     expect(settings.contact?.email).toBe("yaseenjacobs97@gmail.com");
+  });
+});
+
+describe("resolvePrintSupplierName", () => {
+  it("prefers configured supplier over SaaS organisation name", () => {
+    const settings = parseInvoicePrintSettings({
+      name: "Yaseen Org",
+      settings: {
+        invoice: {
+          supplier: { name: "Yaseen Jacobs" },
+        },
+      },
+    });
+
+    expect(resolvePrintSupplierName(settings, "Yaseen Org")).toBe(
+      "Yaseen Jacobs"
+    );
+  });
+
+  it("falls back to contact name when supplier is the organisation name", () => {
+    const settings = parseInvoicePrintSettings({
+      name: "Yaseen Org",
+      settings: {},
+    });
+
+    expect(resolvePrintSupplierName(settings, "Yaseen Org")).toBe(
+      "Yaseen Jacobs"
+    );
   });
 });
