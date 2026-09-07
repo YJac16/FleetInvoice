@@ -143,6 +143,25 @@ function mergeContact(
   return merged;
 }
 
+/** Supplier letterhead for print — never the SaaS org name when personal contact is configured. */
+export function resolvePrintSupplierName(
+  printSettings: InvoicePrintSettings,
+  organisationName: string
+): string {
+  const supplierName = printSettings.supplier?.name?.trim();
+  if (supplierName && supplierName !== organisationName) {
+    return supplierName;
+  }
+
+  const contactName = printSettings.contact?.name?.trim();
+  if (contactName) return contactName;
+
+  const accountName = printSettings.banking?.account_name?.trim();
+  if (accountName) return accountName;
+
+  return supplierName || organisationName;
+}
+
 export function parseInvoicePrintSettings(
   organisation: Pick<Organisation, "name" | "settings">
 ): InvoicePrintSettings {

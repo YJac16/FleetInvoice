@@ -5,12 +5,19 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { InvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  resolvePrintSupplierName,
+  type InvoicePrintSettings,
+} from "@/features/invoices/lib/invoice-print-settings";
 import {
   formatInvoicePeriod,
   formatZarAmount,
   resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
+import {
+  buildInvoicePdfFilename,
+  invoicePdfDocumentTitle,
+} from "@/features/invoices/lib/invoice-pdf-filename";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
 import {
   resolveDriverLabel,
@@ -36,12 +43,6 @@ export function InvoicePrintView({
   backHref: string;
   autoPrint?: boolean;
 }) {
-  useEffect(() => {
-    if (!autoPrint) return;
-    const t = window.setTimeout(() => window.print(), 400);
-    return () => window.clearTimeout(t);
-  }, [autoPrint]);
-
   const tripEmbeds = useMemo(
     () =>
       lines
@@ -50,9 +51,43 @@ export function InvoicePrintView({
     [lines]
   );
 
+  const pdfFilename = useMemo(
+    () =>
+      buildInvoicePdfFilename({
+        period_start: invoice.period_start,
+        period_end: invoice.period_end,
+        settingsDriverLabel: printSettings.driver_label,
+        trips: tripEmbeds,
+      }),
+    [
+      invoice.period_start,
+      invoice.period_end,
+      printSettings.driver_label,
+      tripEmbeds,
+    ]
+  );
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = invoicePdfDocumentTitle(pdfFilename);
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [pdfFilename]);
+
+  useEffect(() => {
+    if (!autoPrint) return;
+    const t = window.setTimeout(() => window.print(), 400);
+    return () => window.clearTimeout(t);
+  }, [autoPrint]);
+
   const rows = useMemo(() => buildInvoicePrintRows(lines), [lines]);
 
-  const supplier = printSettings.supplier ?? { name: organisation.name };
+  const supplierName = resolvePrintSupplierName(printSettings, organisation.name);
+  const supplier = {
+    ...printSettings.supplier,
+    name: supplierName,
+  };
   const banking = printSettings.banking;
   const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
@@ -92,8 +127,8 @@ export function InvoicePrintView({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={organisation.logo_url}
-                alt={organisation.name}
-                className="mb-2 h-10 w-auto object-contain"
+                alt=""
+                className="mb-2 h-10 w-auto object-contain print:hidden"
               />
             ) : null}
             <p className="text-base font-semibold">{supplier.name}</p>
@@ -226,7 +261,7 @@ export function InvoicePrintView({
             </div>
           ) : null}
 
-          <div className="space-y-0.5 leading-snug">
+          <div className="space-y-0.5 leading-snug print:hidden">
             {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
             {contact?.phone ? <p>{contact.phone}</p> : null}
             {contact?.email ? <p>{contact.email}</p> : null}
