@@ -319,6 +319,7 @@ export const demoTrips = [
     company_id: ACM_ID,
     generation_key: null,
     notes: null,
+    service_locations: null,
     created_by: null,
     created_at: TS,
     updated_at: TS,

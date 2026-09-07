@@ -37,6 +37,7 @@ import {
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-line-area-editor";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -263,17 +264,57 @@ export function InvoicesPage({
     [linesQuery.data]
   );
 
-  const lineColumns = useMemo<ColumnDef<(typeof printRows)[number], unknown>[]>(
+  type InvoiceLineRow = (typeof printRows)[number] & {
+    lineId: string;
+    lineType: string;
+  };
+
+  const lineColumns = useMemo<ColumnDef<InvoiceLineRow, unknown>[]>(
     () => [
       { accessorKey: "lineNumber", header: "N0." },
       { accessorKey: "date", header: "DATE" },
       { accessorKey: "time", header: "TIME" },
       { accessorKey: "company", header: "COMPANY" },
       { accessorKey: "pax", header: "PAX" },
-      { accessorKey: "area", header: "Area" },
+      {
+        accessorKey: "area",
+        header: "Area",
+        cell: ({ row }) => {
+          const lineId = row.original.lineId;
+          const isTrip = row.original.lineType === "trip";
+          if (!canManage || !organisationId || !lineId || !isTrip) {
+            return row.original.area;
+          }
+          return (
+            <InvoiceLineAreaEditor
+              organisationId={organisationId}
+              lineId={lineId}
+              initialArea={row.original.area === "—" ? "" : row.original.area}
+              onSaved={async () => {
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.invoiceLines(organisationId, selectedId!),
+                });
+              }}
+            />
+          );
+        },
+      },
       { accessorKey: "amount", header: "AMOUNT" },
     ],
-    []
+    [canManage, organisationId, queryClient, selectedId]
+  );
+
+  const lineTableData = useMemo(
+    () =>
+      (linesQuery.data ?? []).map((line, index) => {
+        const printRow = printRows[index]!;
+        return {
+          ...printRow,
+          lineId: line.id,
+          lineType: line.line_type,
+        };
+      }),
+    [linesQuery.data, printRows]
   );
 
   if (!canView) {
@@ -341,7 +382,7 @@ export function InvoicesPage({
           ) : (
             <DataTable
               columns={lineColumns}
-              data={printRows}
+              data={lineTableData}
               emptyMessage="No lines on this invoice."
             />
           )}

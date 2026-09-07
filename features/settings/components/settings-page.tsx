@@ -39,6 +39,7 @@ import {
   removeOrganisationLogo,
   uploadOrganisationLogo,
 } from "@/services/org-logo.service";
+import { ServiceLocationsSettings } from "@/features/settings/components/service-locations-settings";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 
@@ -437,6 +438,8 @@ export function SettingsPage() {
               </form>
             </CardContent>
           </Card>
+
+          <ServiceLocationsSettings organisationId={organisationId} />
         </>
       )}
     </div>

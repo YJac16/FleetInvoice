@@ -1,4 +1,5 @@
 import { InvoicePrintPage } from "@/features/invoices/components/invoice-print-page";
+import { isEmailDeliveryConfigured } from "@/lib/env";
 
 export default async function Page({
   params,
@@ -14,6 +15,7 @@ export default async function Page({
       invoiceId={id}
       backHref="/invoices"
       autoPrint={print === "1"}
+      emailDeliveryConfigured={isEmailDeliveryConfigured()}
     />
   );
 }

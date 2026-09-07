@@ -1,4 +1,5 @@
 import { InvoicePrintPage } from "@/features/invoices/components/invoice-print-page";
+import { isEmailDeliveryConfigured } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function Page({
       invoiceId={id}
       backHref="/company/invoices"
       autoPrint={print === "1"}
+      emailDeliveryConfigured={isEmailDeliveryConfigured()}
     />
   );
 }
