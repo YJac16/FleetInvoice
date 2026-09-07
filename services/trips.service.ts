@@ -40,6 +40,18 @@ export async function cancelTrip(id: string): Promise<void> {
   await transitionTrip(id, "cancelled");
 }
 
+export async function updateTripServiceLocations(
+  tripId: string,
+  serviceLocations: string | null
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ service_locations: serviceLocations })
+    .eq("id", tripId);
+  if (error) throw error;
+}
+
 export async function generateTrips(
   organisationId: string,
   from: string,

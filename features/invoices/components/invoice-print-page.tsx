@@ -20,13 +20,18 @@ import { queryKeys } from "@/utils/query";
 export function InvoicePrintPage({
   invoiceId,
   backHref,
+  autoPrint = false,
+  emailDeliveryConfigured = false,
 }: {
   invoiceId: string;
   backHref: string;
+  autoPrint?: boolean;
+  emailDeliveryConfigured?: boolean;
 }) {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("invoices:view");
+  const canSendEmail = can("invoices:manage");
 
   const orgQuery = useQuery({
     queryKey: organisationId
@@ -120,6 +125,9 @@ export function InvoicePrintPage({
       lines={linesQuery.data ?? []}
       printSettings={parseInvoicePrintSettings(organisation)}
       backHref={backHref}
+      autoPrint={autoPrint}
+      emailDeliveryConfigured={emailDeliveryConfigured}
+      canSendEmail={canSendEmail}
     />
   );
 }

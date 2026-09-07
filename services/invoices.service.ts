@@ -60,6 +60,7 @@ const INVOICE_LINE_TRIP_SELECT = `
     id,
     planned_start,
     notes,
+    service_locations,
     companies:company_id ( name ),
     routes:route_id ( name ),
     trip_passengers ( id, status ),
@@ -132,4 +133,17 @@ export async function setInvoiceStatus(
   });
   if (error) throw error;
   return data as Invoice;
+}
+
+export async function updateInvoiceLineArea(
+  lineId: string,
+  area: string
+): Promise<InvoiceLine> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("update_invoice_line_area", {
+    p_line_id: lineId,
+    p_area: area,
+  });
+  if (error) throw error;
+  return data as InvoiceLine;
 }

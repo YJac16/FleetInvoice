@@ -483,6 +483,7 @@ export type Trip = {
   status: TripStatus;
   generation_key: string | null;
   notes: string | null;
+  service_locations: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

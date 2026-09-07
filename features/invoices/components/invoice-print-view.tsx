@@ -1,16 +1,21 @@
 "use client";
 
-import { Printer } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo } from "react";
 
-import { Button } from "@/components/ui/button";
-import type { InvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  resolvePrintSupplierName,
+  type InvoicePrintSettings,
+} from "@/features/invoices/lib/invoice-print-settings";
+import { InvoiceDeliveryPanel } from "@/features/invoices/components/invoice-delivery-panel";
 import {
   formatInvoicePeriod,
   formatZarAmount,
   resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
+import {
+  buildInvoicePdfFilename,
+  invoicePdfDocumentTitle,
+} from "@/features/invoices/lib/invoice-pdf-filename";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
 import {
   resolveDriverLabel,
@@ -27,21 +32,19 @@ export function InvoicePrintView({
   printSettings,
   backHref,
   autoPrint = false,
+  emailDeliveryConfigured = false,
+  canSendEmail = false,
 }: {
-  organisation: Pick<Organisation, "name" | "logo_url" | "settings">;
+  organisation: Pick<Organisation, "id" | "name" | "logo_url" | "settings">;
   company: Company | null;
   invoice: Invoice;
   lines: InvoiceLineWithTrip[];
   printSettings: InvoicePrintSettings;
   backHref: string;
   autoPrint?: boolean;
+  emailDeliveryConfigured?: boolean;
+  canSendEmail?: boolean;
 }) {
-  useEffect(() => {
-    if (!autoPrint) return;
-    const t = window.setTimeout(() => window.print(), 400);
-    return () => window.clearTimeout(t);
-  }, [autoPrint]);
-
   const tripEmbeds = useMemo(
     () =>
       lines
@@ -50,9 +53,43 @@ export function InvoicePrintView({
     [lines]
   );
 
+  const pdfFilename = useMemo(
+    () =>
+      buildInvoicePdfFilename({
+        period_start: invoice.period_start,
+        period_end: invoice.period_end,
+        settingsDriverLabel: printSettings.driver_label,
+        trips: tripEmbeds,
+      }),
+    [
+      invoice.period_start,
+      invoice.period_end,
+      printSettings.driver_label,
+      tripEmbeds,
+    ]
+  );
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = invoicePdfDocumentTitle(pdfFilename);
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [pdfFilename]);
+
+  useEffect(() => {
+    if (!autoPrint) return;
+    const t = window.setTimeout(() => window.print(), 400);
+    return () => window.clearTimeout(t);
+  }, [autoPrint]);
+
   const rows = useMemo(() => buildInvoicePrintRows(lines), [lines]);
 
-  const supplier = printSettings.supplier ?? { name: organisation.name };
+  const supplierName = resolvePrintSupplierName(printSettings, organisation.name);
+  const supplier = {
+    ...printSettings.supplier,
+    name: supplierName,
+  };
   const banking = printSettings.banking;
   const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
@@ -71,19 +108,14 @@ export function InvoicePrintView({
 
   return (
     <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Button variant="outline" render={<Link href={backHref} />}>
-          Back to invoices
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => window.print()}
-          className="gap-2"
-        >
-          <Printer className="size-4" />
-          Print / Save PDF
-        </Button>
-      </div>
+      <InvoiceDeliveryPanel
+        organisationId={organisation.id}
+        invoiceId={invoice.id}
+        backHref={backHref}
+        defaultToEmail={company?.contact_email}
+        emailDeliveryConfigured={emailDeliveryConfigured}
+        canSendEmail={canSendEmail}
+      />
 
       <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:border-0 print:p-0">
         <header className="grid gap-6 border-b border-black/20 pb-4 sm:grid-cols-2">
@@ -93,10 +125,14 @@ export function InvoicePrintView({
               <img
                 src={organisation.logo_url}
                 alt={organisation.name}
-                className="mb-2 h-10 w-auto object-contain"
+                className="mb-2 h-12 w-auto max-w-[220px] object-contain object-left"
               />
+            ) : (
+              <p className="text-lg font-semibold">{supplier.name}</p>
+            )}
+            {organisation.logo_url ? (
+              <p className="text-base font-semibold">{supplier.name}</p>
             ) : null}
-            <p className="text-base font-semibold">{supplier.name}</p>
             {supplier.address_lines?.map((line) => (
               <p key={line}>{line}</p>
             ))}
@@ -226,7 +262,7 @@ export function InvoicePrintView({
             </div>
           ) : null}
 
-          <div className="space-y-0.5 leading-snug">
+          <div className="space-y-0.5 leading-snug print:hidden">
             {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
             {contact?.phone ? <p>{contact.phone}</p> : null}
             {contact?.email ? <p>{contact.email}</p> : null}
