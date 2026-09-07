@@ -19,7 +19,6 @@ import {
   invoicePdfDocumentTitle,
 } from "@/features/invoices/lib/invoice-pdf-filename";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
-import { resolvePrintSupplierName } from "@/features/invoices/lib/invoice-print-settings";
 import {
   resolveDriverLabel,
   resolveVehicleReg,
