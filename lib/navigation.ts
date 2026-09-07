@@ -92,6 +92,13 @@ export const MAIN_NAV: NavItem[] = [
   item("Routes", "/routes", RouteIcon, "routes:view", "planning"),
   item("Schedules", "/schedules", Calendar, "schedules:view", "planning"),
   item("Trips", "/trips", Bus, "trips:view", "planning"),
+  item(
+    "Staff transport",
+    "/staff-transport",
+    Bus,
+    "trips:view",
+    "ops"
+  ),
   item("Dispatch", "/dispatch", Radar, "dispatch:view", "ops", "gps"),
   item("Geofences", "/geofences", MapPin, "geofences:view", "ops", "gps"),
   item("Attendance", "/attendance", UsersRound, "attendance:view", "ops", "attendance"),

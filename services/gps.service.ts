@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { GpsLastPosition, GpsPointInput } from "@/types";
+import type { GpsLastPosition, GpsPoint, GpsPointInput } from "@/types";
 
 export async function ingestGpsPoints(
   organisationId: string,
@@ -36,4 +36,19 @@ export async function listGpsLastPositions(
     .order("recorded_at", { ascending: false });
   if (error) throw error;
   return (data as unknown as GpsLastPosition[]) ?? [];
+}
+
+export async function listGpsPointsForTrip(
+  organisationId: string,
+  tripId: string
+): Promise<GpsPoint[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("gps_points")
+    .select("*")
+    .eq("organisation_id", organisationId)
+    .eq("trip_id", tripId)
+    .order("recorded_at", { ascending: true });
+  if (error) throw error;
+  return (data as GpsPoint[]) ?? [];
 }
