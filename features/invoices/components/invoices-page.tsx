@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -21,6 +21,10 @@ import {
   generatePeriodInvoiceSchema,
   type GeneratePeriodInvoiceValues,
 } from "@/features/invoices/schemas/invoice";
+import {
+  formatInvoiceDatePreview,
+  formatServiceWeekLabel,
+} from "@/features/invoices/lib/service-week";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
 import {
@@ -55,6 +59,20 @@ function GeneratePeriodInvoiceForm({
     },
   });
 
+  const periodStart = form.watch("period_start");
+
+  useEffect(() => {
+    if (!periodStart) return;
+    form.setValue("period_end", weekPeriodEnd(periodStart), {
+      shouldValidate: true,
+    });
+  }, [periodStart, form]);
+
+  const weekLabel = periodStart ? formatServiceWeekLabel(periodStart) : "";
+  const invoiceDatePreview = periodStart
+    ? formatInvoiceDatePreview(periodStart)
+    : "—";
+
   const mutation = useMutation({
     mutationFn: (values: GeneratePeriodInvoiceValues) =>
       generatePeriodInvoice(
@@ -83,18 +101,23 @@ function GeneratePeriodInvoiceForm({
         label="Company"
         options={companies}
       />
-      <TextField
-        control={form.control}
-        name="period_start"
-        label="Period start"
-        type="date"
-      />
-      <TextField
-        control={form.control}
-        name="period_end"
-        label="Period end (exclusive)"
-        type="date"
-      />
+      <div className="space-y-2">
+        <TextField
+          control={form.control}
+          name="period_start"
+          label="Service week (Monday)"
+          type="date"
+        />
+        {weekLabel ? (
+          <p className="text-sm text-muted-foreground">{weekLabel}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Service week runs Monday–Sunday. Invoice date on print will be{" "}
+          <span className="font-medium text-foreground">{invoiceDatePreview}</span>{" "}
+          (Monday after the week).
+        </p>
+      </div>
+      <input type="hidden" {...form.register("period_end")} />
       <Button type="submit" className="w-full" disabled={mutation.isPending}>
         {mutation.isPending ? "Generating…" : "Generate period invoice"}
       </Button>
@@ -296,9 +319,22 @@ export function InvoicesPage({
         <div className="mt-8 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-heading text-xl">Invoice lines</h2>
-            <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
-              Close
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    href={`${printBasePath}/${selectedId}/print?print=1`}
+                  />
+                }
+              >
+                Print preview
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
+                Close
+              </Button>
+            </div>
           </div>
           {linesQuery.isLoading ? (
             <LoadingSkeleton rows={3} />
@@ -317,7 +353,7 @@ export function InvoicesPage({
           open={open}
           onOpenChange={setOpen}
           title="Generate period invoice"
-          description="Builds fuel, trip, and fixed-fee lines. Idempotent for the same company and period."
+          description="Builds fuel, trip, and fixed-fee lines for the Monday–Sunday service week. Idempotent for the same company and period."
         >
           <GeneratePeriodInvoiceForm
             organisationId={organisationId}

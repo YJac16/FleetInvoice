@@ -20,9 +20,11 @@ import { queryKeys } from "@/utils/query";
 export function InvoicePrintPage({
   invoiceId,
   backHref,
+  autoPrint = false,
 }: {
   invoiceId: string;
   backHref: string;
+  autoPrint?: boolean;
 }) {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
@@ -120,6 +122,7 @@ export function InvoicePrintPage({
       lines={linesQuery.data ?? []}
       printSettings={parseInvoicePrintSettings(organisation)}
       backHref={backHref}
+      autoPrint={autoPrint}
     />
   );
 }

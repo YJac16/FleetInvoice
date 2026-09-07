@@ -127,11 +127,15 @@ export function InvoicePrintView({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={organisation.logo_url}
-                alt=""
-                className="mb-2 h-10 w-auto object-contain print:hidden"
+                alt={organisation.name}
+                className="mb-2 h-12 w-auto max-w-[220px] object-contain object-left"
               />
+            ) : (
+              <p className="text-lg font-semibold">{supplier.name}</p>
+            )}
+            {organisation.logo_url ? (
+              <p className="text-base font-semibold">{supplier.name}</p>
             ) : null}
-            <p className="text-base font-semibold">{supplier.name}</p>
             {supplier.address_lines?.map((line) => (
               <p key={line}>{line}</p>
             ))}

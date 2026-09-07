@@ -2,9 +2,18 @@ import { InvoicePrintPage } from "@/features/invoices/components/invoice-print-p
 
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ print?: string }>;
 }) {
   const { id } = await params;
-  return <InvoicePrintPage invoiceId={id} backHref="/invoices" />;
+  const { print } = await searchParams;
+  return (
+    <InvoicePrintPage
+      invoiceId={id}
+      backHref="/invoices"
+      autoPrint={print === "1"}
+    />
+  );
 }
