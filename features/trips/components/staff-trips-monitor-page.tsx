@@ -1,25 +1,29 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useMemo } from "react";
+import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   STAFF_TRANSPORT_COMPANY_LABELS,
   type StaffTransportCompany,
 } from "@/lib/constants";
 import {
+  cancelStaffTrip,
   isDriverOnline,
   listDriverPresence,
   listStaffTripsForAdmin,
 } from "@/services/staff-trips.service";
 import type { DriverPresence, StaffTrip } from "@/types";
+import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
@@ -41,6 +45,7 @@ export function StaffTripsMonitorPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("trips:manage");
+  const queryClient = useQueryClient();
 
   const today = dayjs().format("YYYY-MM-DD");
   const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
@@ -72,6 +77,19 @@ export function StaffTripsMonitorPage() {
   }, [presenceQuery.data]);
 
   const grouped = groupByStatus(tripsQuery.data ?? []);
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelStaffTrip,
+    onSuccess: async () => {
+      toast.success("Trip cancelled");
+      if (organisationId) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+        });
+      }
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
 
   if (!organisationId) {
     return (
@@ -155,17 +173,32 @@ export function StaffTripsMonitorPage() {
                             </div>
                             <StatusBadge status={trip.status} />
                           </div>
-                          <div className="mt-2 flex items-center gap-2 text-xs">
-                            <span
-                              className={cn(
-                                "size-2 rounded-full",
-                                online ? "bg-emerald-500" : "bg-zinc-400"
-                              )}
-                              title={online ? "Online" : "Offline"}
-                            />
-                            <span className="text-muted-foreground">
-                              {driverName}
-                            </span>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span
+                                className={cn(
+                                  "size-2 rounded-full",
+                                  online ? "bg-emerald-500" : "bg-zinc-400"
+                                )}
+                                title={online ? "Online" : "Offline"}
+                              />
+                              <span className="text-muted-foreground">
+                                {driverName}
+                              </span>
+                            </div>
+                            {canManage &&
+                            (trip.status === "assigned" ||
+                              trip.status === "in_progress") ? (
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                className="text-destructive"
+                                disabled={cancelMutation.isPending}
+                                onClick={() => cancelMutation.mutate(trip.id)}
+                              >
+                                Cancel
+                              </Button>
+                            ) : null}
                           </div>
                         </li>
                       );
