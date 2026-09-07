@@ -1,7 +1,7 @@
 -- =============================================================================
 -- WorkOps Phase 11b — Staff transport en-route statuses (status only, no GPS)
 -- =============================================================================
--- MUST run after 00017. Adds en_route_pickup / en_route_company to trip_status.
+-- MUST run after 00019. Adds en_route_pickup / en_route_company to trip_status.
 -- Staff flow: assigned → en_route_pickup → en_route_company → completed
 
 alter type public.trip_status add value if not exists 'en_route_pickup';
