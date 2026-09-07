@@ -3,6 +3,7 @@ import {
   STAFF_TRANSPORT_COMPANY_LABELS,
   type StaffTransportCompany,
 } from "@/lib/constants";
+import { isActiveStaffTrip } from "@/features/driver-portal/lib/staff-transitions";
 import type { StaffTrip } from "@/types";
 
 export function staffCompanyLabel(
@@ -28,7 +29,7 @@ export function tripsForDay(trips: StaffTrip[], dateStr: string): StaffTrip[] {
 }
 
 export function activeTrip(trips: StaffTrip[]): StaffTrip | undefined {
-  return trips.find((t) => t.status === "in_progress");
+  return trips.find((t) => isActiveStaffTrip(t.status));
 }
 
 export function upcomingTrips(trips: StaffTrip[]): StaffTrip[] {

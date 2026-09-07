@@ -41,7 +41,7 @@ export function StartTripDialog({
       open={open}
       onOpenChange={handleOpenChange}
       title="Start trip"
-      description="Confirm waybill details and enter opening odometer reading."
+      description="Confirm waybill details and enter opening odometer to go en route to pickup."
       footer={
         <>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>

@@ -97,6 +97,8 @@ export const VEHICLE_DOC_TYPE_LABELS: Record<VehicleDocType, string> = {
 export const TRIP_STATUSES = [
   "planned",
   "assigned",
+  "en_route_pickup",
+  "en_route_company",
   "in_progress",
   "completed",
   "cancelled",
@@ -106,10 +108,22 @@ export type TripStatus = (typeof TRIP_STATUSES)[number];
 export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
   planned: "Planned",
   assigned: "Assigned",
+  en_route_pickup: "En route to pickup",
+  en_route_company: "En route to company",
   in_progress: "In progress",
   completed: "Completed",
   cancelled: "Cancelled",
 };
+
+/** Staff transport statuses (excludes legacy shuttle in_progress). */
+export const STAFF_TRIP_STATUSES = [
+  "assigned",
+  "en_route_pickup",
+  "en_route_company",
+  "completed",
+  "cancelled",
+] as const;
+export type StaffTripStatus = (typeof STAFF_TRIP_STATUSES)[number];
 
 export const TRIP_EVENT_TYPES = [
   "assigned",

@@ -134,6 +134,15 @@ export async function cancelStaffTrip(tripId: string): Promise<StaffTrip> {
   return data as StaffTrip;
 }
 
+export async function advanceStaffTripEnRoute(tripId: string): Promise<StaffTrip> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("advance_staff_trip_en_route", {
+    p_trip_id: tripId,
+  });
+  if (error) throw error;
+  return data as StaffTrip;
+}
+
 export async function startStaffTrip(
   tripId: string,
   openingKm: number,

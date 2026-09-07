@@ -13,10 +13,14 @@ import { EndTripDialog } from "@/features/driver-portal/components/end-trip-dial
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { StartTripDialog } from "@/features/driver-portal/components/start-trip-dialog";
 import {
-  formatTripTime,
   nowInDriverTz,
   todayDateString,
 } from "@/features/driver-portal/lib/dates";
+import {
+  canAdvanceStaffTrip,
+  canEndStaffTrip,
+  staffTripStatusLabel,
+} from "@/features/driver-portal/lib/staff-transitions";
 import {
   activeTrip,
   completedTrips,
@@ -24,6 +28,7 @@ import {
 } from "@/features/driver-portal/lib/trip-labels";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
+  advanceStaffTripEnRoute,
   declareNoTripDay,
   endStaffTrip,
   listMyStaffTrips,
@@ -69,8 +74,8 @@ export function DriverTodayPage() {
   });
 
   const trips = tripsQuery.data ?? [];
-  const inProgress = activeTrip(trips);
-  const upcoming = upcomingTrips(trips).filter((t) => t.id !== inProgress?.id);
+  const active = activeTrip(trips);
+  const upcoming = upcomingTrips(trips).filter((t) => t.id !== active?.id);
   const done = completedTrips(trips);
   const declaredNoTrip = (noTripQuery.data ?? []).includes(today);
 
@@ -100,8 +105,17 @@ export function DriverTodayPage() {
       confirmed: boolean;
     }) => startStaffTrip(tripId, openingKm, confirmed),
     onSuccess: async () => {
-      toast.success("Trip started");
+      toast.success("En route to pickup");
       setStartTarget(null);
+      await invalidate();
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const advanceMutation = useMutation({
+    mutationFn: advanceStaffTripEnRoute,
+    onSuccess: async () => {
+      toast.success("En route to company");
       await invalidate();
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -170,18 +184,30 @@ export function DriverTodayPage() {
 
         {tripsQuery.isLoading ? (
           <LoadingSkeleton rows={2} />
-        ) : inProgress ? (
+        ) : active ? (
           <section className="relative mb-6 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              In progress
+              {staffTripStatusLabel(active.status)}
             </p>
-            <StaffTripCard trip={inProgress} />
-            <Button
-              className="w-full"
-              onClick={() => setEndTarget(inProgress)}
-            >
-              End trip
-            </Button>
+            <StaffTripCard trip={active} />
+            {canAdvanceStaffTrip(active.status) ? (
+              <Button
+                className="w-full"
+                disabled={advanceMutation.isPending}
+                onClick={() => advanceMutation.mutate(active.id)}
+              >
+                En route to company
+                <ChevronRight className="size-4" />
+              </Button>
+            ) : null}
+            {canEndStaffTrip(active.status) ? (
+              <Button
+                className="w-full"
+                onClick={() => setEndTarget(active)}
+              >
+                End trip
+              </Button>
+            ) : null}
           </section>
         ) : null}
 
@@ -199,7 +225,7 @@ export function DriverTodayPage() {
                   )}
                 />
                 <StaffTripCard trip={trip} />
-                {idx === 0 && !inProgress ? (
+                {idx === 0 && !active ? (
                   <Button
                     className="w-full"
                     onClick={() => setStartTarget(trip)}

@@ -11,9 +11,12 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { staffTripStatusLabel } from "@/features/driver-portal/lib/staff-transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
+  STAFF_TRIP_STATUSES,
   STAFF_TRANSPORT_COMPANY_LABELS,
+  type StaffTripStatus,
   type StaffTransportCompany,
 } from "@/lib/constants";
 import {
@@ -28,17 +31,30 @@ import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
 
-const STATUS_ORDER = ["in_progress", "assigned", "planned", "completed", "cancelled"] as const;
+const MONITOR_COLUMNS: StaffTripStatus[] = [
+  "assigned",
+  "en_route_pickup",
+  "en_route_company",
+  "completed",
+];
 
 function groupByStatus(trips: StaffTrip[]) {
   const map = new Map<string, StaffTrip[]>();
-  for (const status of STATUS_ORDER) map.set(status, []);
+  for (const status of STAFF_TRIP_STATUSES) map.set(status, []);
   for (const trip of trips) {
     const list = map.get(trip.status) ?? [];
     list.push(trip);
     map.set(trip.status, list);
   }
   return map;
+}
+
+function canCancelStaffTrip(status: StaffTrip["status"]): boolean {
+  return (
+    status === "assigned" ||
+    status === "en_route_pickup" ||
+    status === "en_route_company"
+  );
 }
 
 export function StaffTripsMonitorPage() {
@@ -104,23 +120,23 @@ export function StaffTripsMonitorPage() {
     <div>
       <PageHeader
         title="Staff transport monitor"
-        description="Live status for today’s assigned trips (no GPS in v1)."
+        description="Live en-route status for today’s trips (no GPS in v1)."
       />
 
       {tripsQuery.isLoading ? (
         <LoadingSkeleton rows={4} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-3">
-          {(["assigned", "in_progress", "completed"] as const).map((status) => {
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {MONITOR_COLUMNS.map((status) => {
             const trips = grouped.get(status) ?? [];
             return (
               <section
                 key={status}
                 className="rounded-xl border bg-card p-4"
               >
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold capitalize">
-                    {status.replace("_", " ")}
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold leading-snug">
+                    {staffTripStatusLabel(status)}
                   </h2>
                   <span className="text-xs text-muted-foreground">
                     {trips.length}
@@ -148,7 +164,7 @@ export function StaffTripsMonitorPage() {
                           className="rounded-lg border px-3 py-2 text-sm"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-medium">
                                 {trip.staff_company
                                   ? STAFF_TRANSPORT_COMPANY_LABELS[
@@ -159,7 +175,7 @@ export function StaffTripsMonitorPage() {
                               <p className="text-muted-foreground">
                                 {formatDateTime(trip.planned_start)}
                               </p>
-                              <p className="text-muted-foreground truncate">
+                              <p className="truncate text-muted-foreground">
                                 {trip.area_text}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -186,9 +202,7 @@ export function StaffTripsMonitorPage() {
                                 {driverName}
                               </span>
                             </div>
-                            {canManage &&
-                            (trip.status === "assigned" ||
-                              trip.status === "in_progress") ? (
+                            {canManage && canCancelStaffTrip(trip.status) ? (
                               <Button
                                 size="xs"
                                 variant="ghost"

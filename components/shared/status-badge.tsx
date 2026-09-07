@@ -15,7 +15,11 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         : status.charAt(0).toUpperCase() + status.slice(1);
 
   const variant =
-    status === "active" || status === "completed" || status === "in_progress"
+    status === "active" ||
+    status === "completed" ||
+    status === "in_progress" ||
+    status === "en_route_pickup" ||
+    status === "en_route_company"
       ? "default"
       : status === "suspended" || status === "cancelled"
         ? "destructive"
