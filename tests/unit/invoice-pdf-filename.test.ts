@@ -96,6 +96,25 @@ describe("buildInvoicePdfFilename", () => {
       })
     ).toBe("Paulin_INV_31082026_06092026.pdf");
   });
+
+  it("sets document.title for Paulin week 31/08–06/09 Save as PDF", () => {
+    const filename = buildInvoicePdfFilename({
+      period_start: "2026-08-31",
+      period_end: "2026-09-07",
+      settingsDriverLabel: undefined,
+      trips: [
+        {
+          id: "trip-1",
+          planned_start: "2026-08-31T16:00:00.000Z",
+          notes: null,
+          trip_assignments: [{ drivers: { full_name: "Paulin Mokoena" } }],
+        },
+      ],
+    });
+    expect(invoicePdfDocumentTitle(filename)).toBe(
+      "Paulin_INV_31082026_06092026"
+    );
+  });
 });
 
 describe("invoicePdfDocumentTitle", () => {
