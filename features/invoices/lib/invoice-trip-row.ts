@@ -14,6 +14,7 @@ export type InvoiceTripEmbed = {
   id: string;
   planned_start: string;
   notes: string | null;
+  service_locations?: string | null;
   companies?: { name: string } | { name: string }[] | null;
   routes?: { name: string } | { name: string }[] | null;
   trip_passengers?: { id: string; status: string }[] | null;
@@ -109,6 +110,7 @@ export function buildTripPrintRow(
 
   const company = firstName(trip.companies) || "—";
   const rawArea =
+    trip.service_locations?.trim() ||
     firstName(trip.routes) ||
     trip.notes?.trim() ||
     line.description.replace(/^Completed trip\s+/i, "") ||

@@ -266,12 +266,27 @@ async function main() {
           : "created"
         : `FAILED ${avatars.error}`
     );
+    const orgLogos = await ensureBucket(base, service, "org-logos", {
+      public: true,
+      fileSizeLimit: 2097152,
+      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    });
+    report.orgLogosBucket = orgLogos;
+    console.log(
+      "  org-logos bucket:",
+      orgLogos.ok
+        ? orgLogos.existed
+          ? "exists"
+          : "created"
+        : `FAILED ${orgLogos.error}`
+    );
   } else {
     report.bucket = { skipped: true, reason: "no service role key" };
     console.log("  vehicle-docs bucket: skipped (set SUPABASE_SERVICE_ROLE_KEY)");
     console.log("  avatars bucket: skipped (set SUPABASE_SERVICE_ROLE_KEY)");
+    console.log("  org-logos bucket: skipped (set SUPABASE_SERVICE_ROLE_KEY)");
     report.recommendations.push(
-      "P0: set SUPABASE_SERVICE_ROLE_KEY then re-run db:audit to create vehicle-docs and avatars"
+      "P0: set SUPABASE_SERVICE_ROLE_KEY then re-run db:audit to create vehicle-docs, avatars, and org-logos"
     );
   }
 

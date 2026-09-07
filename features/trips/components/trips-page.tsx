@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignTripDialog } from "@/features/trips/components/assign-trip-dialog";
 import { GenerateTripsDialog } from "@/features/trips/components/generate-trips-dialog";
+import { TripLocationsDialog } from "@/features/trips/components/trip-locations-dialog";
 import { TripPassengersDialog } from "@/features/trips/components/trip-passengers-dialog";
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
@@ -39,6 +40,7 @@ export function TripsPage() {
   const [cancelling, setCancelling] = useState<Trip | null>(null);
   const [assigningTripId, setAssigningTripId] = useState<string | null>(null);
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
+  const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
@@ -89,6 +91,14 @@ export function TripsPage() {
         cell: ({ row }) => formatDateTime(row.original.planned_end),
       },
       {
+        id: "locations",
+        header: "AREA",
+        cell: ({ row }) =>
+          row.original.service_locations?.trim() ||
+          row.original.routes?.name ||
+          "—",
+      },
+      {
         id: "driver",
         header: "Driver",
         cell: ({ row }) => {
@@ -109,9 +119,19 @@ export function TripsPage() {
         cell: ({ row }) => {
           const status = row.original.status;
           const canAssign = canManage && (status === "planned" || status === "assigned");
+          const canEditLocations = canManage && status !== "cancelled";
           const canCancel = canManage && canTransition(status, "cancelled");
           return (
             <div className="flex justify-end gap-1">
+              {canEditLocations ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLocationsTrip(row.original)}
+                >
+                  Locations
+                </Button>
+              ) : null}
               {canViewAttendance ? (
                 <Button
                   variant="ghost"
@@ -224,6 +244,22 @@ export function TripsPage() {
         organisationId={organisationId}
         tripId={passengersTrip?.id ?? null}
         tripLabel={passengersTrip?.routes?.name}
+      />
+
+      <TripLocationsDialog
+        open={Boolean(locationsTrip)}
+        onOpenChange={(open) => !open && setLocationsTrip(null)}
+        organisationId={organisationId}
+        tripId={locationsTrip?.id ?? null}
+        tripLabel={locationsTrip?.routes?.name}
+        initialValue={
+          locationsTrip?.service_locations ?? locationsTrip?.routes?.name ?? ""
+        }
+        onSaved={() =>
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.trips(organisationId),
+          })
+        }
       />
 
       <ConfirmDialog
