@@ -17,6 +17,7 @@ import {
   DriverPresenceProvider,
   useDriverPresence,
 } from "@/features/driver-portal/hooks/use-driver-heartbeat";
+import { presenceStateLabel } from "@/features/driver-portal/lib/presence";
 import { APP_NAME } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { MembershipWithOrg, Profile } from "@/types";
@@ -30,21 +31,27 @@ const DRIVER_TABS = [
 ] as const;
 
 function PresenceDot() {
-  const { online } = useDriverPresence();
+  const { state } = useDriverPresence();
 
   return (
     <span
       className={cn(
-        "size-2.5 rounded-full ring-2 ring-zinc-950",
-        online ? "bg-emerald-500" : "bg-zinc-600"
+        "size-2.5 shrink-0 rounded-full ring-2 ring-zinc-950",
+        state === "online" && "bg-emerald-500",
+        state === "offline" && "bg-zinc-500",
+        state === "signing_out" && "bg-red-500"
       )}
-      title={online ? "Online" : "Offline"}
+      title={presenceStateLabel(state)}
+      aria-label={presenceStateLabel(state)}
     />
   );
 }
 
 function DriverHeader({ profile }: { profile: Profile }) {
+  const { markSigningOut } = useDriverPresence();
+
   async function signOut() {
+    markSigningOut();
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -66,10 +73,10 @@ function DriverHeader({ profile }: { profile: Profile }) {
             Driver
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-2 sm:flex">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <PresenceDot />
-            <span className="max-w-[8rem] truncate text-xs font-medium text-zinc-300">
+            <span className="max-w-[7rem] truncate text-xs font-medium uppercase tracking-wide text-zinc-300 sm:max-w-[9rem]">
               {displayName}
             </span>
           </div>
