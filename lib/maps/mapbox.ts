@@ -1,4 +1,4 @@
-import type { Map as MapboxMap, Marker } from "mapbox-gl";
+import type { GeoJSONSource, Map as MapboxMap, Marker } from "mapbox-gl";
 
 export type MapMarker = {
   id: string;
@@ -8,9 +8,17 @@ export type MapMarker = {
   color?: string;
 };
 
+export type MapPath = {
+  id: string;
+  coordinates: [number, number][];
+  color?: string;
+};
+
 export type MapHandle = {
   map: MapboxMap;
   setMarkers: (markers: MapMarker[]) => void;
+  setPaths: (paths: MapPath[]) => void;
+  fitBounds: (coordinates: [number, number][], padding?: number) => void;
   destroy: () => void;
 };
 
@@ -38,6 +46,15 @@ export async function createMapboxMap(
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
   const markersById = new Map<string, Marker>();
+  const pathIds = new Set<string>();
+
+  function runWhenReady(fn: () => void) {
+    if (map.isStyleLoaded()) {
+      fn();
+      return;
+    }
+    map.once("load", fn);
+  }
 
   function setMarkers(markers: MapMarker[]) {
     const nextIds = new Set(markers.map((m) => m.id));
@@ -70,11 +87,78 @@ export async function createMapboxMap(
     }
   }
 
+  function setPaths(paths: MapPath[]) {
+    runWhenReady(() => {
+      const nextIds = new Set(paths.map((p) => p.id));
+
+      for (const id of pathIds) {
+        if (nextIds.has(id)) continue;
+        const layerId = `path-layer-${id}`;
+        const sourceId = `path-source-${id}`;
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        pathIds.delete(id);
+      }
+
+      for (const path of paths) {
+        if (path.coordinates.length < 2) continue;
+
+        const sourceId = `path-source-${path.id}`;
+        const layerId = `path-layer-${path.id}`;
+        const data = {
+          type: "Feature" as const,
+          properties: {},
+          geometry: {
+            type: "LineString" as const,
+            coordinates: path.coordinates,
+          },
+        };
+
+        const existing = map.getSource(sourceId) as GeoJSONSource | undefined;
+        if (existing) {
+          existing.setData(data);
+        } else {
+          map.addSource(sourceId, { type: "geojson", data });
+          map.addLayer({
+            id: layerId,
+            type: "line",
+            source: sourceId,
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: {
+              "line-color": path.color ?? "#2563eb",
+              "line-width": 4,
+              "line-opacity": 0.85,
+            },
+          });
+        }
+        pathIds.add(path.id);
+      }
+    });
+  }
+
+  function fitBounds(coordinates: [number, number][], padding = 48) {
+    if (coordinates.length === 0) return;
+    runWhenReady(() => {
+      const bounds = coordinates.reduce(
+        (b, coord) => b.extend(coord),
+        new mapboxgl.LngLatBounds(coordinates[0], coordinates[0])
+      );
+      map.fitBounds(bounds, { padding, maxZoom: 15, duration: 600 });
+    });
+  }
+
   function destroy() {
     for (const marker of markersById.values()) marker.remove();
     markersById.clear();
+    for (const id of pathIds) {
+      const layerId = `path-layer-${id}`;
+      const sourceId = `path-source-${id}`;
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    }
+    pathIds.clear();
     map.remove();
   }
 
-  return { map, setMarkers, destroy };
+  return { map, setMarkers, setPaths, fitBounds, destroy };
 }

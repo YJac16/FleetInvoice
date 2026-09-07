@@ -13,6 +13,7 @@ import {
 
 import { OrgProvider } from "@/components/layout/org-context";
 import { NotificationBell } from "@/features/driver-portal/components/notification-bell";
+import { StaffTripGpsTracker } from "@/features/driver-portal/components/staff-trip-gps-tracker";
 import {
   DriverPresenceProvider,
   useDriverPresence,
@@ -152,6 +153,7 @@ export function DriverShell({
         <DriverPresenceProvider>
           <DriverHeader profile={profile} />
           <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6 pb-24 md:px-6">
+            <StaffTripGpsTracker />
             {children}
           </main>
           <DriverBottomNav />

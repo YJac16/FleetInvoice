@@ -36,6 +36,8 @@ export const queryKeys = {
   myQrTokens: (orgId: string) => ["my-qr-tokens", orgId] as const,
   myEmployee: (orgId: string) => ["my-employee", orgId] as const,
   gpsLastPositions: (orgId: string) => ["gps-last-positions", orgId] as const,
+  gpsPointsForTrip: (orgId: string, tripId: string) =>
+    ["gps-points-trip", orgId, tripId] as const,
   geofences: (orgId: string) => ["geofences", orgId] as const,
   geofenceEvents: (orgId: string) => ["geofence-events", orgId] as const,
   fuelFillups: (orgId: string) => ["fuel-fillups", orgId] as const,

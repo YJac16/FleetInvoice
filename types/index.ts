@@ -655,6 +655,19 @@ export type GpsPointInput = {
   driver_id?: string | null;
 };
 
+export type GpsPoint = {
+  id: string;
+  organisation_id: string;
+  driver_id: string;
+  vehicle_id: string | null;
+  trip_id: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number | null;
+  recorded_at: string;
+  created_at: string;
+};
+
 export type SubscriptionStatus =
   | "trialing"
   | "active"

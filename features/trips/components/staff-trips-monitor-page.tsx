@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -11,7 +11,12 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  pathCoordinatesFromGpsPoints,
+  staffTripLiveMarkers,
+} from "@/features/driver-portal/lib/gps";
 import { staffTripStatusLabel } from "@/features/driver-portal/lib/staff-transitions";
+import { StaffTripGpsMap } from "@/features/trips/components/staff-trip-gps-map";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   STAFF_TRIP_STATUSES,
@@ -19,6 +24,10 @@ import {
   type StaffTripStatus,
   type StaffTransportCompany,
 } from "@/lib/constants";
+import {
+  listGpsLastPositions,
+  listGpsPointsForTrip,
+} from "@/services/gps.service";
 import {
   cancelStaffTrip,
   isDriverOnline,
@@ -61,10 +70,13 @@ export function StaffTripsMonitorPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("trips:manage");
+  const canViewGps = can("gps:view") || can("dispatch:view") || canManage;
   const queryClient = useQueryClient();
 
   const today = dayjs().format("YYYY-MM-DD");
   const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
+
+  const [playbackTripId, setPlaybackTripId] = useState<string | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId
@@ -84,6 +96,24 @@ export function StaffTripsMonitorPage() {
     refetchInterval: 30_000,
   });
 
+  const positionsQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.gpsLastPositions(organisationId)
+      : ["gps-last-positions", "none"],
+    queryFn: () => listGpsLastPositions(organisationId!),
+    enabled: Boolean(organisationId) && canViewGps,
+    refetchInterval: 10_000,
+  });
+
+  const playbackQuery = useQuery({
+    queryKey:
+      organisationId && playbackTripId
+        ? queryKeys.gpsPointsForTrip(organisationId, playbackTripId)
+        : ["gps-points-trip", "none"],
+    queryFn: () => listGpsPointsForTrip(organisationId!, playbackTripId!),
+    enabled: Boolean(organisationId) && Boolean(playbackTripId) && canViewGps,
+  });
+
   const presenceByDriver = useMemo(() => {
     const map = new Map<string, DriverPresence>();
     for (const p of presenceQuery.data ?? []) {
@@ -92,7 +122,27 @@ export function StaffTripsMonitorPage() {
     return map;
   }, [presenceQuery.data]);
 
-  const grouped = groupByStatus(tripsQuery.data ?? []);
+  const trips = tripsQuery.data ?? [];
+  const grouped = groupByStatus(trips);
+
+  const liveMarkers = useMemo(
+    () => staffTripLiveMarkers(trips, positionsQuery.data ?? []),
+    [trips, positionsQuery.data]
+  );
+
+  const playbackPath = useMemo(() => {
+    if (!playbackTripId || !playbackQuery.data?.length) return [];
+    return [
+      {
+        id: playbackTripId,
+        coordinates: pathCoordinatesFromGpsPoints(playbackQuery.data),
+        color: "#2563eb",
+      },
+    ];
+  }, [playbackTripId, playbackQuery.data]);
+
+  const mapMarkers = playbackTripId ? [] : liveMarkers;
+  const mapPaths = playbackTripId ? playbackPath : [];
 
   const cancelMutation = useMutation({
     mutationFn: cancelStaffTrip,
@@ -117,18 +167,63 @@ export function StaffTripsMonitorPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Staff transport monitor"
-        description="Live en-route status for today’s trips (no GPS in v1)."
+        description="Live en-route status and GPS for today’s staff trips."
       />
+
+      {canViewGps ? (
+        <section className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-heading text-lg">Live map</h2>
+            {playbackTripId ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPlaybackTripId(null)}
+              >
+                Back to live
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {liveMarkers.length} driver
+                {liveMarkers.length === 1 ? "" : "s"} on en-route trips
+              </p>
+            )}
+          </div>
+          {playbackTripId && playbackQuery.isLoading ? (
+            <LoadingSkeleton rows={2} />
+          ) : (
+            <StaffTripGpsMap
+              markers={mapMarkers}
+              paths={mapPaths}
+              fitToPathId={playbackTripId}
+              className="h-[360px] w-full overflow-hidden rounded-xl border"
+              emptyMessage={
+                playbackTripId
+                  ? "No GPS trail recorded for this trip."
+                  : "No live positions for en-route trips."
+              }
+            />
+          )}
+          {playbackTripId ? (
+            <p className="text-xs text-muted-foreground">
+              Path playback for completed trip
+              {playbackQuery.data?.length
+                ? ` · ${playbackQuery.data.length} points`
+                : ""}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {tripsQuery.isLoading ? (
         <LoadingSkeleton rows={4} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {MONITOR_COLUMNS.map((status) => {
-            const trips = grouped.get(status) ?? [];
+            const columnTrips = grouped.get(status) ?? [];
             return (
               <section
                 key={status}
@@ -139,14 +234,14 @@ export function StaffTripsMonitorPage() {
                     {staffTripStatusLabel(status)}
                   </h2>
                   <span className="text-xs text-muted-foreground">
-                    {trips.length}
+                    {columnTrips.length}
                   </span>
                 </div>
-                {trips.length === 0 ? (
+                {columnTrips.length === 0 ? (
                   <p className="text-sm text-muted-foreground">None</p>
                 ) : (
                   <ul className="space-y-2">
-                    {trips.map((trip) => {
+                    {columnTrips.map((trip) => {
                       const driverId =
                         trip.trip_assignments?.find((a) => !a.released_at)
                           ?.driver_id ?? null;
@@ -157,11 +252,15 @@ export function StaffTripsMonitorPage() {
                         ? presenceByDriver.get(driverId)
                         : undefined;
                       const online = isDriverOnline(presence);
+                      const isPlayback = playbackTripId === trip.id;
 
                       return (
                         <li
                           key={trip.id}
-                          className="rounded-lg border px-3 py-2 text-sm"
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-sm",
+                            isPlayback && "border-primary ring-1 ring-primary/30"
+                          )}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -202,17 +301,30 @@ export function StaffTripsMonitorPage() {
                                 {driverName}
                               </span>
                             </div>
-                            {canManage && canCancelStaffTrip(trip.status) ? (
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                className="text-destructive"
-                                disabled={cancelMutation.isPending}
-                                onClick={() => cancelMutation.mutate(trip.id)}
-                              >
-                                Cancel
-                              </Button>
-                            ) : null}
+                            <div className="flex items-center gap-1">
+                              {canViewGps && status === "completed" ? (
+                                <Button
+                                  size="xs"
+                                  variant={isPlayback ? "default" : "ghost"}
+                                  onClick={() =>
+                                    setPlaybackTripId(isPlayback ? null : trip.id)
+                                  }
+                                >
+                                  {isPlayback ? "Hide path" : "View path"}
+                                </Button>
+                              ) : null}
+                              {canManage && canCancelStaffTrip(trip.status) ? (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  disabled={cancelMutation.isPending}
+                                  onClick={() => cancelMutation.mutate(trip.id)}
+                                >
+                                  Cancel
+                                </Button>
+                              ) : null}
+                            </div>
                           </div>
                         </li>
                       );
@@ -226,7 +338,7 @@ export function StaffTripsMonitorPage() {
       )}
 
       {!canManage ? (
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Read-only view. Dispatchers can assign trips from the Trips page.
         </p>
       ) : null}
