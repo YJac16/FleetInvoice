@@ -1,12 +1,18 @@
 import Link from "next/link";
 
-import { GoOpsSymbol } from "@/components/brand/goops-symbol";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+const LOGO_SRC = {
+  /** Symbol + white Ops — navy / dark chrome (sidebar, driver, login on navy). */
+  dark: "/brand/main-logo-dark-transparent.png",
+  /** Symbol + navy Ops — light backgrounds. */
+  light: "/brand/lockup-light-transparent.png",
+} as const;
+
 type GoOpsLogoProps = {
-  /** Sidebar-aware foreground, or explicit white on dark chrome. */
-  variant?: "default" | "sidebar" | "on-dark";
+  /** `dark` on navy/dark chrome; `light` on light backgrounds. */
+  theme?: "dark" | "light";
   size?: "sm" | "md" | "lg";
   showTagline?: boolean;
   href?: string;
@@ -14,46 +20,38 @@ type GoOpsLogoProps = {
   onClick?: () => void;
 };
 
-const symbolSizes = { sm: 22, md: 26, lg: 32 } as const;
-const textSizes = {
-  sm: "text-lg",
-  md: "text-xl",
-  lg: "text-2xl",
-} as const;
+const heights = { sm: 24, md: 28, lg: 36 } as const;
+/** Founder lockup aspect ratio (width / height). */
+const LOCKUP_ASPECT = 180 / 48;
 
 export function GoOpsLogo({
-  variant = "default",
+  theme = "light",
   size = "md",
   showTagline = false,
   href,
   className,
   onClick,
 }: GoOpsLogoProps) {
-  const symbolSize = symbolSizes[size];
-  const opsClass =
-    variant === "on-dark"
-      ? "font-sans font-bold text-white"
-      : variant === "sidebar"
-        ? "font-sans font-bold text-sidebar-foreground"
-        : "font-sans font-bold text-foreground";
+  const height = heights[size];
+  const width = Math.round(height * LOCKUP_ASPECT);
+  const src = LOGO_SRC[theme];
 
   const lockup = (
     <span className={cn("inline-flex flex-col", className)}>
-      <span className="inline-flex items-center gap-2">
-        <GoOpsSymbol size={symbolSize} />
-        <span className={cn("leading-none tracking-tight", textSizes[size], opsClass)}>
-          Ops
-        </span>
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element -- founder PNG lockups */}
+      <img
+        src={src}
+        alt={APP_NAME}
+        width={width}
+        height={height}
+        className="h-auto w-auto shrink-0"
+        style={{ height, width: "auto", maxWidth: width }}
+      />
       {showTagline ? (
         <span
           className={cn(
             "mt-1.5 text-[10px] font-medium tracking-[0.22em] uppercase",
-            variant === "on-dark"
-              ? "text-white/70"
-              : variant === "sidebar"
-                ? "text-sidebar-foreground/70"
-                : "text-muted-foreground"
+            theme === "dark" ? "text-white/70" : "text-muted-foreground"
           )}
         >
           {APP_TAGLINE}

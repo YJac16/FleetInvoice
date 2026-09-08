@@ -120,7 +120,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center px-5">
         <GoOpsLogo
-          variant="sidebar"
+          theme="dark"
           href="/dashboard"
           onClick={onNavigate}
         />
