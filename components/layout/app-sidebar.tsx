@@ -10,7 +10,6 @@ import { useOrg } from "@/components/layout/org-context";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { APP_NAME } from "@/lib/constants";
 import {
   MAIN_NAV,
   NAV_GROUPS,
@@ -120,9 +119,11 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center px-5">
-        <Link href="/dashboard" onClick={onNavigate} aria-label={APP_NAME}>
-          <GoOpsLogo theme="dark" height={28} />
-        </Link>
+        <GoOpsLogo
+          variant="sidebar"
+          href="/dashboard"
+          onClick={onNavigate}
+        />
       </div>
       <Separator />
       <div className="px-3 pt-3">

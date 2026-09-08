@@ -14,7 +14,7 @@ import {
   acceptInviteSchema,
   type AcceptInviteValues,
 } from "@/features/auth/schemas/auth";
-import { APP_NAME, ROLE_LABELS, type AppRole } from "@/lib/constants";
+import { ROLE_LABELS, type AppRole } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -147,9 +147,6 @@ export function AcceptInviteForm({ token }: { token: string }) {
   return (
     <Card className="w-full max-w-md rounded-2xl border-border/80 shadow-none">
       <CardHeader className="space-y-2">
-        <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          {APP_NAME}
-        </p>
         <CardTitle className="font-heading text-3xl">Accept invite</CardTitle>
         <CardDescription>
           Joining as{" "}

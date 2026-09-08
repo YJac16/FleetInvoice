@@ -12,7 +12,6 @@ import {
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
-import { APP_NAME } from "@/lib/constants";
 import type { Permission } from "@/lib/permissions";
 import type { MembershipWithOrg, Profile } from "@/types";
 import { cn } from "@/lib/utils";
@@ -45,9 +44,7 @@ const EMPLOYEE_TABS: TabItem[] = [
 function EmployeeHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
-      <Link href="/employee" aria-label={APP_NAME}>
-        <GoOpsLogo height={24} />
-      </Link>
+      <GoOpsLogo size="sm" href="/employee" />
       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         Employee
       </span>

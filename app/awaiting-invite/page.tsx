@@ -9,8 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { requireSession } from "@/lib/auth/require-permission";
-import { APP_NAME } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,11 @@ export default async function AwaitingInvitePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-auth-surface-simple px-6">
-      <Card className="w-full max-w-md rounded-2xl shadow-none">
-        <CardHeader>
-          <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-            {APP_NAME}
-          </p>
-          <CardTitle className="font-heading text-3xl">Awaiting invite</CardTitle>
+      <div className="w-full max-w-md space-y-6">
+        <GoOpsLogo size="lg" showTagline />
+        <Card className="rounded-2xl shadow-none">
+          <CardHeader>
+            <CardTitle className="font-heading text-3xl">Awaiting invite</CardTitle>
           <CardDescription>
             You are signed in as {session.email}, but you are not a member of any
             organisation yet. Ask your administrator to send an invitation.
@@ -39,7 +38,8 @@ export default async function AwaitingInvitePage() {
             Back to login
           </Button>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
