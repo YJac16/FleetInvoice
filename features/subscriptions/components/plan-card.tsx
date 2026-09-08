@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { APP_NAME } from "@/lib/constants";
 import {
   formatZarFromCents,
   isRecommendedPlan,
@@ -95,7 +96,7 @@ export function PlanCard({
           </Button>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Invite-only — ask your WorkOps contact to change plan.
+            Invite-only — ask your {APP_NAME} contact to change plan.
           </p>
         )}
       </CardFooter>

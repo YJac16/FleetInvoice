@@ -1,17 +1,29 @@
 {
-  "name": "WorkOps",
-  "short_name": "WorkOps",
-  "description": "Enterprise workforce operations platform",
+  "name": "GoOps",
+  "short_name": "GoOps",
+  "description": "Operations platform for transport operators",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#fbfbfc",
-  "theme_color": "#111827",
+  "background_color": "#E8EDF2",
+  "theme_color": "#0B1F3B",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/favicon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
+import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -41,8 +42,8 @@ function CompanyHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
       <div className="flex h-14 items-center gap-3 px-4 md:px-6">
-        <Link href="/company" className="font-heading text-lg tracking-tight">
-          {APP_NAME}
+        <Link href="/company" aria-label={APP_NAME}>
+          <GoOpsLogo height={24} />
         </Link>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           Company hub

@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-  <rect width="64" height="64" rx="14" fill="#0B1F3B"/>
-  <g transform="translate(8 8) scale(1)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 48" fill="none" role="img" aria-label="GoOps">
+  <g transform="translate(0 0)">
     <path
       d="M33.5 13.5C28.5 9.5 22 8 16.5 9.8 9.5 12.2 5 18.8 5 26c0 9.9 8.1 18 18 18 5.8 0 11-2.6 14.5-6.7"
       stroke="#006DFF"
@@ -22,4 +21,13 @@
       stroke-linejoin="round"
     />
   </g>
+  <text
+    x="52"
+    y="33"
+    fill="#FFFFFF"
+    font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+    font-size="28"
+    font-weight="700"
+    letter-spacing="-0.02em"
+  >Ops</text>
 </svg>

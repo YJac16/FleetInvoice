@@ -1,4 +1,5 @@
-export const APP_NAME = "WorkOps" as const;
+export const APP_NAME = "GoOps" as const;
+export const APP_TAGLINE = "Keep the work moving" as const;
 
 export const APP_ROLES = [
   "platform_owner",

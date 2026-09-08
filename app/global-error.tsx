@@ -1,5 +1,7 @@
 "use client";
 
+import { APP_NAME } from "@/lib/constants";
+
 export default function GlobalError({
   error,
   reset,
@@ -10,7 +12,7 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-foreground">
-        <h2 className="text-2xl font-semibold tracking-tight">WorkOps error</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{APP_NAME} error</h2>
         <p className="max-w-md text-center text-sm text-muted-foreground">
           {error.message || "A critical error occurred."}
         </p>
