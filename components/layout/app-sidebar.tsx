@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { useOrg } from "@/components/layout/org-context";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -41,7 +42,7 @@ function NavLink({
         "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors",
         active
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/25 hover:text-sidebar-foreground"
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -119,12 +120,8 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center px-5">
-        <Link
-          href="/dashboard"
-          onClick={onNavigate}
-          className="font-heading text-xl tracking-tight"
-        >
-          {APP_NAME}
+        <Link href="/dashboard" onClick={onNavigate} aria-label={APP_NAME}>
+          <GoOpsLogo theme="dark" height={28} />
         </Link>
       </div>
       <Separator />
@@ -146,7 +143,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.id)}
-                  className="mb-1 flex w-full items-center justify-between px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase"
+                  className="mb-1 flex w-full items-center justify-between px-3 text-[11px] font-medium tracking-wide text-sidebar-foreground/60 uppercase"
                 >
                   {group.label}
                   <ChevronDown

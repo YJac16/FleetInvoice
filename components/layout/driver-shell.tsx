@@ -11,6 +11,7 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider } from "@/components/layout/org-context";
 import { NotificationBell } from "@/features/driver-portal/components/notification-bell";
 import { StaffTripGpsTracker } from "@/features/driver-portal/components/staff-trip-gps-tracker";
@@ -64,11 +65,8 @@ function DriverHeader({ profile }: { profile: Profile }) {
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur md:px-6">
       <div className="mx-auto flex h-14 max-w-lg items-center justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            href="/driver"
-            className="font-heading text-lg tracking-tight text-white"
-          >
-            {APP_NAME}
+          <Link href="/driver" aria-label={APP_NAME}>
+            <GoOpsLogo theme="dark" height={24} />
           </Link>
           <p className="text-[10px] uppercase tracking-widest text-zinc-500">
             Driver

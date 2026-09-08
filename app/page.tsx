@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { APP_NAME } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,7 +27,7 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-      Loading WorkOps…
+      Loading {APP_NAME}…
     </div>
   );
 }
