@@ -18,7 +18,6 @@ import {
 } from "@/features/auth/schemas/auth";
 import { signInWithPassword } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
-import { APP_NAME } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/env";
 import { readKeepSignedInPreference } from "@/lib/supabase/auth-persistence";
 
@@ -77,9 +76,6 @@ export function LoginForm() {
       ) : null}
       <Card className="w-full rounded-2xl border-border/80 shadow-none">
         <CardHeader className="space-y-2">
-          <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-            {APP_NAME}
-          </p>
           <CardTitle className="font-heading text-3xl">Sign in</CardTitle>
           <CardDescription>
             Invite-only access. Use the credentials from your organisation invitation.

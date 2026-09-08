@@ -1,7 +1,7 @@
 {
   "name": "GoOps",
   "short_name": "GoOps",
-  "description": "Operations platform for transport operators",
+  "description": "KEEP THE WORK MOVING — operations platform for transport operators",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#E8EDF2",

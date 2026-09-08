@@ -6,7 +6,7 @@ import {
   tripsHrefForRole,
 } from "@/lib/auth/hub-redirect";
 import { getSessionContext } from "@/lib/auth/session";
-import { APP_NAME } from "@/lib/constants";
+import { GoOpsLogo } from "@/components/brand/goops-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +33,9 @@ export default async function NotFound() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card px-8 py-14 text-center shadow-none">
-        <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          {APP_NAME}
-        </p>
+        <div className="flex justify-center">
+          <GoOpsLogo size="sm" />
+        </div>
         <p
           aria-hidden
           className="mt-8 font-heading text-8xl leading-none tracking-tight text-muted-foreground/30"

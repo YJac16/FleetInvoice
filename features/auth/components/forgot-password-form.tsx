@@ -13,7 +13,6 @@ import {
   forgotPasswordSchema,
   type ForgotPasswordValues,
 } from "@/features/auth/schemas/auth";
-import { APP_NAME } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/env";
 import { requestPasswordReset } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -48,9 +47,6 @@ export function ForgotPasswordForm() {
   return (
     <Card className="w-full max-w-md rounded-2xl border-border/80 shadow-none">
       <CardHeader className="space-y-2">
-        <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-          {APP_NAME}
-        </p>
         <CardTitle className="font-heading text-3xl">Reset password</CardTitle>
         <CardDescription>
           Enter your account email and we will send a secure reset link.
