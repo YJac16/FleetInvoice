@@ -4,6 +4,7 @@ on:
     branches: [cursor/goops-final-logo-assets-2846]
     paths:
       - 'goops-final-logos/**.b64.parts/**'
+      - 'goops-final-logos/**.b64'
       - '.github/workflows/assemble-goops-logos.yml'
   workflow_dispatch:
 permissions:
@@ -26,15 +27,43 @@ jobs:
               echo "Assembled $out ($(wc -c < "$out") bytes)"
             fi
           done
-      - name: Commit assembled files
+      - name: Decode binaries into public/brand and favicons
+        run: |
+          set -euo pipefail
+          mkdir -p public/brand
+          decode() {
+            local b64="$1" dest="$2"
+            if [ -f "$b64" ]; then
+              base64 -d "$b64" > "$dest"
+              echo "Wrote $dest ($(wc -c < "$dest") bytes)"
+            fi
+          }
+          decode goops-final-logos/main-logo-dark-transparent.png.b64 public/brand/main-logo-dark-transparent.png
+          decode goops-final-logos/lockup-light-transparent.png.b64 public/brand/lockup-light-transparent.png
+          decode goops-final-logos/mark-transparent.png.b64 public/brand/mark-transparent.png
+          decode goops-final-logos/favicon-16x16.png.b64 public/favicon-16x16.png
+          decode goops-final-logos/favicon-32x32.png.b64 public/favicon-32x32.png
+          decode goops-final-logos/favicon-48x48.png.b64 public/favicon-48x48.png
+          decode goops-final-logos/favicon-512x512.png.b64 public/favicon-512x512.png
+          decode goops-final-logos/apple-touch-icon.png.b64 public/apple-touch-icon.png
+          decode goops-final-logos/favicon.ico.b64 public/favicon.ico
+          # fallbacks from mark/32 if missing
+          if [ ! -f public/favicon-16x16.png ] && [ -f public/favicon-32x32.png ]; then
+            cp public/favicon-32x32.png public/favicon-16x16.png
+          fi
+          if [ ! -f public/favicon.ico ] && [ -f public/favicon-32x32.png ]; then
+            cp public/favicon-32x32.png public/favicon.ico
+          fi
+          ls -la public/brand public/favicon* public/apple-touch-icon.png || true
+      - name: Commit assembled files and binaries
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add goops-final-logos/*.b64 || true
+          git add goops-final-logos/*.b64 public/brand public/favicon*.png public/favicon.ico public/apple-touch-icon.png || true
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Assemble founder logo .b64 assets from parts"
+            git commit -m "Assemble founder GoOps PNG brand assets from b64 parts"
             git push
           fi
