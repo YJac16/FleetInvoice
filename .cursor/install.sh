@@ -45,11 +45,13 @@ npm ci
 # fail the build if the daemon or network is unavailable.
 if ensure_docker; then
   log "Pre-pulling Supabase images..."
+  # Start from a clean slate so image pulls actually run even if a previous
+  # snapshot left containers behind, then tear the stack down so start.sh can
+  # bring it up freshly on each boot. Never fail the build on this best-effort step.
+  npx --yes supabase stop --no-backup >/dev/null 2>&1 || true
   npx --yes supabase start >/tmp/supabase-prepull.log 2>&1 || \
     log "Supabase pre-pull skipped/failed (start.sh will retry on boot)."
-  # Leave the images cached but stop the ephemeral containers; start.sh brings
-  # the stack up freshly on each boot.
-  npx --yes supabase stop >/dev/null 2>&1 || true
+  npx --yes supabase stop --no-backup >/dev/null 2>&1 || true
 fi
 
 log "install complete."

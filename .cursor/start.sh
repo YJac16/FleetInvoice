@@ -16,6 +16,12 @@ cd "$REPO_ROOT"
 
 # --- 1. Docker + Supabase stack ----------------------------------------------
 ensure_docker
+# Tear down any leftover containers baked into the snapshot / from a previous
+# boot so `supabase start` always begins from a clean, deterministic state
+# (migrations are re-applied and demo data re-seeded below). Safe no-op when
+# nothing is running.
+log "Clearing any leftover Supabase containers..."
+npx --yes supabase stop --no-backup >/dev/null 2>&1 || true
 log "Starting local Supabase stack..."
 npx --yes supabase start
 
