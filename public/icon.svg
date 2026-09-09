@@ -1,14 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
   <rect width="64" height="64" rx="14" fill="#0B1F3B"/>
   <defs>
-    <linearGradient id="goops-mark" x1="0" y1="315.0" x2="1200" y2="315.0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="goops-mark" x1="0" y1="315" x2="1200" y2="315" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0056FC"/>
       <stop offset="0.45" stop-color="#00B4F3"/>
       <stop offset="0.7" stop-color="#01C7C7"/>
       <stop offset="1" stop-color="#01F183"/>
     </linearGradient>
+    <clipPath id="goops-clip">
+      <rect x="2.56" y="2.56" width="58.88" height="58.88"/>
+    </clipPath>
   </defs>
-  <g transform="translate(6.000 45.650) scale(0.043333 -0.043333)">
+  <g clip-path="url(#goops-clip)" transform="translate(-7.029 61.440) scale(0.093460 -0.093460)">
     <path d="M362 570 c-100 -8 -197 -60 -257 -139 -32 -44 -52 -92 -59 -142 -2
 -12 -2 -41 0 -54 6 -46 23 -87 51 -122 9 -12 32 -34 45 -44 42 -32 94 -50 155
 -56 14 -1 56 -1 69 0 50 5 94 18 137 41 37 19 63 39 94 73 32 34 56 59 76 79
