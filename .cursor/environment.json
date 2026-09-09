@@ -5,7 +5,7 @@
   "terminals": [
     {
       "name": "next-dev",
-      "command": "cd /workspace && npm run dev"
+      "command": "cd /workspace && { test -f .env.local || bash .cursor/start.sh; } && npm run dev"
     }
   ],
   "ports": [3000, 54321, 54323, 54324]
