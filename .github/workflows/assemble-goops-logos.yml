@@ -1,0 +1,40 @@
+name: Assemble GoOps logo b64 assets
+on:
+  push:
+    branches: [cursor/goops-final-logo-assets-2846]
+    paths:
+      - 'goops-final-logos/**.b64.parts/**'
+      - '.github/workflows/assemble-goops-logos.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cursor/goops-final-logo-assets-2846
+      - name: Concatenate parts into canonical .b64 files
+        run: |
+          set -euo pipefail
+          for name in favicon-512x512.png.b64 lockup-light-transparent.png.b64 main-logo-dark-transparent.png.b64 mark-transparent.png.b64; do
+            parts_dir="goops-final-logos/${name}.parts"
+            if [ -d "$parts_dir" ]; then
+              out="goops-final-logos/${name}"
+              cat $(ls "$parts_dir"/* | sort) > "$out"
+              echo "Assembled $out ($(wc -c < "$out") bytes)"
+            fi
+          done
+      - name: Commit assembled files
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add goops-final-logos/*.b64 || true
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Assemble founder logo .b64 assets from parts"
+            git push
+          fi
