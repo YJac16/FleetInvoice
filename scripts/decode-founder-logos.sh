@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$ROOT/goops-final-logos"
+mkdir -p "$ROOT/public/brand"
+base64 -d "$SRC/main-logo-dark-transparent.png.b64" > "$ROOT/public/brand/main-logo-dark-transparent.png"
+base64 -d "$SRC/lockup-light-transparent.png.b64" > "$ROOT/public/brand/lockup-light-transparent.png"
+base64 -d "$SRC/mark-transparent.png.b64" > "$ROOT/public/brand/mark-transparent.png"
+base64 -d "$SRC/favicon-16x16.png.b64" > "$ROOT/public/favicon-16x16.png"
+base64 -d "$SRC/favicon-32x32.png.b64" > "$ROOT/public/favicon-32x32.png"
+base64 -d "$SRC/favicon-48x48.png.b64" > "$ROOT/public/favicon-48x48.png"
+base64 -d "$SRC/favicon-512x512.png.b64" > "$ROOT/public/favicon-512x512.png"
+base64 -d "$SRC/apple-touch-icon.png.b64" > "$ROOT/public/apple-touch-icon.png"
+base64 -d "$SRC/favicon.ico.b64" > "$ROOT/public/favicon.ico"
+ls -la "$ROOT/public/brand" "$ROOT/public"/favicon* "$ROOT/public/apple-touch-icon.png"
