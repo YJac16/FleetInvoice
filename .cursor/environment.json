@@ -1,0 +1,12 @@
+{
+  "name": "WorkOps (Next.js + local Supabase)",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "cd /workspace && npm run dev"
+    }
+  ],
+  "ports": [3000, 54321, 54323, 54324]
+}
