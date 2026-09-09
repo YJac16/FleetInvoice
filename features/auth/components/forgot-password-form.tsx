@@ -64,7 +64,6 @@ export function ForgotPasswordForm() {
               name="email"
               label="Email"
               type="email"
-              placeholder="you@company.com"
             />
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Sending…" : "Send reset link"}
