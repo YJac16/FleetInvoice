@@ -1,0 +1,55 @@
+name: Collapse logo part shards to numeric NNN
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/goops-final-logo-assets-2846]
+    paths:
+      - 'goops-final-logos/**.b64.parts/**'
+permissions:
+  contents: write
+jobs:
+  collapse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cursor/goops-final-logo-assets-2846
+      - name: Collapse NNN-* shards into numeric NNN parts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for parts_dir in goops-final-logos/*.b64.parts; do
+            [ -d "$parts_dir" ] || continue
+            # Collect unique bases that have at least one NNN-K shard
+            declare -A bases=()
+            for f in "$parts_dir"/*-[0-9]*; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f")
+              base=${name%-*}
+              # only treat as shard if base is purely numeric (000, 010, ...)
+              [[ "$base" =~ ^[0-9]+$ ]] || continue
+              bases["$base"]=1
+            done
+            for base in "${!bases[@]}"; do
+              shards=( "$parts_dir"/$base-[0-9]* )
+              # sort numerically by suffix
+              IFS=$'\n' shards=( $(printf '%s\n' "${shards[@]}" | sort -t- -k2 -n) )
+              out="$parts_dir/$base"
+              cat "${shards[@]}" > "$out.tmp"
+              mv "$out.tmp" "$out"
+              rm -f "${shards[@]}"
+              echo "Collapsed $out ($(wc -c < "$out") bytes) from ${#shards[@]} shards"
+            done
+          done
+      - name: Commit collapsed parts
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add goops-final-logos/*.b64.parts || true
+          if git diff --cached --quiet; then
+            echo "No shard collapse changes"
+          else
+            git commit -m "Collapse logo b64 part shards into numeric NNN files"
+            git push
+          fi
