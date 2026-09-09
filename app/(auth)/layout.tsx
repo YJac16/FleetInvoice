@@ -10,7 +10,7 @@ export default function AuthLayout({
     <div className="relative min-h-screen overflow-hidden bg-auth-surface">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 py-12">
         <div className="mb-10">
-          <GoOpsLogo size="lg" showTagline />
+          <GoOpsLogo theme="dark" size="lg" showTagline />
           <p className="mt-3 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
             {LOGIN_CAPABILITY_CHIPS.map((chip, index) => (
               <span key={chip}>

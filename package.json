@@ -12,6 +12,7 @@
     "db:types": "supabase gen types typescript --local > types/database.ts",
     "db:audit": "node scripts/audit-supabase.mjs",
     "env:check": "node scripts/check-env.mjs",
+    "brand:install": "node scripts/install-founder-logos.mjs",
     "notifications:drain": "node scripts/drain-notifications.mjs",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --grep @smoke"
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.20",
+    "sharp": "^0.34.5",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
     "typescript": "^5",

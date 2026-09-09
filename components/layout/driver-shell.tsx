@@ -64,7 +64,7 @@ function DriverHeader({ profile }: { profile: Profile }) {
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur md:px-6">
       <div className="mx-auto flex h-14 max-w-lg items-center justify-between gap-3">
         <div className="min-w-0">
-          <GoOpsLogo variant="on-dark" size="sm" href="/driver" />
+          <GoOpsLogo theme="dark" size="sm" href="/driver" />
           <p className="text-[10px] uppercase tracking-widest text-zinc-500">
             Driver
           </p>

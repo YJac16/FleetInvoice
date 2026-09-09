@@ -41,7 +41,7 @@ function CompanyHeader() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
       <div className="flex h-14 items-center gap-3 px-4 md:px-6">
-        <GoOpsLogo size="sm" href="/company" />
+        <GoOpsLogo theme="light" size="sm" href="/company" />
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           Company hub
         </span>

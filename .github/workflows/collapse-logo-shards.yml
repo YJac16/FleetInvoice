@@ -1,0 +1,81 @@
+name: Collapse logo part shards to numeric NNN
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/goops-final-logo-assets-2846]
+    paths:
+      - 'goops-final-logos/**.b64.parts/**'
+permissions:
+  contents: write
+jobs:
+  collapse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cursor/goops-final-logo-assets-2846
+      - name: Collapse complete NNN-0..7 shard sets into numeric NNN
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for parts_dir in goops-final-logos/*.b64.parts; do
+            [ -d "$parts_dir" ] || continue
+            declare -A bases=()
+            for f in "$parts_dir"/*-[0-9]*; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f")
+              base=${name%-*}
+              [[ "$base" =~ ^[0-9]+$ ]] || continue
+              bases["$base"]=1
+            done
+            for base in "${!bases[@]}"; do
+              # Require shard 0 and shard 7 (full 8-chunk part) OR all contiguous shards
+              # totaling the expected size. Never collapse incomplete mid-upload sets.
+              if [ ! -f "$parts_dir/$base-0" ]; then
+                echo "Skip $base (missing -0)"
+                continue
+              fi
+              if [ ! -f "$parts_dir/$base-7" ]; then
+                # Allow shorter final parts: collapse if -0 exists and no gap and no -7 needed
+                # when total joined size < 8000 and highest shard is last present
+                shards=( "$parts_dir"/$base-[0-9]* )
+                IFS=$'\n' shards=( $(printf '%s\n' "${shards[@]}" | sort -t- -k2 -n) )
+                total=0
+                for s in "${shards[@]}"; do total=$((total+$(wc -c < "$s"))); done
+                if [ "$total" -lt 8000 ] && [ -f "$parts_dir/$base-$(( ${#shards[@]} - 1 ))" ]; then
+                  # still wait unless this looks like a final short part (max index == n-1 and n<8)
+                  max_i=-1
+                  for s in "${shards[@]}"; do
+                    i=$(basename "$s"); i=${i##*-}
+                    [ "$i" -gt "$max_i" ] && max_i=$i
+                  done
+                  if [ "$max_i" -lt 7 ]; then
+                    echo "Skip incomplete $base (have ${#shards[@]} shards totaling $total, waiting for -7 or completion)"
+                    continue
+                  fi
+                else
+                  echo "Skip incomplete $base (waiting for -7)"
+                  continue
+                fi
+              fi
+              shards=( "$parts_dir"/$base-[0-9]* )
+              IFS=$'\n' shards=( $(printf '%s\n' "${shards[@]}" | sort -t- -k2 -n) )
+              out="$parts_dir/$base"
+              cat "${shards[@]}" > "$out.tmp"
+              mv "$out.tmp" "$out"
+              rm -f "${shards[@]}"
+              echo "Collapsed $out ($(wc -c < "$out") bytes) from ${#shards[@]} shards"
+            done
+          done
+      - name: Commit collapsed parts
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add goops-final-logos/*.b64.parts || true
+          if git diff --cached --quiet; then
+            echo "No shard collapse changes"
+          else
+            git commit -m "Collapse logo b64 part shards into numeric NNN files"
+            git push
+          fi

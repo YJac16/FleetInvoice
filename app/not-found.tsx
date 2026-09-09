@@ -34,7 +34,7 @@ export default async function NotFound() {
     <main className="flex min-h-svh flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card px-8 py-14 text-center shadow-none">
         <div className="flex justify-center">
-          <GoOpsLogo size="sm" />
+          <GoOpsLogo theme="light" size="sm" />
         </div>
         <p
           aria-hidden
