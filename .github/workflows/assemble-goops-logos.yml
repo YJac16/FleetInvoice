@@ -16,45 +16,66 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: cursor/goops-final-logo-assets-2846
-      - name: Concatenate parts into canonical .b64 files
+      - name: Normalize shard parts then assemble .b64
         run: |
           set -euo pipefail
+          # Expected 8KB part counts for compressed web assets
+          declare -A EXPECT=(
+            [favicon-512x512.png.b64]=16
+            [lockup-light-transparent.png.b64]=42
+            [main-logo-dark-transparent.png.b64]=38
+            [mark-transparent.png.b64]=61
+          )
           for name in favicon-512x512.png.b64 lockup-light-transparent.png.b64 main-logo-dark-transparent.png.b64 mark-transparent.png.b64; do
             parts_dir="goops-final-logos/${name}.parts"
-            if [ -d "$parts_dir" ]; then
-              out="goops-final-logos/${name}"
-              cat $(ls "$parts_dir"/* | sort) > "$out"
-              echo "Assembled $out ($(wc -c < "$out") bytes)"
+            [ -d "$parts_dir" ] || continue
+            # Collapse NNN-K shards into NNN (8x1000 → 8000)
+            for shard in $(ls "$parts_dir" | grep -E '^[0-9]{3}-[0-9]+$' | sed -E 's/-.*//' | sort -u); do
+              if [ ! -f "$parts_dir/$shard" ]; then
+                cat $(ls "$parts_dir/$shard"-* | sort -V) > "$parts_dir/$shard"
+                echo "Collapsed shards → $parts_dir/$shard"
+              fi
+            done
+            # Count complete 8KB-ish numeric parts only
+            count=$(ls "$parts_dir" | grep -E '^[0-9]{3}$' | wc -l | tr -d ' ')
+            need=${EXPECT[$name]}
+            echo "$name parts=$count need=$need"
+            if [ "$count" -lt "$need" ]; then
+              echo "SKIP assemble $name (incomplete)"
+              continue
             fi
+            out="goops-final-logos/${name}"
+            cat $(ls "$parts_dir" | grep -E '^[0-9]{3}$' | sort | while read p; do echo "$parts_dir/$p"; done) > "$out"
+            echo "Assembled $out ($(wc -c < "$out") bytes)"
           done
-      - name: Decode binaries into public/brand and favicons
+      - name: Decode binaries only when complete
         run: |
           set -euo pipefail
           mkdir -p public/brand
           decode() {
-            local b64="$1" dest="$2"
+            local b64="$1" dest="$2" min="$3"
             if [ -f "$b64" ]; then
-              base64 -d "$b64" > "$dest"
-              echo "Wrote $dest ($(wc -c < "$dest") bytes)"
+              size=$(wc -c < "$b64" | tr -d ' ')
+              if [ "$size" -ge "$min" ]; then
+                base64 -d "$b64" > "$dest"
+                echo "Wrote $dest ($(wc -c < "$dest") bytes) from $size-char b64"
+              else
+                echo "SKIP decode $b64 size=$size < min=$min"
+              fi
             fi
           }
-          decode goops-final-logos/main-logo-dark-transparent.png.b64 public/brand/main-logo-dark-transparent.png
-          decode goops-final-logos/lockup-light-transparent.png.b64 public/brand/lockup-light-transparent.png
-          decode goops-final-logos/mark-transparent.png.b64 public/brand/mark-transparent.png
-          decode goops-final-logos/favicon-16x16.png.b64 public/favicon-16x16.png
-          decode goops-final-logos/favicon-32x32.png.b64 public/favicon-32x32.png
-          decode goops-final-logos/favicon-48x48.png.b64 public/favicon-48x48.png
-          decode goops-final-logos/favicon-512x512.png.b64 public/favicon-512x512.png
-          decode goops-final-logos/apple-touch-icon.png.b64 public/apple-touch-icon.png
-          decode goops-final-logos/favicon.ico.b64 public/favicon.ico
-          # fallbacks from mark/32 if missing
-          if [ ! -f public/favicon-16x16.png ] && [ -f public/favicon-32x32.png ]; then
-            cp public/favicon-32x32.png public/favicon-16x16.png
-          fi
-          if [ ! -f public/favicon.ico ] && [ -f public/favicon-32x32.png ]; then
-            cp public/favicon-32x32.png public/favicon.ico
-          fi
-          ls -la public/brand public/favicon* public/apple-touch-icon.png || true
+          # web compressed expect ~297k/334k/487k/127k chars
+          decode goops-final-logos/main-logo-dark-transparent.png.b64 public/brand/main-logo-dark-transparent.png 290000
+          decode goops-final-logos/lockup-light-transparent.png.b64 public/brand/lockup-light-transparent.png 320000
+          decode goops-final-logos/mark-transparent.png.b64 public/brand/mark-transparent.png 480000
+          decode goops-final-logos/favicon-512x512.png.b64 public/favicon-512x512.png 120000
+          decode goops-final-logos/favicon-16x16.png.b64 public/favicon-16x16.png 500
+          decode goops-final-logos/favicon-32x32.png.b64 public/favicon-32x32.png 1500
+          decode goops-final-logos/favicon-48x48.png.b64 public/favicon-48x48.png 2000
+          decode goops-final-logos/apple-touch-icon.png.b64 public/apple-touch-icon.png 15000
+          decode goops-final-logos/favicon.ico.b64 public/favicon.ico 1000
+          if [ ! -f public/favicon.ico ] && [ -f public/favicon-32x32.png ]; then cp public/favicon-32x32.png public/favicon.ico; fi
+          ls -la public/brand public/favicon* public/apple-touch-icon.png 2>/dev/null || true
       - name: Commit assembled files and binaries
         run: |
           set -euo pipefail
