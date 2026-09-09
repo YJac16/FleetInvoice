@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-  <rect width="64" height="64" rx="14" fill="#0B1F3B"/>
+  <rect width="64" height="64" rx="14" fill="#E8EDF2"/>
   <defs>
     <linearGradient id="goops-mark" x1="0" y1="315" x2="1200" y2="315" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0056FC"/>
