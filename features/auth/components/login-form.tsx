@@ -88,7 +88,6 @@ export function LoginForm() {
               name="email"
               label="Email"
               type="email"
-              placeholder="you@company.com"
             />
             <TextField
               control={form.control}
