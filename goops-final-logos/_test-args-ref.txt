@@ -1,1 +1,0 @@
-@/tmp/mcp-apple-update.json
