@@ -52,7 +52,7 @@
 
 /*
   GoOps brand tokens
-  Deep Navy chrome, Go Blue accent, Move Green success.
+  Light surfaces by default, Deep Navy chrome in dark mode, Go Blue accent.
 */
 :root {
   --background: #e8edf2;
@@ -81,13 +81,13 @@
   --chart-4: #d97706;
   --chart-5: #5a6b82;
   --radius: 0.75rem;
-  --sidebar: #0b1f3b;
-  --sidebar-foreground: #e8edf2;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b1f3b;
   --sidebar-primary: #006dff;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #006dff;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #152a47;
+  --sidebar-border: #d5dde6;
   --sidebar-ring: #006dff;
 }
 
