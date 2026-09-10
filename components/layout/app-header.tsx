@@ -29,7 +29,7 @@ export function AppHeader() {
               </Button>
             }
           />
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 bg-sidebar p-0">
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation</SheetTitle>
             </SheetHeader>
