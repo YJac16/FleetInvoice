@@ -16,6 +16,7 @@ import {
   staffTripLiveMarkers,
 } from "@/features/driver-portal/lib/gps";
 import { staffTripStatusLabel } from "@/features/driver-portal/lib/staff-transitions";
+import { OverrideStaffTripDialog } from "@/features/trips/components/override-staff-trip-dialog";
 import { StaffTripGpsMap } from "@/features/trips/components/staff-trip-gps-map";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
@@ -77,6 +78,7 @@ export function StaffTripsMonitorPage() {
   const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
 
   const [playbackTripId, setPlaybackTripId] = useState<string | null>(null);
+  const [overrideTrip, setOverrideTrip] = useState<StaffTrip | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId
@@ -302,6 +304,15 @@ export function StaffTripsMonitorPage() {
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
+                              {canManage ? (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  onClick={() => setOverrideTrip(trip)}
+                                >
+                                  Edit
+                                </Button>
+                              ) : null}
                               {canViewGps && status === "completed" ? (
                                 <Button
                                   size="xs"
@@ -342,6 +353,18 @@ export function StaffTripsMonitorPage() {
           Read-only view. Dispatchers can assign trips from the Trips page.
         </p>
       ) : null}
+
+      <OverrideStaffTripDialog
+        open={Boolean(overrideTrip)}
+        onOpenChange={(open) => !open && setOverrideTrip(null)}
+        organisationId={organisationId}
+        trip={overrideTrip}
+        onSaved={() => {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+          });
+        }}
+      />
     </div>
   );
 }

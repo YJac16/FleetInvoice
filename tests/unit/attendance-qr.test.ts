@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   boardingUrl,
+  driverQrUrl,
+  extractTokenFromPayload,
   isTokenExpired,
 } from "@/features/attendance/lib/qr";
 
@@ -15,6 +17,34 @@ describe("boardingUrl", () => {
   it("strips trailing slash from app url", () => {
     expect(boardingUrl("https://app.example.com/", "tok")).toBe(
       "https://app.example.com/employee/board?token=tok"
+    );
+  });
+});
+
+describe("extractTokenFromPayload", () => {
+  it("reads token from a boarding URL", () => {
+    expect(
+      extractTokenFromPayload("https://app.example.com/employee/board?token=abc123")
+    ).toBe("abc123");
+  });
+
+  it("reads driverToken from a pairing URL", () => {
+    expect(
+      extractTokenFromPayload(
+        "https://app.example.com/employee/board?driverToken=drv99"
+      )
+    ).toBe("drv99");
+  });
+
+  it("returns raw strings that are not URLs", () => {
+    expect(extractTokenFromPayload("  ABCD1234  ")).toBe("ABCD1234");
+  });
+});
+
+describe("driverQrUrl", () => {
+  it("builds a pairing deep link", () => {
+    expect(driverQrUrl("https://app.example.com/", "tok")).toBe(
+      "https://app.example.com/employee/board?driverToken=tok"
     );
   });
 });

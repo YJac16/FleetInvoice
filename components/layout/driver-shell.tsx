@@ -9,6 +9,7 @@ import {
   Clock,
   Home,
   LogOut,
+  QrCode,
 } from "lucide-react";
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 const DRIVER_TABS = [
   { href: "/driver", label: "Today", icon: Home, exact: true },
   { href: "/driver/week", label: "Week", icon: CalendarDays },
+  { href: "/driver/scan", label: "Scan", icon: QrCode },
   { href: "/driver/history", label: "History", icon: Clock },
   { href: "/driver/profile", label: "Profile", icon: CircleUser },
 ] as const;

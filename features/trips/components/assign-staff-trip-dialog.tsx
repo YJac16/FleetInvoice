@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -16,11 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isVerifiedDestination } from "@/features/areas/lib/destination";
 import { staffCompanyOptions } from "@/features/driver-portal/lib/trip-labels";
 import {
   STAFF_TRANSPORT_COMPANIES,
-  type StaffTransportCompany,
 } from "@/lib/constants";
+import { listAreas } from "@/services/areas.service";
 import { listDrivers } from "@/services/drivers.service";
 import { assignStaffTrip } from "@/services/staff-trips.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -34,7 +35,7 @@ const schema = z.object({
   date: z.string().min(1, "Date required"),
   time: z.string().min(1, "Time required"),
   staffCompany: z.enum(STAFF_TRANSPORT_COMPANIES),
-  areaText: z.string().min(1, "Area required"),
+  areaId: z.string().min(1, "Select an area"),
   paxCount: z.number().int().min(0),
 });
 
@@ -62,7 +63,7 @@ export function AssignStaffTripDialog({
       date: today,
       time: "08:00",
       staffCompany: "lewis_compliance",
-      areaText: "",
+      areaId: "",
       paxCount: 1,
     },
   });
@@ -77,19 +78,32 @@ export function AssignStaffTripDialog({
     enabled: open,
   });
 
+  const areasQuery = useQuery({
+    queryKey: queryKeys.areas(organisationId),
+    queryFn: () => listAreas(organisationId),
+    enabled: open,
+  });
+
   const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data]);
+  const areas = useMemo(
+    () => (areasQuery.data ?? []).filter(isVerifiedDestination),
+    [areasQuery.data]
+  );
   const companyOptions = staffCompanyOptions();
 
   const assignMutation = useMutation({
     mutationFn: (values: FormValues) => {
       const plannedStart = `${values.date}T${values.time}:00+02:00`;
+      const area = areas.find((a) => a.id === values.areaId);
+      if (!area) throw new Error("Select a verified area");
       return assignStaffTrip(
         organisationId,
         values.driverId,
         plannedStart,
         values.staffCompany,
-        values.areaText,
-        values.paxCount
+        area.name,
+        values.paxCount,
+        area.id
       );
     },
     onSuccess: () => {
@@ -105,7 +119,7 @@ export function AssignStaffTripDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Assign staff trip"
-      description="Create a waybill trip for a driver (company, area, pax)."
+      description="Create a waybill trip for a driver. Destination must be a map-verified area."
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -164,12 +178,27 @@ export function AssignStaffTripDialog({
         />
 
         <div className="space-y-1.5">
-          <Label htmlFor="area">Area</Label>
-          <Input
-            id="area"
-            placeholder="e.g. Cape Town CBD → Bellville"
-            {...form.register("areaText")}
-          />
+          <Label>Area</Label>
+          <Select
+            value={form.watch("areaId")}
+            onValueChange={(v) => form.setValue("areaId", v ?? "")}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select destination area" />
+            </SelectTrigger>
+            <SelectContent>
+              {areas.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.formState.errors.areaId ? (
+            <p className="text-xs text-destructive">
+              {form.formState.errors.areaId.message}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-1.5">

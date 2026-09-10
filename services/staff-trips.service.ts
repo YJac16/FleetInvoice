@@ -89,7 +89,8 @@ export async function assignStaffTrip(
   plannedStart: string,
   staffCompany: StaffTransportCompany,
   areaText: string,
-  paxCount: number
+  paxCount: number,
+  areaId: string
 ): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("assign_staff_trip", {
@@ -99,6 +100,7 @@ export async function assignStaffTrip(
     p_staff_company: staffCompany,
     p_area_text: areaText,
     p_pax_count: paxCount,
+    p_area_id: areaId,
   });
   if (error) throw error;
   return data as string;
@@ -111,6 +113,7 @@ export async function updateStaffTrip(
     staffCompany?: StaffTransportCompany;
     areaText?: string;
     paxCount?: number;
+    areaId?: string;
   }
 ): Promise<StaffTrip> {
   const supabase = createClient();
@@ -120,6 +123,7 @@ export async function updateStaffTrip(
     p_staff_company: fields.staffCompany ?? null,
     p_area_text: fields.areaText ?? null,
     p_pax_count: fields.paxCount ?? null,
+    p_area_id: fields.areaId ?? null,
   });
   if (error) throw error;
   return data as StaffTrip;
@@ -160,12 +164,37 @@ export async function startStaffTrip(
 
 export async function endStaffTrip(
   tripId: string,
-  closingKm: number
+  closingKm: number,
+  areaId?: string | null
 ): Promise<StaffTrip> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("end_staff_trip", {
     p_trip_id: tripId,
     p_closing_km: closingKm,
+    p_area_id: areaId ?? null,
+  });
+  if (error) throw error;
+  return data as StaffTrip;
+}
+
+export async function overrideStaffTrip(
+  tripId: string,
+  fields: {
+    plannedStart?: string;
+    areaId?: string;
+    openingKm?: number | null;
+    closingKm?: number | null;
+    paxCount?: number;
+  }
+): Promise<StaffTrip> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("override_staff_trip", {
+    p_trip_id: tripId,
+    p_planned_start: fields.plannedStart ?? null,
+    p_area_id: fields.areaId ?? null,
+    p_opening_km: fields.openingKm ?? null,
+    p_closing_km: fields.closingKm ?? null,
+    p_pax_count: fields.paxCount ?? null,
   });
   if (error) throw error;
   return data as StaffTrip;

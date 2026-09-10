@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { scanQrToken } from "@/services/attendance.service";
+import { extractTokenFromPayload } from "@/features/attendance/lib/qr";
+import { scanDriverQrToken, scanQrToken } from "@/services/attendance.service";
 import { getErrorMessage } from "@/utils/errors";
 
 type ScanQrFormProps = {
   onScanned?: () => void;
   initialToken?: string;
+  mode?: "employee" | "driver";
 };
 
 type BarcodeDetectorLike = {
@@ -24,19 +26,11 @@ type BarcodeDetectorCtor = new (options?: {
   formats?: string[];
 }) => BarcodeDetectorLike;
 
-function extractTokenFromPayload(raw: string): string {
-  const trimmed = raw.trim();
-  try {
-    const url = new URL(trimmed);
-    const token = url.searchParams.get("token");
-    if (token) return token;
-  } catch {
-    // not a URL
-  }
-  return trimmed;
-}
-
-export function ScanQrForm({ onScanned, initialToken = "" }: ScanQrFormProps) {
+export function ScanQrForm({
+  onScanned,
+  initialToken = "",
+  mode = "employee",
+}: ScanQrFormProps) {
   const [token, setToken] = useState(initialToken);
   const [notes, setNotes] = useState("");
   const [cameraOn, setCameraOn] = useState(false);
@@ -54,6 +48,9 @@ export function ScanQrForm({ onScanned, initialToken = "" }: ScanQrFormProps) {
     mutationFn: (value: string) => {
       const cleaned = extractTokenFromPayload(value);
       if (!cleaned.trim()) throw new Error("Enter a boarding code or token");
+      if (mode === "driver") {
+        return scanDriverQrToken({ token: cleaned, notes: notes || null });
+      }
       return scanQrToken({ token: cleaned, notes: notes || null });
     },
     onSuccess: (event) => {
@@ -159,8 +156,8 @@ export function ScanQrForm({ onScanned, initialToken = "" }: ScanQrFormProps) {
           <p className="text-sm text-muted-foreground">{cameraError}</p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Point at the employee QR. If the camera can’t read it, use the code
-            below.
+            Point at the {mode === "driver" ? "driver" : "employee"} QR. If the
+            camera can’t read it, use the code below.
           </p>
         )}
       </div>
