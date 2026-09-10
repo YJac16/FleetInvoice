@@ -50,6 +50,7 @@ type EntityCrudPageProps<T extends { id: string }> = {
   createLabel?: string;
   headerActions?: ReactNode;
   rowActions?: (row: T) => ReactNode;
+  formDialogClassName?: string;
 };
 
 export function EntityCrudPage<T extends { id: string }>({
@@ -70,6 +71,7 @@ export function EntityCrudPage<T extends { id: string }>({
   createLabel = "Add",
   headerActions,
   rowActions,
+  formDialogClassName,
 }: EntityCrudPageProps<T>) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -290,6 +292,7 @@ export function EntityCrudPage<T extends { id: string }>({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? `Edit ${title.slice(0, -1) || title}` : createLabel}
+        contentClassName={formDialogClassName}
       >
         {renderForm({
           mode: editing ? "edit" : "create",

@@ -88,6 +88,11 @@ export const demoAreas = [
   (a): Area => ({
     ...a,
     organisation_id: ORG_ID,
+    lat: -33.9249,
+    lng: 18.4241,
+    radius_m: 400,
+    mapbox_place_id: `demo.${a.code}`,
+    place_name: `${a.name}, Cape Town`,
     status: "active",
     created_by: null,
     created_at: TS,

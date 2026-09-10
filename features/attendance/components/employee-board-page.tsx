@@ -38,6 +38,7 @@ export function EmployeeBoardPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token") ?? "";
+  const driverTokenFromUrl = searchParams.get("driverToken") ?? "";
   const canSelf = can("attendance:self");
 
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
@@ -70,6 +71,10 @@ export function EmployeeBoardPage() {
   }, [activeSeat, seatsQuery.data]);
 
   const initialToken = useMemo(() => tokenFromUrl, [tokenFromUrl]);
+  const initialDriverToken = useMemo(
+    () => driverTokenFromUrl,
+    [driverTokenFromUrl]
+  );
 
   useEffect(() => {
     if (!issuedToken) {
@@ -139,7 +144,7 @@ export function EmployeeBoardPage() {
     <div className="mx-auto max-w-lg space-y-6">
       <PageHeader
         title="Board"
-        description="Show your QR to the driver, or use the backup code if the camera fails."
+        description="Show your QR to the driver, or scan the driver’s QR to board."
       />
 
       {seatsQuery.isLoading ? (
@@ -217,6 +222,32 @@ export function EmployeeBoardPage() {
           }
         />
       )}
+
+      {activeSeat ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Scan driver QR</CardTitle>
+            <CardDescription>
+              Pair with the assigned driver for this trip. Scan succeeds only if
+              that driver is on your confirmed seat.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScanQrForm
+              mode="driver"
+              initialToken={initialDriverToken}
+              onScanned={() => {
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.attendanceEvents(organisationId),
+                });
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.myTripPassengers(organisationId),
+                });
+              }}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {initialToken ? (
         <Card>

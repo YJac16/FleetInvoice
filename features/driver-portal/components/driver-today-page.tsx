@@ -122,8 +122,15 @@ export function DriverTodayPage() {
   });
 
   const endMutation = useMutation({
-    mutationFn: ({ tripId, closingKm }: { tripId: string; closingKm: number }) =>
-      endStaffTrip(tripId, closingKm),
+    mutationFn: ({
+      tripId,
+      closingKm,
+      areaId,
+    }: {
+      tripId: string;
+      closingKm: number;
+      areaId: string;
+    }) => endStaffTrip(tripId, closingKm, areaId),
     onSuccess: async () => {
       toast.success("Trip completed");
       setEndTarget(null);
@@ -294,11 +301,12 @@ export function DriverTodayPage() {
       <EndTripDialog
         open={Boolean(endTarget)}
         onOpenChange={(open) => !open && setEndTarget(null)}
+        organisationId={organisationId}
         trip={endTarget}
         loading={endMutation.isPending}
-        onConfirm={(closingKm) => {
+        onConfirm={(closingKm, areaId) => {
           if (!endTarget) return;
-          endMutation.mutate({ tripId: endTarget.id, closingKm });
+          endMutation.mutate({ tripId: endTarget.id, closingKm, areaId });
         }}
       />
     </div>

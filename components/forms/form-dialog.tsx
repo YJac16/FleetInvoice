@@ -18,6 +18,7 @@ type FormDialogProps = {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
+  contentClassName?: string;
 };
 
 export function FormDialog({
@@ -27,10 +28,11 @@ export function FormDialog({
   description,
   children,
   footer,
+  contentClassName,
 }: FormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={contentClassName ?? "sm:max-w-lg"}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? (

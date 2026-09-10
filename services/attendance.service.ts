@@ -63,6 +63,34 @@ export async function scanQrToken(input: {
   return data as AttendanceEvent;
 }
 
+export async function issueDriverQrToken(input: {
+  organisationId: string;
+  tripId?: string | null;
+  ttlMinutes?: number;
+}): Promise<IssuedQrPayload> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("issue_driver_qr_token", {
+    p_organisation_id: input.organisationId,
+    p_trip_id: input.tripId ?? null,
+    p_ttl_minutes: input.ttlMinutes ?? 15,
+  });
+  if (error) throw error;
+  return parseIssuedQr(data);
+}
+
+export async function scanDriverQrToken(input: {
+  token: string;
+  notes?: string | null;
+}): Promise<AttendanceEvent> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("scan_driver_qr_token", {
+    p_token: input.token.trim(),
+    p_notes: input.notes ?? null,
+  });
+  if (error) throw error;
+  return data as AttendanceEvent;
+}
+
 export async function recordManualBoarding(input: {
   organisationId: string;
   tripId: string;

@@ -90,6 +90,11 @@ export type Area = {
   name: string;
   code: string | null;
   description: string | null;
+  lat: number | null;
+  lng: number | null;
+  radius_m: number | null;
+  mapbox_place_id: string | null;
+  place_name: string | null;
   status: EntityStatus;
   created_by: string | null;
   created_at: string;
@@ -227,7 +232,9 @@ export type QrToken = {
   id: string;
   organisation_id: string;
   trip_id: string;
-  employee_id: string;
+  employee_id: string | null;
+  driver_id?: string | null;
+  qr_kind?: "employee" | "driver";
   token_hash: string;
   backup_code_hash?: string | null;
   expires_at: string;
@@ -496,6 +503,7 @@ export type StaffTrip = Trip & {
   route_id: string | null;
   is_staff_transport: boolean;
   staff_company: import("@/lib/constants").StaffTransportCompany | null;
+  area_id: string | null;
   area_text: string | null;
   pax_count: number | null;
   opening_km: number | null;
@@ -623,6 +631,7 @@ export type Geofence = {
   radius_m: number;
   site_id: string | null;
   pickup_point_id: string | null;
+  area_id: string | null;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
