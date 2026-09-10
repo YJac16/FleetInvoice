@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicApiRoute =
     pathname.startsWith("/api/notifications/process") ||
     pathname.startsWith("/api/cron/notifications") ||
-    pathname.startsWith("/api/webhooks/stripe");
+    pathname.startsWith("/api/webhooks/yoco");
 
   if (!user && !isPublicAuthRoute && !isPublicApiRoute && pathname !== "/") {
     const url = request.nextUrl.clone();

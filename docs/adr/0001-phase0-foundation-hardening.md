@@ -14,7 +14,7 @@ WorkOps Foundation v1 (invite-only auth, multi-tenant master data, RBAC) is ship
 2. **Supervisor** is an org ops role with view + limited manage (attendance/exceptions later; Phase 0 grants ops view + soft master-data manage aligned to dispatcher minus user admin).
 3. **Company Manager** is ABAC via `member_scopes.company_id`, enforced by `has_company_scope()` and tightened SELECT on `companies` / `employees`.
 4. **Audit logs** are append-only; writers use a security-definer `write_audit_log` RPC; clients cannot update/delete.
-5. **Invitation emails** enqueue to `notification_outbox` and are processed by `/api/notifications/process` (Resend when configured; otherwise marked `skipped` with payload retained for ops).
+5. **Invitation emails** enqueue to `notification_outbox` and are processed by `/api/notifications/process` (MailerSend when configured; otherwise marked `skipped` with payload retained for ops).
 6. **Architecture blueprint** lives in `docs/ARCHITECTURE.md` and is the master roadmap reference.
 
 ## Consequences

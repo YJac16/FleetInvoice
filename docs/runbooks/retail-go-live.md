@@ -6,15 +6,17 @@ Complete these on the **deployment host** before selling managed or self-serve r
 
 ## 1. Secrets & public config
 
-| Variable | Where |
+| Variable | Status |
 |----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Host env (WorkOps project `tggxnvombexvxblsntsm`) |
-| `NEXT_PUBLIC_APP_URL` | Production hostname (`https://…`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only |
-| `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Server only (`CRON_SECRET` required for Vercel Cron) |
-| `RESEND_API_KEY` + `RESEND_FROM_EMAIL` | Verified sending domain |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | Restrict by URL in Mapbox |
-| Phase 9: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | After subscriptions live |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Required |
+| `NEXT_PUBLIC_APP_URL` | Required — production hostname |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required (server only) |
+| `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Required (server only) |
+| `MAILERSEND_API_KEY` + `MAILERSEND_FROM_EMAIL` | **Connected** — invite email delivery |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | **Connected** — `/dispatch` map |
+| `YOCO_SECRET_KEY`, `YOCO_WEBHOOK_SECRET`, `NEXT_PUBLIC_YOCO_PUBLIC_KEY` | **Pending** — see [`yoco-setup.md`](./yoco-setup.md) |
+
+Until Yoco is configured, assign membership plans manually at `/subscriptions` (platform owner **Assign** button). Checkout and self-serve billing are optional.
 
 ## 2. Supabase Auth
 
@@ -46,6 +48,6 @@ Run remaining SQL under `tests/rls/` for schema presence.
 
 ## 5. Paid project hygiene
 
-Paid Supabase plan with backups enabled; Resend domain verified.
+Paid Supabase plan with backups enabled; MailerSend domain verified.
 
 When this checklist is done, **managed retail** is unblocked (with P1 invoice print). **Self-serve SaaS** still needs Phase 9 waves.
