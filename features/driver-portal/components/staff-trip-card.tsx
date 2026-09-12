@@ -18,6 +18,8 @@ type StaffTripCardProps = {
   trip: StaffTrip;
   compact?: boolean;
   showRate?: boolean;
+  /** Hide status badge when a timeline is shown elsewhere */
+  hideStatus?: boolean;
   onClick?: () => void;
   className?: string;
 };
@@ -26,6 +28,7 @@ export function StaffTripCard({
   trip,
   compact,
   showRate,
+  hideStatus,
   onClick,
   className,
 }: StaffTripCardProps) {
@@ -83,7 +86,7 @@ export function StaffTripCard({
             ) : null}
           </div>
         </div>
-        <StatusBadge status={trip.status} />
+        {!hideStatus ? <StatusBadge status={trip.status} /> : null}
       </div>
     </Wrapper>
   );
