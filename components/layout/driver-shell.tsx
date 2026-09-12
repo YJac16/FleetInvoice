@@ -62,25 +62,18 @@ function DriverHeader({ profile }: { profile: Profile }) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur md:px-6">
-      <div className="mx-auto flex h-14 max-w-lg items-center justify-between gap-3">
-        <div className="min-w-0">
-          <GoOpsLogo variant="on-dark" size="sm" href="/driver" />
-          <p className="text-[10px] uppercase tracking-widest text-zinc-500">
-            Driver
-          </p>
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <PresenceDot />
-            <span className="max-w-[7rem] truncate text-xs font-medium uppercase tracking-wide text-zinc-300 sm:max-w-[9rem]">
-              {displayName}
-            </span>
-          </div>
+      <div className="mx-auto flex h-12 max-w-lg items-center justify-between gap-2">
+        <GoOpsLogo variant="on-dark" size="sm" href="/driver" />
+        <div className="flex min-w-0 items-center gap-1">
+          <PresenceDot />
+          <span className="max-w-[5.5rem] truncate text-[11px] font-medium text-zinc-400 sm:max-w-[7rem]">
+            {displayName}
+          </span>
           <NotificationBell />
           <button
             type="button"
             onClick={() => void signOut()}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white"
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
             aria-label="Sign out"
           >
             <LogOut className="size-4" />
@@ -147,7 +140,7 @@ export function DriverShell({
       <div className="dark flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
         <DriverPresenceProvider>
           <DriverHeader profile={profile} />
-          <main className="mx-auto w-full max-w-lg flex-1 px-4 py-6 pb-24 md:px-6">
+          <main className="mx-auto w-full max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">
             <StaffTripGpsTracker />
             {children}
           </main>

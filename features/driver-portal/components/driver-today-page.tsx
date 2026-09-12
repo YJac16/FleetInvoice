@@ -19,8 +19,10 @@ import {
 import {
   canAdvanceStaffTrip,
   canEndStaffTrip,
-  staffTripStatusLabel,
+  canStartStaffTrip,
+  staffTripActionLabel,
 } from "@/features/driver-portal/lib/staff-transitions";
+import { StaffTripStatusTimeline } from "@/features/trips/components/staff-trip-status-timeline";
 import {
   activeTrip,
   completedTrips,
@@ -165,72 +167,76 @@ export function DriverTodayPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-5">
-      <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-white">
-          Today
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">{tripCountLabel}</p>
+    <div className="mx-auto max-w-lg space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-white">
+            Today
+          </h1>
+          <p className="mt-0.5 text-xs text-zinc-500">{tripCountLabel}</p>
+        </div>
+        <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium tabular-nums text-zinc-400">
+          {nowLabel}
+        </span>
       </div>
 
-      <div className="relative pl-5">
-        <div className="absolute bottom-0 left-[7px] top-0 w-px bg-zinc-800" />
-        <div className="relative mb-6">
-          <span className="absolute -left-5 top-1 size-2 rounded-full bg-red-500" />
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-400">
-            Now · {nowLabel}
-          </p>
-        </div>
+      <div className="relative pl-4">
+        <div className="absolute bottom-0 left-[5px] top-0 w-px bg-zinc-800" />
 
         {tripsQuery.isLoading ? (
           <LoadingSkeleton rows={2} />
         ) : active ? (
-          <section className="relative mb-6 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {staffTripStatusLabel(active.status)}
-            </p>
-            <StaffTripCard trip={active} />
+          <section className="relative mb-5 space-y-3">
+            <div className="relative mb-1">
+              <span className="absolute -left-4 top-1 size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+                Active trip
+              </p>
+            </div>
+            <StaffTripCard trip={active} hideStatus />
+            <StaffTripStatusTimeline status={active.status} className="px-1" />
             {canAdvanceStaffTrip(active.status) ? (
               <Button
-                className="w-full"
+                className="h-11 w-full text-base"
                 disabled={advanceMutation.isPending}
                 onClick={() => advanceMutation.mutate(active.id)}
               >
-                En route to company
+                {staffTripActionLabel(active.status) ?? "Continue"}
                 <ChevronRight className="size-4" />
               </Button>
             ) : null}
             {canEndStaffTrip(active.status) ? (
               <Button
-                className="w-full"
+                className="h-11 w-full text-base"
+                variant="secondary"
                 onClick={() => setEndTarget(active)}
               >
-                End trip
+                {staffTripActionLabel(active.status) ?? "End trip"}
               </Button>
             ) : null}
           </section>
         ) : null}
 
         {upcoming.length > 0 ? (
-          <section className="relative mb-6 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <section className="relative mb-5 space-y-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               Upcoming
             </p>
             {upcoming.map((trip, idx) => (
               <div key={trip.id} className="relative space-y-2">
                 <span
                   className={cn(
-                    "absolute -left-5 top-4 size-2 rounded-full",
-                    idx === 0 ? "bg-violet-500" : "bg-zinc-600"
+                    "absolute -left-4 top-4 size-2 rounded-full",
+                    idx === 0 && !active ? "bg-violet-500" : "bg-zinc-600"
                   )}
                 />
                 <StaffTripCard trip={trip} />
-                {idx === 0 && !active ? (
+                {idx === 0 && !active && canStartStaffTrip(trip.status) ? (
                   <Button
-                    className="w-full"
+                    className="h-11 w-full text-base"
                     onClick={() => setStartTarget(trip)}
                   >
-                    Start trip
+                    {staffTripActionLabel(trip.status) ?? "Start trip"}
                     <ChevronRight className="size-4" />
                   </Button>
                 ) : null}
@@ -241,7 +247,7 @@ export function DriverTodayPage() {
 
         {done.length > 0 ? (
           <section className="relative space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               Completed
             </p>
             {done.map((trip) => (
@@ -253,10 +259,16 @@ export function DriverTodayPage() {
         {!tripsQuery.isLoading &&
         trips.length === 0 &&
         !declaredNoTrip ? (
-          <div className="space-y-3 rounded-xl border border-dashed border-zinc-700 px-4 py-6 text-center">
-            <p className="text-sm text-zinc-400">No trips assigned for today.</p>
+          <div className="space-y-3 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-4 py-5 text-center">
+            <p className="text-sm font-medium text-zinc-300">
+              No trips assigned
+            </p>
+            <p className="text-xs text-zinc-500">
+              If you are not driving today, record it below.
+            </p>
             <Button
               variant="outline"
+              size="sm"
               className="border-zinc-700 text-zinc-300"
               disabled={noTripMutation.isPending}
               onClick={() => noTripMutation.mutate()}

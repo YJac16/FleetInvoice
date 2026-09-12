@@ -98,8 +98,8 @@ export function StaffTripGpsMap({
         className={className ?? "h-[320px] w-full overflow-hidden rounded-md border"}
       />
       {!hasData ? (
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-4">
-          <p className="rounded-md bg-background/90 px-3 py-1 text-xs text-muted-foreground shadow-sm">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted/20">
+          <p className="max-w-[80%] rounded-md border bg-background/95 px-3 py-2 text-center text-xs text-muted-foreground shadow-sm">
             {emptyMessage}
           </p>
         </div>

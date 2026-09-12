@@ -54,7 +54,7 @@ export function StaffTripGpsTracker() {
   return (
     <div
       className={cn(
-        "mx-auto mb-4 flex max-w-lg items-start gap-2 rounded-lg border px-3 py-2 text-xs",
+        "mb-3 flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px]",
         isError
           ? "border-amber-800/60 bg-amber-950/40 text-amber-100"
           : "border-emerald-900/50 bg-emerald-950/30 text-emerald-100"
@@ -62,25 +62,29 @@ export function StaffTripGpsTracker() {
       role="status"
     >
       {isError ? (
-        <MapPinOff className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <MapPinOff className="size-3 shrink-0" aria-hidden />
       ) : (
-        <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <MapPin className="size-3 shrink-0" aria-hidden />
       )}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {gpsState.status === "sharing" ? (
-          <>
-            <p className="font-medium">Live location on</p>
-            <p className="mt-0.5 text-emerald-200/80">
-              Sharing GPS while this trip is en route. Keep this tab open.
-            </p>
-          </>
+          <p>
+            <span className="font-medium">GPS live</span>
+            <span className="text-emerald-200/70"> · keep tab open</span>
+          </p>
         ) : (
-          <>
-            <p className="font-medium">Location required</p>
-            <p className="mt-0.5 opacity-90">{gpsState.message}</p>
-          </>
+          <p>
+            <span className="font-medium">Location required</span>
+            <span className="opacity-80"> · {gpsState.message}</span>
+          </p>
         )}
       </div>
+      {gpsState.status === "sharing" ? (
+        <span
+          className="size-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400"
+          aria-hidden
+        />
+      ) : null}
     </div>
   );
 }

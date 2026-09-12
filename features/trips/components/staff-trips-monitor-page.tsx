@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { Radio } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,7 +10,6 @@ import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   pathCoordinatesFromGpsPoints,
@@ -17,6 +17,7 @@ import {
 } from "@/features/driver-portal/lib/gps";
 import { staffTripStatusLabel } from "@/features/driver-portal/lib/staff-transitions";
 import { StaffTripGpsMap } from "@/features/trips/components/staff-trip-gps-map";
+import { StaffTripStatusTimeline } from "@/features/trips/components/staff-trip-status-timeline";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   STAFF_TRIP_STATUSES,
@@ -36,7 +37,6 @@ import {
 } from "@/services/staff-trips.service";
 import type { DriverPresence, StaffTrip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
-import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,14 @@ const MONITOR_COLUMNS: StaffTripStatus[] = [
   "en_route_company",
   "completed",
 ];
+
+const COLUMN_ACCENT: Record<StaffTripStatus, string> = {
+  assigned: "border-l-zinc-400",
+  en_route_pickup: "border-l-amber-500",
+  en_route_company: "border-l-blue-500",
+  completed: "border-l-emerald-500",
+  cancelled: "border-l-red-500",
+};
 
 function groupByStatus(trips: StaffTrip[]) {
   const map = new Map<string, StaffTrip[]>();
@@ -130,6 +138,19 @@ export function StaffTripsMonitorPage() {
     [trips, positionsQuery.data]
   );
 
+  const summary = useMemo(() => {
+    const enRoute =
+      (grouped.get("en_route_pickup")?.length ?? 0) +
+      (grouped.get("en_route_company")?.length ?? 0);
+    return {
+      total: trips.length,
+      assigned: grouped.get("assigned")?.length ?? 0,
+      enRoute,
+      completed: grouped.get("completed")?.length ?? 0,
+      liveDrivers: liveMarkers.length,
+    };
+  }, [trips.length, grouped, liveMarkers.length]);
+
   const playbackPath = useMemo(() => {
     if (!playbackTripId || !playbackQuery.data?.length) return [];
     return [
@@ -167,16 +188,51 @@ export function StaffTripsMonitorPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Staff transport monitor"
-        description="Live en-route status and GPS for today’s staff trips."
+        description="Control room · live status and GPS for today’s staff trips."
       />
+
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+          <Radio className="size-3 text-emerald-500" aria-hidden />
+          {summary.total} trip{summary.total === 1 ? "" : "s"} today
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">
+          {summary.assigned} assigned
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="font-medium text-amber-600 dark:text-amber-400">
+          {summary.enRoute} en route
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-emerald-600 dark:text-emerald-400">
+          {summary.completed} done
+        </span>
+        {canViewGps && !playbackTripId ? (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">
+              {summary.liveDrivers} GPS live
+            </span>
+          </>
+        ) : null}
+      </div>
 
       {canViewGps ? (
         <section className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-heading text-lg">Live map</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-base font-semibold">Live map</h2>
+              {!playbackTripId && summary.liveDrivers > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  Live
+                </span>
+              ) : null}
+            </div>
             {playbackTripId ? (
               <Button
                 size="sm"
@@ -188,7 +244,7 @@ export function StaffTripsMonitorPage() {
             ) : (
               <p className="text-xs text-muted-foreground">
                 {liveMarkers.length} driver
-                {liveMarkers.length === 1 ? "" : "s"} on en-route trips
+                {liveMarkers.length === 1 ? "" : "s"} reporting GPS
               </p>
             )}
           </div>
@@ -199,11 +255,11 @@ export function StaffTripsMonitorPage() {
               markers={mapMarkers}
               paths={mapPaths}
               fitToPathId={playbackTripId}
-              className="h-[360px] w-full overflow-hidden rounded-xl border"
+              className="h-[340px] w-full overflow-hidden rounded-lg border"
               emptyMessage={
                 playbackTripId
                   ? "No GPS trail recorded for this trip."
-                  : "No live positions for en-route trips."
+                  : "No en-route drivers reporting GPS. Positions appear when trips are en route."
               }
             />
           )}
@@ -221,26 +277,38 @@ export function StaffTripsMonitorPage() {
       {tripsQuery.isLoading ? (
         <LoadingSkeleton rows={4} />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {MONITOR_COLUMNS.map((status) => {
             const columnTrips = grouped.get(status) ?? [];
             return (
               <section
                 key={status}
-                className="rounded-xl border bg-card p-4"
+                className={cn(
+                  "rounded-lg border border-l-4 bg-card p-3",
+                  COLUMN_ACCENT[status]
+                )}
               >
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold leading-snug">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {staffTripStatusLabel(status)}
                   </h2>
-                  <span className="text-xs text-muted-foreground">
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                      columnTrips.length > 0
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
                     {columnTrips.length}
                   </span>
                 </div>
                 {columnTrips.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">None</p>
+                  <p className="py-4 text-center text-xs text-muted-foreground">
+                    No trips in this stage
+                  </p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="space-y-1.5">
                     {columnTrips.map((trip) => {
                       const driverId =
                         trip.trip_assignments?.find((a) => !a.released_at)
@@ -253,71 +321,79 @@ export function StaffTripsMonitorPage() {
                         : undefined;
                       const online = isDriverOnline(presence);
                       const isPlayback = playbackTripId === trip.id;
+                      const companyLabel = trip.staff_company
+                        ? STAFF_TRANSPORT_COMPANY_LABELS[
+                            trip.staff_company as StaffTransportCompany
+                          ]
+                        : "—";
 
                       return (
                         <li
                           key={trip.id}
                           className={cn(
-                            "rounded-lg border px-3 py-2 text-sm",
+                            "rounded-md border bg-background/60 px-2.5 py-2 text-sm",
                             isPlayback && "border-primary ring-1 ring-primary/30"
                           )}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-medium">
-                                {trip.staff_company
-                                  ? STAFF_TRANSPORT_COMPANY_LABELS[
-                                      trip.staff_company as StaffTransportCompany
-                                    ]
-                                  : "—"}
-                              </p>
-                              <p className="text-muted-foreground">
-                                {formatDateTime(trip.planned_start)}
-                              </p>
-                              <p className="truncate text-muted-foreground">
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-1">
+                                <p className="truncate font-medium leading-tight">
+                                  {companyLabel}
+                                </p>
+                                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                                  {dayjs(trip.planned_start).format("HH:mm")}
+                                </span>
+                              </div>
+                              <p className="truncate text-xs text-muted-foreground">
                                 {trip.area_text}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
                                 {trip.pax_count ?? 0} pax
                                 {trip.total_km != null
                                   ? ` · ${trip.total_km} km`
                                   : trip.opening_km != null
-                                    ? ` · open ${trip.opening_km} km`
+                                    ? ` · ${trip.opening_km} km`
                                     : ""}
                               </p>
                             </div>
-                            <StatusBadge status={trip.status} />
                           </div>
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-xs">
+                          <StaffTripStatusTimeline
+                            status={trip.status}
+                            size="compact"
+                            className="mt-2"
+                          />
+                          <div className="mt-1.5 flex items-center justify-between gap-1">
+                            <div className="flex min-w-0 items-center gap-1.5 text-[10px]">
                               <span
                                 className={cn(
-                                  "size-2 rounded-full",
+                                  "size-1.5 shrink-0 rounded-full",
                                   online ? "bg-emerald-500" : "bg-zinc-400"
                                 )}
                                 title={online ? "Online" : "Offline"}
                               />
-                              <span className="text-muted-foreground">
+                              <span className="truncate text-muted-foreground">
                                 {driverName}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex shrink-0 items-center gap-0.5">
                               {canViewGps && status === "completed" ? (
                                 <Button
                                   size="xs"
                                   variant={isPlayback ? "default" : "ghost"}
+                                  className="h-6 px-1.5 text-[10px]"
                                   onClick={() =>
                                     setPlaybackTripId(isPlayback ? null : trip.id)
                                   }
                                 >
-                                  {isPlayback ? "Hide path" : "View path"}
+                                  {isPlayback ? "Hide" : "Path"}
                                 </Button>
                               ) : null}
                               {canManage && canCancelStaffTrip(trip.status) ? (
                                 <Button
                                   size="xs"
                                   variant="ghost"
-                                  className="text-destructive"
+                                  className="h-6 px-1.5 text-[10px] text-destructive"
                                   disabled={cancelMutation.isPending}
                                   onClick={() => cancelMutation.mutate(trip.id)}
                                 >
