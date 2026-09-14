@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { sortInvoiceLinesChronologically } from "@/features/invoices/lib/invoice-line-sort";
 import type { InvoiceTripEmbed } from "@/features/invoices/lib/invoice-trip-row";
 import {
   listTenantRows,
@@ -49,10 +50,9 @@ export async function listInvoiceLines(
     .from("invoice_lines")
     .select("*")
     .eq("organisation_id", organisationId)
-    .eq("invoice_id", invoiceId)
-    .order("created_at", { ascending: true });
+    .eq("invoice_id", invoiceId);
   if (error) throw error;
-  return (data ?? []) as InvoiceLine[];
+  return sortInvoiceLinesChronologically((data ?? []) as InvoiceLine[]);
 }
 
 const INVOICE_LINE_TRIP_SELECT = `
@@ -85,10 +85,9 @@ export async function listInvoiceLinesWithTrips(
     .from("invoice_lines")
     .select(INVOICE_LINE_TRIP_SELECT)
     .eq("organisation_id", organisationId)
-    .eq("invoice_id", invoiceId)
-    .order("created_at", { ascending: true });
+    .eq("invoice_id", invoiceId);
   if (error) throw error;
-  return (data ?? []) as InvoiceLineWithTrip[];
+  return sortInvoiceLinesChronologically((data ?? []) as InvoiceLineWithTrip[]);
 }
 
 export async function generateWeeklyFuelInvoice(

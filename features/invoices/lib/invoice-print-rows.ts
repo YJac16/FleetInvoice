@@ -1,5 +1,4 @@
-import type { InvoiceLine } from "@/types";
-
+import { sortInvoiceLinesChronologically } from "@/features/invoices/lib/invoice-line-sort";
 import {
   buildNonTripPrintRow,
   buildTripPrintRow,
@@ -12,7 +11,8 @@ export type InvoicePrintRow = ReturnType<typeof buildTripPrintRow>;
 export function buildInvoicePrintRows(
   lines: InvoiceLineWithTrip[]
 ): InvoicePrintRow[] {
-  return lines.map((line, index) => {
+  const sortedLines = sortInvoiceLinesChronologically(lines);
+  return sortedLines.map((line, index) => {
     const lineNumber = index + 1;
     if (line.line_type === "trip" && line.trips) {
       return buildTripPrintRow(line, line.trips, lineNumber);
