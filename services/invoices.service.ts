@@ -128,7 +128,7 @@ export async function generateDriverWeeklyInvoice(
   driverId: string,
   periodStart: string,
   periodEnd: string
-): Promise<Invoice[]> {
+): Promise<Invoice> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("generate_driver_weekly_invoice", {
     p_organisation_id: organisationId,
@@ -137,8 +137,7 @@ export async function generateDriverWeeklyInvoice(
     p_period_end: periodEnd,
   });
   if (error) throw error;
-  const rows = data ?? [];
-  return (Array.isArray(rows) ? rows : [rows]) as Invoice[];
+  return data as Invoice;
 }
 
 export async function setInvoiceStatus(

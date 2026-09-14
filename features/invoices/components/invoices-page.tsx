@@ -111,16 +111,9 @@ function GenerateDriverWeeklyInvoiceForm({
         values.period_start,
         values.period_end
       ),
-    onSuccess: (invoices) => {
-      if (invoices.length === 0) {
-        toast.message("No completed trips for that driver and week.");
-        return;
-      }
-      const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+    onSuccess: (invoice) => {
       toast.success(
-        invoices.length === 1
-          ? `Invoice draft — ${invoices[0]!.currency} ${invoices[0]!.total}`
-          : `${invoices.length} invoice drafts — combined ${invoices[0]!.currency} ${total.toFixed(2)}`
+        `Invoice ${invoice.status} — total ${invoice.currency} ${invoice.total}`
       );
       onDone();
     },
@@ -150,7 +143,7 @@ function GenerateDriverWeeklyInvoiceForm({
           <p className="text-sm text-muted-foreground">{weekLabel}</p>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          Creates one invoice PDF per trip/line company for this driver and week.
+          One invoice for this driver and week; trip companies appear as line labels.
           Bill-to stays WCL. Invoice date on print will be{" "}
           <span className="font-medium text-foreground">{invoiceDatePreview}</span>{" "}
           (Monday after the week).
@@ -343,11 +336,6 @@ export function InvoicesPage({
         cell: ({ row }) =>
           row.original.drivers?.full_name ??
           (row.original.driver_id ? row.original.driver_id.slice(0, 8) : "—"),
-      },
-      {
-        id: "trip_company",
-        header: "Trip company",
-        cell: ({ row }) => row.original.trip_company ?? "—",
       },
       {
         id: "period",
@@ -577,7 +565,7 @@ export function InvoicesPage({
             open={driverWeekOpen}
             onOpenChange={setDriverWeekOpen}
             title="Generate driver week"
-            description="Creates separate draft invoices per trip/line company for the selected driver and Monday–Sunday service week."
+            description="Creates one draft invoice for the selected driver and Monday–Sunday service week. Trip companies appear as line descriptions."
           >
             <GenerateDriverWeeklyInvoiceForm
               organisationId={organisationId}

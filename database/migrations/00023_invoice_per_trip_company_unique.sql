@@ -1,36 +1,24 @@
 -- =============================================================================
--- WorkOps — One invoice per trip/line company per driver week (founder lock 14 Sep)
+-- WorkOps — Driver week: single invoice (founder reversal 14 Sep)
 -- =============================================================================
 -- Requires 00022_driver_weekly_invoice.sql.
-
--- ---------------------------------------------------------------------------
--- invoices.trip_company
--- ---------------------------------------------------------------------------
+-- Keeps nullable trip_company for schema parity; uniqueness is per driver+week only.
 
 alter table public.invoices
   add column if not exists trip_company text;
 
 comment on column public.invoices.trip_company is
-  'Trip/line company for this PDF (e.g. Springbok Atlas, Lewis Compliance). Distinct from bill-to company_id (often WCL).';
+  'Optional trip/line company label. Not used for invoice uniqueness or generation.';
 
-drop index if exists public.invoices_org_driver_week_active_uidx;
+drop index if exists public.invoices_org_driver_week_trip_company_active_uidx;
 
-create unique index if not exists invoices_org_driver_week_trip_company_active_uidx
-  on public.invoices (
-    organisation_id,
-    driver_id,
-    period_start,
-    period_end,
-    coalesce(trip_company, '')
-  )
+create unique index if not exists invoices_org_driver_week_active_uidx
+  on public.invoices (organisation_id, driver_id, period_start, period_end)
   where deleted_at is null
     and status <> 'void'
     and driver_id is not null;
 
--- ---------------------------------------------------------------------------
--- RPC: generate_driver_weekly_invoice — one PDF per distinct trip/line company
--- ---------------------------------------------------------------------------
-
+-- Restore single-invoice RPC (all trip companies as lines on one PDF).
 drop function if exists public.generate_driver_weekly_invoice(uuid, uuid, date, date);
 
 create or replace function public.generate_driver_weekly_invoice(
@@ -39,7 +27,7 @@ create or replace function public.generate_driver_weekly_invoice(
   p_period_start date,
   p_period_end date
 )
-returns setof public.invoices
+returns public.invoices
 language plpgsql
 security definer
 set search_path = public
@@ -47,10 +35,11 @@ as $$
 declare
   can_generate boolean;
   bill_to_company_id uuid;
+  existing public.invoices%rowtype;
   inv public.invoices%rowtype;
   trip_row record;
   line_amount numeric;
-  running_total numeric;
+  running_total numeric := 0;
   trip_rate numeric;
   trip_card_id uuid;
   trip_company_id uuid;
@@ -58,7 +47,6 @@ declare
   default_trip_rate constant numeric := 300;
   week_start_ts timestamptz;
   week_end_ts timestamptz;
-  trip_company_label text;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -95,8 +83,60 @@ begin
     raise exception 'Bill-to company not configured (set organisations.settings.invoice_bill_to_company_id or add WCL Trading CC)';
   end if;
 
-  for trip_company_label in
-    select distinct coalesce(tc.name, 'Unknown company') as company_name
+  select * into existing
+  from public.invoices i
+  where i.organisation_id = p_organisation_id
+    and i.driver_id = p_driver_id
+    and i.period_start = p_period_start
+    and i.period_end = p_period_end
+    and i.deleted_at is null
+    and i.status <> 'void'
+  limit 1;
+
+  if found then
+    return existing;
+  end if;
+
+  insert into public.invoices (
+    organisation_id,
+    company_id,
+    driver_id,
+    period_start,
+    period_end,
+    status,
+    generated_by,
+    notes
+  )
+  values (
+    p_organisation_id,
+    bill_to_company_id,
+    p_driver_id,
+    p_period_start,
+    p_period_end,
+    'draft',
+    auth.uid(),
+    format(
+      'Invoice date %s (Monday after Sunday %s)',
+      to_char(p_period_end, 'DD/MM/YYYY'),
+      to_char(p_period_end - 1, 'DD/MM/YYYY')
+    )
+  )
+  returning * into inv;
+
+  for trip_row in
+    select
+      t.id,
+      t.planned_start,
+      coalesce(t.company_id, r.company_id) as company_id,
+      coalesce(tc.name, 'Unknown company') as company_name,
+      coalesce(a.name, 'Unknown area') as area_name,
+      (
+        select count(*)::int
+        from public.trip_passengers tp
+        where tp.trip_id = t.id
+          and tp.organisation_id = t.organisation_id
+          and tp.status <> 'cancelled'
+      ) as pax_count
     from public.trips t
     join public.trip_assignments ta
       on ta.trip_id = t.id
@@ -110,159 +150,78 @@ begin
     left join public.companies tc
       on tc.id = coalesce(t.company_id, r.company_id)
      and tc.deleted_at is null
+    left join public.areas a
+      on a.id = r.area_id
+     and a.deleted_at is null
     where t.organisation_id = p_organisation_id
       and t.deleted_at is null
       and t.status = 'completed'
       and t.planned_start >= week_start_ts
       and t.planned_start < week_end_ts
-    order by 1
+    order by t.planned_start
   loop
-    select * into inv
-    from public.invoices i
-    where i.organisation_id = p_organisation_id
-      and i.driver_id = p_driver_id
-      and i.period_start = p_period_start
-      and i.period_end = p_period_end
-      and coalesce(i.trip_company, '') = trip_company_label
-      and i.deleted_at is null
-      and i.status <> 'void'
+    trip_company_id := trip_row.company_id;
+    trip_rate := null;
+    trip_card_id := null;
+
+    select rc.unit_amount, rc.id into trip_rate, trip_card_id
+    from public.rate_cards rc
+    where rc.organisation_id = p_organisation_id
+      and rc.deleted_at is null
+      and rc.line_type = 'trip'
+      and rc.unit = 'trip'
+      and (rc.company_id = trip_company_id or rc.company_id is null)
+      and rc.effective_from <= p_period_start
+      and (rc.effective_to is null or rc.effective_to >= p_period_start)
+    order by rc.company_id nulls last, rc.effective_from desc
     limit 1;
 
-    if not found then
-      insert into public.invoices (
-        organisation_id,
-        company_id,
-        driver_id,
-        trip_company,
-        period_start,
-        period_end,
-        status,
-        generated_by,
-        notes
-      )
-      values (
-        p_organisation_id,
-        bill_to_company_id,
-        p_driver_id,
-        trip_company_label,
-        p_period_start,
-        p_period_end,
-        'draft',
-        auth.uid(),
-        format(
-          'Invoice date %s (Monday after Sunday %s)',
-          to_char(p_period_end, 'DD/MM/YYYY'),
-          to_char(p_period_end - 1, 'DD/MM/YYYY')
-        )
-      )
-      returning * into inv;
+    trip_rate := coalesce(trip_rate, default_trip_rate);
+    line_amount := round(trip_rate, 2);
+    running_total := running_total + line_amount;
+    pax_count := coalesce(trip_row.pax_count, 0);
 
-      running_total := 0;
-
-      for trip_row in
-        select
-          t.id,
-          t.planned_start,
-          coalesce(t.company_id, r.company_id) as company_id,
-          coalesce(tc.name, 'Unknown company') as company_name,
-          coalesce(a.name, 'Unknown area') as area_name,
-          (
-            select count(*)::int
-            from public.trip_passengers tp
-            where tp.trip_id = t.id
-              and tp.organisation_id = t.organisation_id
-              and tp.status <> 'cancelled'
-          ) as pax_count
-        from public.trips t
-        join public.trip_assignments ta
-          on ta.trip_id = t.id
-         and ta.organisation_id = t.organisation_id
-         and ta.deleted_at is null
-         and ta.released_at is null
-         and ta.driver_id = p_driver_id
-        join public.routes r
-          on r.id = t.route_id
-         and r.deleted_at is null
-        left join public.companies tc
-          on tc.id = coalesce(t.company_id, r.company_id)
-         and tc.deleted_at is null
-        left join public.areas a
-          on a.id = r.area_id
-         and a.deleted_at is null
-        where t.organisation_id = p_organisation_id
-          and t.deleted_at is null
-          and t.status = 'completed'
-          and t.planned_start >= week_start_ts
-          and t.planned_start < week_end_ts
-          and coalesce(tc.name, 'Unknown company') = trip_company_label
-        order by t.planned_start
-      loop
-        trip_company_id := trip_row.company_id;
-        trip_rate := null;
-        trip_card_id := null;
-
-        select rc.unit_amount, rc.id into trip_rate, trip_card_id
-        from public.rate_cards rc
-        where rc.organisation_id = p_organisation_id
-          and rc.deleted_at is null
-          and rc.line_type = 'trip'
-          and rc.unit = 'trip'
-          and (rc.company_id = trip_company_id or rc.company_id is null)
-          and rc.effective_from <= p_period_start
-          and (rc.effective_to is null or rc.effective_to >= p_period_start)
-        order by rc.company_id nulls last, rc.effective_from desc
-        limit 1;
-
-        trip_rate := coalesce(trip_rate, default_trip_rate);
-        line_amount := round(trip_rate, 2);
-        running_total := running_total + line_amount;
-        pax_count := coalesce(trip_row.pax_count, 0);
-
-        insert into public.invoice_lines (
-          organisation_id,
-          invoice_id,
-          line_type,
-          rate_card_id,
-          trip_id,
-          description,
-          quantity,
-          unit_price,
-          amount
-        )
-        values (
-          p_organisation_id,
-          inv.id,
-          'trip',
-          trip_card_id,
-          trip_row.id,
-          format(
-            '%s · %s · %s · %s pax',
-            trip_row.company_name,
-            to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
-            trip_row.area_name,
-            pax_count::text
-          ),
-          1,
-          trip_rate,
-          line_amount
-        );
-      end loop;
-
-      update public.invoices
-      set subtotal = running_total,
-          total = running_total
-      where id = inv.id
-      returning * into inv;
-    end if;
-
-    return next inv;
+    insert into public.invoice_lines (
+      organisation_id,
+      invoice_id,
+      line_type,
+      rate_card_id,
+      trip_id,
+      description,
+      quantity,
+      unit_price,
+      amount
+    )
+    values (
+      p_organisation_id,
+      inv.id,
+      'trip',
+      trip_card_id,
+      trip_row.id,
+      format(
+        '%s · %s · %s · %s pax',
+        trip_row.company_name,
+        to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
+        trip_row.area_name,
+        pax_count::text
+      ),
+      1,
+      trip_rate,
+      line_amount
+    );
   end loop;
 
-  return;
+  update public.invoices
+  set subtotal = running_total,
+      total = running_total
+  where id = inv.id
+  returning * into inv;
+
+  return inv;
 end;
 $$;
 
 grant execute on function public.generate_driver_weekly_invoice(uuid, uuid, date, date) to authenticated;
 
 comment on function public.generate_driver_weekly_invoice is
-  'Idempotent draft invoices for one driver [period_start, period_end): one PDF per distinct trip/line company. Bill-to remains WCL (company_id).';
+  'Idempotent draft invoice for one driver [period_start, period_end). Bill-to WCL; all trip companies as line descriptions on one PDF.';

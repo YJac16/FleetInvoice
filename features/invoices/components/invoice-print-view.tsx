@@ -103,7 +103,6 @@ export function InvoicePrintView({
     invoice.period_end
   );
   const companyName = company?.name ?? invoice.companies?.name ?? "—";
-  const tripCompanyLabel = invoice.trip_company?.trim();
   const companyAddress = company?.address?.trim();
   const companyPhone = company?.contact_phone?.trim();
 
@@ -152,11 +151,6 @@ export function InvoicePrintView({
         <section className="mt-5 space-y-1 leading-snug">
           <p className="text-xs font-semibold tracking-wide">INVOICE TO</p>
           <p className="text-base font-semibold">{companyName}</p>
-          {tripCompanyLabel ? (
-            <p className="text-sm font-medium text-foreground/90">
-              Trip company: {tripCompanyLabel}
-            </p>
-          ) : null}
           {companyAddress ? (
             companyAddress.split(/\n+/).map((line) => <p key={line}>{line}</p>)
           ) : null}
