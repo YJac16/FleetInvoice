@@ -41,6 +41,7 @@ import {
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import { InvoiceDraftLineEditor } from "@/features/invoices/components/invoice-draft-line-editor";
 import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-line-area-editor";
 import {
   InvoiceListFilters,
@@ -408,6 +409,14 @@ export function InvoicesPage({
     [canManage, printBasePath, statusMutation]
   );
 
+  const selectedInvoice = useMemo(
+    () => (invoicesQuery.data ?? []).find((inv) => inv.id === selectedId) ?? null,
+    [invoicesQuery.data, selectedId]
+  );
+
+  const canEditDraftLines =
+    canManage && selectedInvoice?.status === "draft" && Boolean(organisationId);
+
   const printRows = useMemo(
     () => buildInvoicePrintRows(linesQuery.data ?? []),
     [linesQuery.data]
@@ -416,6 +425,9 @@ export function InvoicesPage({
   type InvoiceLineRow = (typeof printRows)[number] & {
     lineId: string;
     lineType: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
   };
 
   const lineColumns = useMemo<ColumnDef<InvoiceLineRow, unknown>[]>(
@@ -449,8 +461,34 @@ export function InvoicesPage({
         },
       },
       { accessorKey: "amount", header: "AMOUNT" },
+      {
+        id: "edit",
+        header: "",
+        cell: ({ row }) => {
+          if (!canEditDraftLines) return null;
+          return (
+            <InvoiceDraftLineEditor
+              lineId={row.original.lineId}
+              initialDescription={row.original.description}
+              initialQuantity={row.original.quantity}
+              initialUnitPrice={row.original.unitPrice}
+              onSaved={async () => {
+                if (!organisationId || !selectedId) return;
+                await Promise.all([
+                  queryClient.invalidateQueries({
+                    queryKey: queryKeys.invoiceLines(organisationId, selectedId),
+                  }),
+                  queryClient.invalidateQueries({
+                    queryKey: queryKeys.invoices(organisationId),
+                  }),
+                ]);
+              }}
+            />
+          );
+        },
+      },
     ],
-    [canManage, organisationId, queryClient, selectedId]
+    [canEditDraftLines, organisationId, queryClient, selectedId]
   );
 
   const lineTableData = useMemo(
@@ -461,6 +499,9 @@ export function InvoicesPage({
           ...printRow,
           lineId: line.id,
           lineType: line.line_type,
+          description: line.description,
+          quantity: line.quantity,
+          unitPrice: line.unit_price,
         };
       }),
     [linesQuery.data, printRows]

@@ -165,3 +165,20 @@ export async function updateInvoiceLineArea(
   if (error) throw error;
   return data as InvoiceLine;
 }
+
+export async function updateDraftInvoiceLine(
+  lineId: string,
+  description: string,
+  quantity: number,
+  unitPrice: number
+): Promise<InvoiceLine> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("update_draft_invoice_line", {
+    p_line_id: lineId,
+    p_description: description,
+    p_quantity: quantity,
+    p_unit_price: unitPrice,
+  });
+  if (error) throw error;
+  return data as InvoiceLine;
+}
