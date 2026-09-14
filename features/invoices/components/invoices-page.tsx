@@ -18,7 +18,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  generateDriverWeeklyInvoiceSchema,
   generatePeriodInvoiceSchema,
+  type GenerateDriverWeeklyInvoiceValues,
   type GeneratePeriodInvoiceValues,
 } from "@/features/invoices/schemas/invoice";
 import {
@@ -27,7 +29,9 @@ import {
 } from "@/features/invoices/lib/service-week";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
+import { listDrivers } from "@/services/drivers.service";
 import {
+  generateDriverWeeklyInvoice,
   generatePeriodInvoice,
   listInvoiceLinesWithTrips,
   listInvoices,
@@ -41,6 +45,113 @@ import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-li
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
+
+function GenerateDriverWeeklyInvoiceForm({
+  organisationId,
+  onDone,
+}: {
+  organisationId: string;
+  onDone: () => void;
+}) {
+  const weekStart = mondayOfWeek();
+  const form = useForm<GenerateDriverWeeklyInvoiceValues>({
+    resolver: zodResolver(generateDriverWeeklyInvoiceSchema),
+    defaultValues: {
+      driver_id: "",
+      period_start: weekStart,
+      period_end: weekPeriodEnd(weekStart),
+    },
+  });
+
+  const driversQuery = useQuery({
+    queryKey: ["drivers", organisationId],
+    queryFn: () => listDrivers(organisationId),
+    enabled: Boolean(organisationId),
+  });
+
+  const driverOptions = useMemo(
+    () =>
+      (driversQuery.data ?? []).map((driver) => ({
+        label: driver.full_name,
+        value: driver.id,
+      })),
+    [driversQuery.data]
+  );
+
+  const periodStart = form.watch("period_start");
+
+  useEffect(() => {
+    if (!periodStart) return;
+    form.setValue("period_end", weekPeriodEnd(periodStart), {
+      shouldValidate: true,
+    });
+  }, [periodStart, form]);
+
+  const weekLabel = periodStart ? formatServiceWeekLabel(periodStart) : "";
+  const invoiceDatePreview = periodStart
+    ? formatInvoiceDatePreview(periodStart)
+    : "—";
+
+  const mutation = useMutation({
+    mutationFn: (values: GenerateDriverWeeklyInvoiceValues) =>
+      generateDriverWeeklyInvoice(
+        organisationId,
+        values.driver_id,
+        values.period_start,
+        values.period_end
+      ),
+    onSuccess: (invoices) => {
+      if (invoices.length === 0) {
+        toast.message("No completed trips for that driver and week.");
+        return;
+      }
+      const total = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
+      toast.success(
+        invoices.length === 1
+          ? `Invoice draft — ${invoices[0]!.currency} ${invoices[0]!.total}`
+          : `${invoices.length} invoice drafts — combined ${invoices[0]!.currency} ${total.toFixed(2)}`
+      );
+      onDone();
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+    >
+      <SelectField
+        control={form.control}
+        name="driver_id"
+        label="Driver"
+        options={driverOptions}
+        placeholder={driversQuery.isLoading ? "Loading drivers…" : "Select driver"}
+      />
+      <div className="space-y-2">
+        <TextField
+          control={form.control}
+          name="period_start"
+          label="Service week (Monday)"
+          type="date"
+        />
+        {weekLabel ? (
+          <p className="text-sm text-muted-foreground">{weekLabel}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Creates one invoice PDF per trip/line company for this driver and week.
+          Bill-to stays WCL. Invoice date on print will be{" "}
+          <span className="font-medium text-foreground">{invoiceDatePreview}</span>{" "}
+          (Monday after the week).
+        </p>
+      </div>
+      <input type="hidden" {...form.register("period_end")} />
+      <Button type="submit" className="w-full" disabled={mutation.isPending}>
+        {mutation.isPending ? "Generating…" : "Generate driver week"}
+      </Button>
+    </form>
+  );
+}
 
 function GeneratePeriodInvoiceForm({
   organisationId,
@@ -142,6 +253,7 @@ export function InvoicesPage({
   const canView = can("invoices:view");
   const canManage = can("invoices:manage");
   const [open, setOpen] = useState(false);
+  const [driverWeekOpen, setDriverWeekOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const invoicesQuery = useQuery({
@@ -184,9 +296,21 @@ export function InvoicesPage({
     () => [
       {
         id: "company",
-        header: "Company",
+        header: "Bill to",
         cell: ({ row }) =>
           row.original.companies?.name ?? row.original.company_id.slice(0, 8),
+      },
+      {
+        id: "driver",
+        header: "Driver",
+        cell: ({ row }) =>
+          row.original.drivers?.full_name ??
+          (row.original.driver_id ? row.original.driver_id.slice(0, 8) : "—"),
+      },
+      {
+        id: "trip_company",
+        header: "Trip company",
+        cell: ({ row }) => row.original.trip_company ?? "—",
       },
       {
         id: "period",
@@ -336,7 +460,12 @@ export function InvoicesPage({
         description={description}
         actions={
           canManage && organisationId ? (
-            <Button onClick={() => setOpen(true)}>Generate period</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setDriverWeekOpen(true)}>
+                Generate driver week
+              </Button>
+              <Button onClick={() => setOpen(true)}>Generate period</Button>
+            </div>
           ) : null
         }
       />
@@ -390,22 +519,40 @@ export function InvoicesPage({
       ) : null}
 
       {organisationId ? (
-        <FormDialog
-          open={open}
-          onOpenChange={setOpen}
-          title="Generate period invoice"
-          description="Builds fuel, trip, and fixed-fee lines for the Monday–Sunday service week. Idempotent for the same company and period."
-        >
-          <GeneratePeriodInvoiceForm
-            organisationId={organisationId}
-            onDone={async () => {
-              setOpen(false);
-              await queryClient.invalidateQueries({
-                queryKey: queryKeys.invoices(organisationId),
-              });
-            }}
-          />
-        </FormDialog>
+        <>
+          <FormDialog
+            open={driverWeekOpen}
+            onOpenChange={setDriverWeekOpen}
+            title="Generate driver week"
+            description="Creates separate draft invoices per trip/line company for the selected driver and Monday–Sunday service week."
+          >
+            <GenerateDriverWeeklyInvoiceForm
+              organisationId={organisationId}
+              onDone={async () => {
+                setDriverWeekOpen(false);
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.invoices(organisationId),
+                });
+              }}
+            />
+          </FormDialog>
+          <FormDialog
+            open={open}
+            onOpenChange={setOpen}
+            title="Generate period invoice"
+            description="Builds fuel, trip, and fixed-fee lines for the Monday–Sunday service week. Idempotent for the same company and period."
+          >
+            <GeneratePeriodInvoiceForm
+              organisationId={organisationId}
+              onDone={async () => {
+                setOpen(false);
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.invoices(organisationId),
+                });
+              }}
+            />
+          </FormDialog>
+        </>
       ) : null}
     </div>
   );
