@@ -16,10 +16,10 @@ Use this before deploying WorkOps Foundation / Phase 0.
 |----------|---------|---------|
 | `SUPABASE_SERVICE_ROLE_KEY` | Drain `notification_outbox` (server only) | **Yes** |
 | `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Authorize `POST /api/notifications/process` | **Yes** |
-| `RESEND_API_KEY` | Send email via Resend | **Yes** |
-| `RESEND_FROM_EMAIL` | From address (verified domain) | No |
+| `MAILERSEND_API_KEY` | Send email via MailerSend | **Yes** |
+| `MAILERSEND_FROM_EMAIL` | From address (verified domain) | No |
 
-Without Resend, invites still work: the app shows/copies the invite URL and outbox rows are marked `skipped`.
+Without MailerSend, invites still work: the app shows/copies the invite URL and outbox rows are marked `skipped`.
 
 ## Never expose
 
@@ -83,7 +83,7 @@ npm run db:audit
 
 Before selling as a live product:
 
-1. Set `SUPABASE_SERVICE_ROLE_KEY` (server only) and verify Resend + Mapbox for your production domain.
+1. Set `SUPABASE_SERVICE_ROLE_KEY` (server only) and verify MailerSend + Mapbox for your production domain.
 2. Supabase Auth Site URL + redirect URLs for the production hostname (not only localhost).
 3. Schedule `POST /api/notifications/process` — see [`notifications-cron.md`](./notifications-cron.md); local: `npm run notifications:drain`.
 4. Confirm `vehicle-docs` private bucket exists (`db:audit` creates it when service role is set).

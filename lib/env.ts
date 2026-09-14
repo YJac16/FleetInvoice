@@ -13,12 +13,12 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   NOTIFICATIONS_PROCESS_SECRET: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
-  RESEND_API_KEY: z.string().min(1).optional(),
-  RESEND_FROM_EMAIL: z.string().min(1).optional(),
+  MAILERSEND_API_KEY: z.string().min(1).optional(),
+  MAILERSEND_FROM_EMAIL: z.string().min(1).optional(),
   NEXT_PUBLIC_MAPBOX_TOKEN: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  YOCO_SECRET_KEY: z.string().min(1).optional(),
+  YOCO_WEBHOOK_SECRET: z.string().min(1).optional(),
+  NEXT_PUBLIC_YOCO_PUBLIC_KEY: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse({
@@ -36,15 +36,15 @@ const parsed = envSchema.safeParse({
     process.env.NOTIFICATIONS_PROCESS_SECRET
   ),
   CRON_SECRET: emptyToUndefined(process.env.CRON_SECRET),
-  RESEND_API_KEY: emptyToUndefined(process.env.RESEND_API_KEY),
-  RESEND_FROM_EMAIL: emptyToUndefined(process.env.RESEND_FROM_EMAIL),
+  MAILERSEND_API_KEY: emptyToUndefined(process.env.MAILERSEND_API_KEY),
+  MAILERSEND_FROM_EMAIL: emptyToUndefined(process.env.MAILERSEND_FROM_EMAIL),
   NEXT_PUBLIC_MAPBOX_TOKEN: emptyToUndefined(
     process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   ),
-  STRIPE_SECRET_KEY: emptyToUndefined(process.env.STRIPE_SECRET_KEY),
-  STRIPE_WEBHOOK_SECRET: emptyToUndefined(process.env.STRIPE_WEBHOOK_SECRET),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: emptyToUndefined(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  YOCO_SECRET_KEY: emptyToUndefined(process.env.YOCO_SECRET_KEY),
+  YOCO_WEBHOOK_SECRET: emptyToUndefined(process.env.YOCO_WEBHOOK_SECRET),
+  NEXT_PUBLIC_YOCO_PUBLIC_KEY: emptyToUndefined(
+    process.env.NEXT_PUBLIC_YOCO_PUBLIC_KEY
   ),
 });
 
@@ -57,12 +57,12 @@ export const env = parsed.success
       SUPABASE_SERVICE_ROLE_KEY: undefined,
       NOTIFICATIONS_PROCESS_SECRET: undefined,
       CRON_SECRET: undefined,
-      RESEND_API_KEY: undefined,
-      RESEND_FROM_EMAIL: undefined,
+      MAILERSEND_API_KEY: undefined,
+      MAILERSEND_FROM_EMAIL: undefined,
       NEXT_PUBLIC_MAPBOX_TOKEN: undefined,
-      STRIPE_SECRET_KEY: undefined,
-      STRIPE_WEBHOOK_SECRET: undefined,
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined,
+      YOCO_SECRET_KEY: undefined,
+      YOCO_WEBHOOK_SECRET: undefined,
+      NEXT_PUBLIC_YOCO_PUBLIC_KEY: undefined,
     };
 
 export function isSupabaseConfigured(): boolean {
@@ -75,13 +75,13 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function isEmailDeliveryConfigured(): boolean {
-  return Boolean(env.RESEND_API_KEY);
+  return Boolean(env.MAILERSEND_API_KEY);
 }
 
 export function isMapboxConfigured(): boolean {
   return Boolean(env.NEXT_PUBLIC_MAPBOX_TOKEN);
 }
 
-export function isStripeConfigured(): boolean {
-  return Boolean(env.STRIPE_SECRET_KEY);
+export function isYocoConfigured(): boolean {
+  return Boolean(env.YOCO_SECRET_KEY);
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { sendTransactionalEmail } from "@/lib/mailersend";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 type OutboxRow = {
@@ -11,31 +12,21 @@ type OutboxRow = {
   attempts: number;
 };
 
-async function sendViaResend(row: OutboxRow): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "WorkOps <onboarding@resend.dev>";
+async function sendViaMailerSend(row: OutboxRow): Promise<void> {
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  const from =
+    process.env.MAILERSEND_FROM_EMAIL ?? "WorkOps <noreply@workops.app>";
   if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured");
+    throw new Error("MAILERSEND_API_KEY is not configured");
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [row.recipient],
-      subject: row.subject ?? "WorkOps notification",
-      text: row.body ?? "",
-    }),
+  await sendTransactionalEmail({
+    apiKey,
+    from,
+    to: row.recipient,
+    subject: row.subject ?? "WorkOps notification",
+    text: row.body ?? "",
   });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Resend failed: ${response.status} ${text}`);
-  }
 }
 
 /**
@@ -72,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const results: Array<{ id: string; status: string; error?: string }> = [];
-  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const hasMailerSend = Boolean(process.env.MAILERSEND_API_KEY);
 
   for (const row of (rows ?? []) as OutboxRow[]) {
     await admin
@@ -81,8 +72,8 @@ export async function POST(request: Request) {
       .eq("id", row.id);
 
     try {
-      if (row.channel === "email" && hasResend) {
-        await sendViaResend(row);
+      if (row.channel === "email" && hasMailerSend) {
+        await sendViaMailerSend(row);
         await admin
           .from("notification_outbox")
           .update({
@@ -97,9 +88,9 @@ export async function POST(request: Request) {
           .from("notification_outbox")
           .update({
             status: "skipped",
-            last_error: hasResend
+            last_error: hasMailerSend
               ? `Unsupported channel: ${row.channel}`
-              : "RESEND_API_KEY not configured; invite URL still valid in app",
+              : "MAILERSEND_API_KEY not configured; invite URL still valid in app",
           })
           .eq("id", row.id);
         results.push({ id: row.id, status: "skipped" });
