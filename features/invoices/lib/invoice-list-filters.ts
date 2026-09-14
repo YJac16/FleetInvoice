@@ -1,9 +1,9 @@
 import { mondayOfWeek } from "@/features/invoices/lib/week";
-import type { Invoice, InvoiceStatus } from "@/types";
+import type { Invoice } from "@/types";
 
 export type InvoiceSortOrder = "newest" | "oldest";
 export type InvoiceWeekFilter = "this_week" | "last_4_weeks" | "all";
-export type InvoiceStatusFilter = "all" | InvoiceStatus;
+export type InvoiceStatusFilter = "all" | Invoice["status"];
 
 export type InvoiceListFilters = {
   sortOrder: InvoiceSortOrder;
