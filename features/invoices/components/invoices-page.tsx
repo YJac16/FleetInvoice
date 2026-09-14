@@ -42,6 +42,17 @@ import {
 import type { Invoice } from "@/types";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
 import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-line-area-editor";
+import {
+  InvoiceListFilters,
+  InvoiceSortToggle,
+} from "@/features/invoices/components/invoice-list-filters";
+import {
+  DEFAULT_INVOICE_LIST_FILTERS,
+  filterAndSortInvoices,
+  type InvoiceSortOrder,
+  type InvoiceStatusFilter,
+  type InvoiceWeekFilter,
+} from "@/features/invoices/lib/invoice-list-filters";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -255,6 +266,15 @@ export function InvoicesPage({
   const [open, setOpen] = useState(false);
   const [driverWeekOpen, setDriverWeekOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>(
+    DEFAULT_INVOICE_LIST_FILTERS.sortOrder
+  );
+  const [weekFilter, setWeekFilter] = useState<InvoiceWeekFilter>(
+    DEFAULT_INVOICE_LIST_FILTERS.weekFilter
+  );
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(
+    DEFAULT_INVOICE_LIST_FILTERS.statusFilter
+  );
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
@@ -272,6 +292,23 @@ export function InvoicesPage({
     queryFn: () => listInvoiceLinesWithTrips(organisationId!, selectedId!),
     enabled: Boolean(organisationId && selectedId),
   });
+
+  const filteredInvoices = useMemo(
+    () =>
+      filterAndSortInvoices(invoicesQuery.data ?? [], {
+        sortOrder,
+        weekFilter,
+        statusFilter,
+      }),
+    [invoicesQuery.data, sortOrder, weekFilter, statusFilter]
+  );
+
+  const listEmptyMessage = useMemo(() => {
+    if ((invoicesQuery.data ?? []).length === 0) {
+      return "No invoices yet. Generate a period invoice for a company.";
+    }
+    return "No invoices match these filters.";
+  }, [invoicesQuery.data]);
 
   const statusMutation = useMutation({
     mutationFn: ({
@@ -459,16 +496,32 @@ export function InvoicesPage({
         title={title}
         description={description}
         actions={
-          canManage && organisationId ? (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setDriverWeekOpen(true)}>
-                Generate driver week
-              </Button>
-              <Button onClick={() => setOpen(true)}>Generate period</Button>
+          organisationId ? (
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+              {canManage ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => setDriverWeekOpen(true)}>
+                    Generate driver week
+                  </Button>
+                  <Button onClick={() => setOpen(true)}>Generate period</Button>
+                </div>
+              ) : null}
+              <InvoiceSortToggle value={sortOrder} onChange={setSortOrder} />
             </div>
           ) : null
         }
       />
+
+      {organisationId && canView && !invoicesQuery.isLoading ? (
+        <div className="mb-4">
+          <InvoiceListFilters
+            weekFilter={weekFilter}
+            statusFilter={statusFilter}
+            onWeekFilterChange={setWeekFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
+        </div>
+      ) : null}
 
       {!organisationId ? (
         <EmptyState
@@ -480,8 +533,8 @@ export function InvoicesPage({
       ) : (
         <DataTable
           columns={columns}
-          data={invoicesQuery.data ?? []}
-          emptyMessage="No invoices yet. Generate a period invoice for a company."
+          data={filteredInvoices}
+          emptyMessage={listEmptyMessage}
         />
       )}
 
