@@ -10,7 +10,8 @@ export { mondayOfWeek, weekPeriodEnd, isFilledAtInWeek } from "@/features/invoic
 
 const TABLE = "invoices";
 
-const INVOICE_SELECT = "*, companies:company_id (id, name)";
+const INVOICE_SELECT =
+  "*, companies:company_id (id, name), drivers:driver_id (id, full_name)";
 
 export function listInvoices(
   organisationId: string,
@@ -122,6 +123,23 @@ export async function generatePeriodInvoice(
   return data as Invoice;
 }
 
+export async function generateDriverWeeklyInvoice(
+  organisationId: string,
+  driverId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<Invoice> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("generate_driver_weekly_invoice", {
+    p_organisation_id: organisationId,
+    p_driver_id: driverId,
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+  });
+  if (error) throw error;
+  return data as Invoice;
+}
+
 export async function setInvoiceStatus(
   invoiceId: string,
   status: Invoice["status"]
@@ -143,6 +161,23 @@ export async function updateInvoiceLineArea(
   const { data, error } = await supabase.rpc("update_invoice_line_area", {
     p_line_id: lineId,
     p_area: area,
+  });
+  if (error) throw error;
+  return data as InvoiceLine;
+}
+
+export async function updateDraftInvoiceLine(
+  lineId: string,
+  description: string,
+  quantity: number,
+  unitPrice: number
+): Promise<InvoiceLine> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("update_draft_invoice_line", {
+    p_line_id: lineId,
+    p_description: description,
+    p_quantity: quantity,
+    p_unit_price: unitPrice,
   });
   if (error) throw error;
   return data as InvoiceLine;

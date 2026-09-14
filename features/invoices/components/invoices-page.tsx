@@ -18,7 +18,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  generateDriverWeeklyInvoiceSchema,
   generatePeriodInvoiceSchema,
+  type GenerateDriverWeeklyInvoiceValues,
   type GeneratePeriodInvoiceValues,
 } from "@/features/invoices/schemas/invoice";
 import {
@@ -27,7 +29,9 @@ import {
 } from "@/features/invoices/lib/service-week";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
+import { listDrivers } from "@/services/drivers.service";
 import {
+  generateDriverWeeklyInvoice,
   generatePeriodInvoice,
   listInvoiceLinesWithTrips,
   listInvoices,
@@ -37,10 +41,122 @@ import {
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
+import { InvoiceDraftLineEditor } from "@/features/invoices/components/invoice-draft-line-editor";
 import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-line-area-editor";
+import {
+  InvoiceListFilters,
+  InvoiceSortToggle,
+} from "@/features/invoices/components/invoice-list-filters";
+import {
+  DEFAULT_INVOICE_LIST_FILTERS,
+  filterAndSortInvoices,
+  type InvoiceSortOrder,
+  type InvoiceStatusFilter,
+  type InvoiceWeekFilter,
+} from "@/features/invoices/lib/invoice-list-filters";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
+
+function GenerateDriverWeeklyInvoiceForm({
+  organisationId,
+  onDone,
+}: {
+  organisationId: string;
+  onDone: () => void;
+}) {
+  const weekStart = mondayOfWeek();
+  const form = useForm<GenerateDriverWeeklyInvoiceValues>({
+    resolver: zodResolver(generateDriverWeeklyInvoiceSchema),
+    defaultValues: {
+      driver_id: "",
+      period_start: weekStart,
+      period_end: weekPeriodEnd(weekStart),
+    },
+  });
+
+  const driversQuery = useQuery({
+    queryKey: ["drivers", organisationId],
+    queryFn: () => listDrivers(organisationId),
+    enabled: Boolean(organisationId),
+  });
+
+  const driverOptions = useMemo(
+    () =>
+      (driversQuery.data ?? []).map((driver) => ({
+        label: driver.full_name,
+        value: driver.id,
+      })),
+    [driversQuery.data]
+  );
+
+  const periodStart = form.watch("period_start");
+
+  useEffect(() => {
+    if (!periodStart) return;
+    form.setValue("period_end", weekPeriodEnd(periodStart), {
+      shouldValidate: true,
+    });
+  }, [periodStart, form]);
+
+  const weekLabel = periodStart ? formatServiceWeekLabel(periodStart) : "";
+  const invoiceDatePreview = periodStart
+    ? formatInvoiceDatePreview(periodStart)
+    : "—";
+
+  const mutation = useMutation({
+    mutationFn: (values: GenerateDriverWeeklyInvoiceValues) =>
+      generateDriverWeeklyInvoice(
+        organisationId,
+        values.driver_id,
+        values.period_start,
+        values.period_end
+      ),
+    onSuccess: (invoice) => {
+      toast.success(
+        `Invoice ${invoice.status} — total ${invoice.currency} ${invoice.total}`
+      );
+      onDone();
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+    >
+      <SelectField
+        control={form.control}
+        name="driver_id"
+        label="Driver"
+        options={driverOptions}
+        placeholder={driversQuery.isLoading ? "Loading drivers…" : "Select driver"}
+      />
+      <div className="space-y-2">
+        <TextField
+          control={form.control}
+          name="period_start"
+          label="Service week (Monday)"
+          type="date"
+        />
+        {weekLabel ? (
+          <p className="text-sm text-muted-foreground">{weekLabel}</p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          One invoice for this driver and week; trip companies appear as line labels.
+          Bill-to stays WCL. Invoice date on print will be{" "}
+          <span className="font-medium text-foreground">{invoiceDatePreview}</span>{" "}
+          (Monday after the week).
+        </p>
+      </div>
+      <input type="hidden" {...form.register("period_end")} />
+      <Button type="submit" className="w-full" disabled={mutation.isPending}>
+        {mutation.isPending ? "Generating…" : "Generate driver week"}
+      </Button>
+    </form>
+  );
+}
 
 function GeneratePeriodInvoiceForm({
   organisationId,
@@ -142,7 +258,17 @@ export function InvoicesPage({
   const canView = can("invoices:view");
   const canManage = can("invoices:manage");
   const [open, setOpen] = useState(false);
+  const [driverWeekOpen, setDriverWeekOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>(
+    DEFAULT_INVOICE_LIST_FILTERS.sortOrder
+  );
+  const [weekFilter, setWeekFilter] = useState<InvoiceWeekFilter>(
+    DEFAULT_INVOICE_LIST_FILTERS.weekFilter
+  );
+  const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(
+    DEFAULT_INVOICE_LIST_FILTERS.statusFilter
+  );
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
@@ -160,6 +286,23 @@ export function InvoicesPage({
     queryFn: () => listInvoiceLinesWithTrips(organisationId!, selectedId!),
     enabled: Boolean(organisationId && selectedId),
   });
+
+  const filteredInvoices = useMemo(
+    () =>
+      filterAndSortInvoices(invoicesQuery.data ?? [], {
+        sortOrder,
+        weekFilter,
+        statusFilter,
+      }),
+    [invoicesQuery.data, sortOrder, weekFilter, statusFilter]
+  );
+
+  const listEmptyMessage = useMemo(() => {
+    if ((invoicesQuery.data ?? []).length === 0) {
+      return "No invoices yet. Generate a period invoice for a company.";
+    }
+    return "No invoices match these filters.";
+  }, [invoicesQuery.data]);
 
   const statusMutation = useMutation({
     mutationFn: ({
@@ -184,9 +327,16 @@ export function InvoicesPage({
     () => [
       {
         id: "company",
-        header: "Company",
+        header: "Bill to",
         cell: ({ row }) =>
           row.original.companies?.name ?? row.original.company_id.slice(0, 8),
+      },
+      {
+        id: "driver",
+        header: "Driver",
+        cell: ({ row }) =>
+          row.original.drivers?.full_name ??
+          (row.original.driver_id ? row.original.driver_id.slice(0, 8) : "—"),
       },
       {
         id: "period",
@@ -259,6 +409,14 @@ export function InvoicesPage({
     [canManage, printBasePath, statusMutation]
   );
 
+  const selectedInvoice = useMemo(
+    () => (invoicesQuery.data ?? []).find((inv) => inv.id === selectedId) ?? null,
+    [invoicesQuery.data, selectedId]
+  );
+
+  const canEditDraftLines =
+    canManage && selectedInvoice?.status === "draft" && Boolean(organisationId);
+
   const printRows = useMemo(
     () => buildInvoicePrintRows(linesQuery.data ?? []),
     [linesQuery.data]
@@ -267,6 +425,9 @@ export function InvoicesPage({
   type InvoiceLineRow = (typeof printRows)[number] & {
     lineId: string;
     lineType: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
   };
 
   const lineColumns = useMemo<ColumnDef<InvoiceLineRow, unknown>[]>(
@@ -300,8 +461,34 @@ export function InvoicesPage({
         },
       },
       { accessorKey: "amount", header: "AMOUNT" },
+      {
+        id: "edit",
+        header: "",
+        cell: ({ row }) => {
+          if (!canEditDraftLines) return null;
+          return (
+            <InvoiceDraftLineEditor
+              lineId={row.original.lineId}
+              initialDescription={row.original.description}
+              initialQuantity={row.original.quantity}
+              initialUnitPrice={row.original.unitPrice}
+              onSaved={async () => {
+                if (!organisationId || !selectedId) return;
+                await Promise.all([
+                  queryClient.invalidateQueries({
+                    queryKey: queryKeys.invoiceLines(organisationId, selectedId),
+                  }),
+                  queryClient.invalidateQueries({
+                    queryKey: queryKeys.invoices(organisationId),
+                  }),
+                ]);
+              }}
+            />
+          );
+        },
+      },
     ],
-    [canManage, organisationId, queryClient, selectedId]
+    [canEditDraftLines, organisationId, queryClient, selectedId]
   );
 
   const lineTableData = useMemo(
@@ -312,6 +499,9 @@ export function InvoicesPage({
           ...printRow,
           lineId: line.id,
           lineType: line.line_type,
+          description: line.description,
+          quantity: line.quantity,
+          unitPrice: line.unit_price,
         };
       }),
     [linesQuery.data, printRows]
@@ -335,11 +525,32 @@ export function InvoicesPage({
         title={title}
         description={description}
         actions={
-          canManage && organisationId ? (
-            <Button onClick={() => setOpen(true)}>Generate period</Button>
+          organisationId ? (
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+              {canManage ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => setDriverWeekOpen(true)}>
+                    Generate driver week
+                  </Button>
+                  <Button onClick={() => setOpen(true)}>Generate period</Button>
+                </div>
+              ) : null}
+              <InvoiceSortToggle value={sortOrder} onChange={setSortOrder} />
+            </div>
           ) : null
         }
       />
+
+      {organisationId && canView && !invoicesQuery.isLoading ? (
+        <div className="mb-4">
+          <InvoiceListFilters
+            weekFilter={weekFilter}
+            statusFilter={statusFilter}
+            onWeekFilterChange={setWeekFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
+        </div>
+      ) : null}
 
       {!organisationId ? (
         <EmptyState
@@ -351,8 +562,8 @@ export function InvoicesPage({
       ) : (
         <DataTable
           columns={columns}
-          data={invoicesQuery.data ?? []}
-          emptyMessage="No invoices yet. Generate a period invoice for a company."
+          data={filteredInvoices}
+          emptyMessage={listEmptyMessage}
         />
       )}
 
@@ -390,22 +601,40 @@ export function InvoicesPage({
       ) : null}
 
       {organisationId ? (
-        <FormDialog
-          open={open}
-          onOpenChange={setOpen}
-          title="Generate period invoice"
-          description="Builds fuel, trip, and fixed-fee lines for the Monday–Sunday service week. Idempotent for the same company and period."
-        >
-          <GeneratePeriodInvoiceForm
-            organisationId={organisationId}
-            onDone={async () => {
-              setOpen(false);
-              await queryClient.invalidateQueries({
-                queryKey: queryKeys.invoices(organisationId),
-              });
-            }}
-          />
-        </FormDialog>
+        <>
+          <FormDialog
+            open={driverWeekOpen}
+            onOpenChange={setDriverWeekOpen}
+            title="Generate driver week"
+            description="Creates one draft invoice for the selected driver and Monday–Sunday service week. Trip companies appear as line descriptions."
+          >
+            <GenerateDriverWeeklyInvoiceForm
+              organisationId={organisationId}
+              onDone={async () => {
+                setDriverWeekOpen(false);
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.invoices(organisationId),
+                });
+              }}
+            />
+          </FormDialog>
+          <FormDialog
+            open={open}
+            onOpenChange={setOpen}
+            title="Generate period invoice"
+            description="Builds fuel, trip, and fixed-fee lines for the Monday–Sunday service week. Idempotent for the same company and period."
+          >
+            <GeneratePeriodInvoiceForm
+              organisationId={organisationId}
+              onDone={async () => {
+                setOpen(false);
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.invoices(organisationId),
+                });
+              }}
+            />
+          </FormDialog>
+        </>
       ) : null}
     </div>
   );

@@ -16,3 +16,13 @@ export const generatePeriodInvoiceSchema = z.object({
 export type GeneratePeriodInvoiceValues = z.infer<
   typeof generatePeriodInvoiceSchema
 >;
+
+export const generateDriverWeeklyInvoiceSchema = z.object({
+  driver_id: z.string().uuid("Select a driver"),
+  period_start: z.string().min(1, "Period start is required"),
+  period_end: z.string().min(1, "Period end is required"),
+});
+
+export type GenerateDriverWeeklyInvoiceValues = z.infer<
+  typeof generateDriverWeeklyInvoiceSchema
+>;

@@ -89,6 +89,9 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #d5dde6;
   --sidebar-ring: #006dff;
+  /* Invoice print/PDF — full-bleed brand surface (matches sheet, not white frame) */
+  --invoice-print-bg: #e8edf2;
+  --invoice-print-fg: #0b1f3b;
 }
 
 .dark {
@@ -141,6 +144,52 @@
   h3,
   h4 {
     font-family: var(--font-heading);
+  }
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0;
+    background: var(--invoice-print-bg);
+  }
+
+  html,
+  body,
+  main {
+    background: var(--invoice-print-bg) !important;
+    color: var(--invoice-print-fg) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .invoice-print-root {
+    max-width: none !important;
+    min-height: 100vh;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: var(--invoice-print-bg) !important;
+    color: var(--invoice-print-fg) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .invoice-print-sheet {
+    background: var(--invoice-print-bg) !important;
+    color: var(--invoice-print-fg) !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    min-height: 100vh;
+    padding: 12mm !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .invoice-print-sheet header,
+  .invoice-print-sheet table,
+  .invoice-print-sheet footer {
+    break-inside: avoid;
   }
 }
 

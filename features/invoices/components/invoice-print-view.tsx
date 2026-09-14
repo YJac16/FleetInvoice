@@ -107,7 +107,7 @@ export function InvoicePrintView({
   const companyPhone = company?.contact_phone?.trim();
 
   return (
-    <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
+    <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:min-h-screen print:p-0">
       <InvoiceDeliveryPanel
         organisationId={organisation.id}
         invoiceId={invoice.id}
@@ -117,7 +117,7 @@ export function InvoicePrintView({
         canSendEmail={canSendEmail}
       />
 
-      <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:border-0 print:p-0">
+      <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:min-h-screen print:rounded-none print:border-0 print:shadow-none">
         <header className="grid gap-6 border-b border-black/20 pb-4 sm:grid-cols-2">
           <div className="space-y-0.5 leading-snug">
             {organisation.logo_url ? (
