@@ -39,8 +39,15 @@ yarn-error.log*
 !.env.example
 
 # local tooling
-.cursor/
+# Ignore local Cursor state but keep the committed Cloud Agent environment files.
+.cursor/*
+!.cursor/environment.json
+!.cursor/install.sh
+!.cursor/start.sh
+!.cursor/lib.sh
+!.cursor/local-supabase-grants.sql
 supabase/.temp/
+supabase/.branches/
 
 # vercel
 .vercel
