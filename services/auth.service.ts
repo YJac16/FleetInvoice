@@ -43,6 +43,24 @@ export async function requestPasswordReset(email: string) {
   if (error) throw error;
 }
 
+export async function signUpWithPassword(input: {
+  email: string;
+  password: string;
+  fullName: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: { full_name: input.fullName },
+      emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/onboarding/create-organisation`,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function signUpWithInvite(input: {
   email: string;
   password: string;
