@@ -104,6 +104,31 @@ export async function assignStaffTrip(
   return data as string;
 }
 
+export async function backfillStaffWaybill(
+  organisationId: string,
+  driverId: string,
+  plannedStart: string,
+  staffCompany: StaffTransportCompany,
+  areaText: string,
+  paxCount: number,
+  openingKm?: number | null,
+  closingKm?: number | null
+): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("backfill_staff_waybill", {
+    p_organisation_id: organisationId,
+    p_driver_id: driverId,
+    p_planned_start: plannedStart,
+    p_staff_company: staffCompany,
+    p_area_text: areaText,
+    p_pax_count: paxCount,
+    p_opening_km: openingKm ?? null,
+    p_closing_km: closingKm ?? null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 export async function updateStaffTrip(
   tripId: string,
   fields: {

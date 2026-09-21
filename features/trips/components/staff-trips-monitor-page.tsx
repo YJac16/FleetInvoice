@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
+import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
+import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -74,6 +76,10 @@ function canCancelStaffTrip(status: StaffTrip["status"]): boolean {
   );
 }
 
+function canVoidCompletedWaybill(status: StaffTrip["status"]): boolean {
+  return status === "completed";
+}
+
 export function StaffTripsMonitorPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
@@ -85,6 +91,8 @@ export function StaffTripsMonitorPage() {
   const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
 
   const [playbackTripId, setPlaybackTripId] = useState<string | null>(null);
+  const [createWaybillOpen, setCreateWaybillOpen] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<StaffTrip | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId
@@ -165,15 +173,20 @@ export function StaffTripsMonitorPage() {
   const mapMarkers = playbackTripId ? [] : liveMarkers;
   const mapPaths = playbackTripId ? playbackPath : [];
 
+  const invalidateStaffTrips = async () => {
+    if (!organisationId) return;
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+    });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.invoices(organisationId),
+    });
+  };
+
   const cancelMutation = useMutation({
     mutationFn: cancelStaffTrip,
     onSuccess: async () => {
-      toast.success("Trip cancelled");
-      if (organisationId) {
-        await queryClient.invalidateQueries({
-          queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
-        });
-      }
+      await invalidateStaffTrips();
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -191,7 +204,14 @@ export function StaffTripsMonitorPage() {
     <div className="space-y-4">
       <PageHeader
         title="Staff transport monitor"
-        description="Control room · live status and GPS for today’s staff trips."
+        description="Control room · live waybills, GPS, and draft invoice sync on complete."
+        actions={
+          canManage ? (
+            <Button size="sm" onClick={() => setCreateWaybillOpen(true)}>
+              Create waybill
+            </Button>
+          ) : null
+        }
       />
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -389,15 +409,39 @@ export function StaffTripsMonitorPage() {
                                   {isPlayback ? "Hide" : "Path"}
                                 </Button>
                               ) : null}
-                              {canManage && canCancelStaffTrip(trip.status) ? (
+                              {canManage && trip.status === "completed" ? (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[10px]"
+                                  onClick={() => setEditingTrip(trip)}
+                                >
+                                  Edit
+                                </Button>
+                              ) : null}
+                              {canManage &&
+                              (canCancelStaffTrip(trip.status) ||
+                                canVoidCompletedWaybill(trip.status)) ? (
                                 <Button
                                   size="xs"
                                   variant="ghost"
                                   className="h-6 px-1.5 text-[10px] text-destructive"
                                   disabled={cancelMutation.isPending}
-                                  onClick={() => cancelMutation.mutate(trip.id)}
+                                  onClick={() => {
+                                    const voiding = trip.status === "completed";
+                                    cancelMutation.mutate(trip.id, {
+                                      onSuccess: async () => {
+                                        toast.success(
+                                          voiding
+                                            ? "Waybill voided"
+                                            : "Trip cancelled"
+                                        );
+                                        await invalidateStaffTrips();
+                                      },
+                                    });
+                                  }}
                                 >
-                                  Cancel
+                                  {trip.status === "completed" ? "Void" : "Cancel"}
                                 </Button>
                               ) : null}
                             </div>
@@ -415,9 +459,25 @@ export function StaffTripsMonitorPage() {
 
       {!canManage ? (
         <p className="text-xs text-muted-foreground">
-          Read-only view. Dispatchers can assign trips from the Trips page.
+          Read-only view. Dispatchers can create waybills from the Trips page.
         </p>
       ) : null}
+
+      <AssignStaffTripDialog
+        open={createWaybillOpen}
+        onOpenChange={setCreateWaybillOpen}
+        organisationId={organisationId}
+        onAssigned={() => void invalidateStaffTrips()}
+      />
+
+      <EditWaybillDialog
+        open={Boolean(editingTrip)}
+        onOpenChange={(open) => {
+          if (!open) setEditingTrip(null);
+        }}
+        trip={editingTrip}
+        onSaved={() => void invalidateStaffTrips()}
+      />
     </div>
   );
 }
