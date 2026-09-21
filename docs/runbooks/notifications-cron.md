@@ -27,6 +27,17 @@ npm run notifications:drain
 npm run notifications:drain -- http://localhost:3000
 ```
 
+## Compliance renewals digest (weekly)
+
+`vercel.json` schedules **`GET /api/cron/compliance-digest`** (Mondays 07:00 UTC). It enqueues org admin/manager emails for licence, PDP, and vehicle document items due within **30 days** (override with `COMPLIANCE_DIGEST_WITHIN_DAYS`), then drains the outbox via the same secret as `/api/notifications/process`.
+
+Manual:
+
+```bash
+curl -X POST "$NEXT_PUBLIC_APP_URL/api/cron/compliance-digest" \
+  -H "Authorization: Bearer $NOTIFICATIONS_PROCESS_SECRET"
+```
+
 ## Production schedule
 
 Call every **1–5 minutes**:

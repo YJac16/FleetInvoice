@@ -27,6 +27,7 @@ import {
   getVehicleDocumentSignedUrl,
   listVehicleDocuments,
   softDeleteVehicleDocument,
+  updateVehicleDocument,
   uploadVehicleDocumentFile,
 } from "@/services/vehicle-documents.service";
 import type { Vehicle } from "@/types";
@@ -55,6 +56,9 @@ export function VehicleDocumentsDialog({
   const [expiresAt, setExpiresAt] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+  const [editName, setEditName] = useState("");
 
   const docsQuery = useQuery({
     queryKey:
@@ -119,6 +123,30 @@ export function VehicleDocumentsDialog({
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      name,
+      expiresAt,
+    }: {
+      id: string;
+      name: string;
+      expiresAt: string | null;
+    }) =>
+      updateVehicleDocument(id, {
+        name: name.trim(),
+        expiresAt: expiresAt || null,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.vehicleDocuments(organisationId, vehicle!.id),
+      });
+      setEditingId(null);
+      toast.success("Document updated");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => softDeleteVehicleDocument(id),
     onSuccess: async () => {
@@ -153,12 +181,50 @@ export function VehicleDocumentsDialog({
                   key={doc.id}
                   className="flex items-start justify-between gap-3 rounded-xl border px-3 py-2 text-sm"
                 >
-                  <div>
-                    <p className="font-medium">{doc.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {VEHICLE_DOC_TYPE_LABELS[doc.doc_type]} · Expires{" "}
-                      {formatDate(doc.expires_at)}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    {editingId === doc.id ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                        <Input
+                          type="date"
+                          value={editExpiresAt}
+                          onChange={(e) => setEditExpiresAt(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={updateMutation.isPending}
+                            onClick={() =>
+                              updateMutation.mutate({
+                                id: doc.id,
+                                name: editName,
+                                expiresAt: editExpiresAt,
+                              })
+                            }
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="font-medium">{doc.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {VEHICLE_DOC_TYPE_LABELS[doc.doc_type]} · Expires{" "}
+                          {formatDate(doc.expires_at)}
+                        </p>
+                      </>
+                    )}
                     {doc.storage_path ? (
                       <button
                         type="button"
@@ -180,14 +246,27 @@ export function VehicleDocumentsDialog({
                       </p>
                     )}
                   </div>
-                  {canManage ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteMutation.mutate(doc.id)}
-                    >
-                      Archive
-                    </Button>
+                  {canManage && editingId !== doc.id ? (
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingId(doc.id);
+                          setEditName(doc.name);
+                          setEditExpiresAt(doc.expires_at?.slice(0, 10) ?? "");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteMutation.mutate(doc.id)}
+                      >
+                        Archive
+                      </Button>
+                    </div>
                   ) : null}
                 </li>
               ))}

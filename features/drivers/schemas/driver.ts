@@ -7,6 +7,9 @@ export const driverSchema = z.object({
   email: z.union([z.email("Enter a valid email"), z.literal("")]).optional(),
   phone: z.string().optional(),
   license_number: z.string().optional(),
+  license_expires_on: z.string().optional(),
+  pdp_number: z.string().optional(),
+  pdp_expires_on: z.string().optional(),
   profile_id: z.union([z.string().uuid(), z.literal("")]).optional(),
   status: z.enum(ENTITY_STATUSES),
 });

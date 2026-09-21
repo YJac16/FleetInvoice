@@ -71,6 +71,32 @@ export async function createVehicleDocument(input: {
   return data as VehicleDocument;
 }
 
+export async function updateVehicleDocument(
+  id: string,
+  input: {
+    name?: string;
+    docType?: VehicleDocType;
+    expiresAt?: string | null;
+    notes?: string | null;
+  }
+): Promise<VehicleDocument> {
+  const supabase = createClient();
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.docType !== undefined) patch.doc_type = input.docType;
+  if (input.expiresAt !== undefined) patch.expires_at = input.expiresAt;
+  if (input.notes !== undefined) patch.notes = input.notes;
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as VehicleDocument;
+}
+
 export async function softDeleteVehicleDocument(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase

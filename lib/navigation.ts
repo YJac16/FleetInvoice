@@ -18,6 +18,7 @@ import {
   BarChart3,
   Building,
   Radar,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -84,6 +85,7 @@ export const MAIN_NAV: NavItem[] = [
   item("Drivers", "/drivers", CircleUser, "drivers:view", "people"),
   item("Employees", "/employees", UsersRound, "employees:view", "people"),
   item("Vehicles", "/vehicles", Car, "vehicles:view", "fleet"),
+  item("Compliance", "/compliance", ShieldCheck, "drivers:view", "fleet"),
   item("Fuel", "/fuel", Fuel, "fuel:view", "fleet"),
   item("Companies", "/companies", Building2, "companies:view", "places"),
   item("Areas", "/areas", MapPin, "areas:view", "places"),
