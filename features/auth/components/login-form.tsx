@@ -78,7 +78,8 @@ export function LoginForm() {
         <CardHeader className="space-y-2">
           <CardTitle className="font-heading text-3xl">Sign in</CardTitle>
           <CardDescription>
-            Invite-only access. Use the credentials from your organisation invitation.
+            Sign in with your WorkOps account, or use the link from your team
+            invitation.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,6 +118,10 @@ export function LoginForm() {
           <p className="mt-4 text-center text-sm text-muted-foreground">
             <Link href="/forgot-password" className="underline-offset-4 hover:underline">
               Forgot password?
+            </Link>
+            {" · "}
+            <Link href="/signup" className="underline-offset-4 hover:underline">
+              Create account
             </Link>
           </p>
         </CardContent>

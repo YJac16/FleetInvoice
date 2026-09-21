@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isPublicAuthRoute =
     pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/invite");
@@ -56,7 +57,9 @@ export async function updateSession(request: NextRequest) {
 
   if (
     user &&
-    (pathname === "/login" || pathname === "/forgot-password") &&
+    (pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/forgot-password") &&
     !pathname.startsWith("/invite")
   ) {
     const url = request.nextUrl.clone();
