@@ -62,4 +62,6 @@ export const queryKeys = {
     ["subscription", orgId] as const,
   organisationVehiclesCount: (orgId: string) =>
     ["vehicles-count", orgId] as const,
+  complianceRenewals: (orgId: string, withinDays: number) =>
+    ["compliance-renewals", orgId, withinDays] as const,
 };

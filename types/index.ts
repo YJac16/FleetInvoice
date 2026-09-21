@@ -139,6 +139,9 @@ export type Driver = {
   email: string | null;
   phone: string | null;
   license_number: string | null;
+  license_expires_on: string | null;
+  pdp_number: string | null;
+  pdp_expires_on: string | null;
   status: EntityStatus;
   created_by: string | null;
   created_at: string;

@@ -42,6 +42,11 @@ function emptyToNull(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function toDateInput(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
 function DriverForm({
   initial,
   onSubmit,
@@ -81,6 +86,9 @@ function DriverForm({
       email: initial?.email ?? "",
       phone: initial?.phone ?? "",
       license_number: initial?.license_number ?? "",
+      license_expires_on: toDateInput(initial?.license_expires_on),
+      pdp_number: initial?.pdp_number ?? "",
+      pdp_expires_on: toDateInput(initial?.pdp_expires_on),
       profile_id: initial?.profile_id ?? "",
       status: initial?.status ?? "active",
     },
@@ -95,6 +103,9 @@ function DriverForm({
           email: emptyToNull(values.email),
           phone: emptyToNull(values.phone),
           license_number: emptyToNull(values.license_number),
+          license_expires_on: emptyToNull(values.license_expires_on),
+          pdp_number: emptyToNull(values.pdp_number),
+          pdp_expires_on: emptyToNull(values.pdp_expires_on),
           profile_id: emptyToNull(values.profile_id),
           status: values.status,
         })
@@ -107,6 +118,23 @@ function DriverForm({
         control={form.control}
         name="license_number"
         label="License number"
+      />
+      <TextField
+        control={form.control}
+        name="license_expires_on"
+        label="Licence expires"
+        type="date"
+      />
+      <TextField
+        control={form.control}
+        name="pdp_number"
+        label="PDP number"
+      />
+      <TextField
+        control={form.control}
+        name="pdp_expires_on"
+        label="PDP expires"
+        type="date"
       />
       <SelectField
         control={form.control}
@@ -141,6 +169,22 @@ export function DriversPage() {
       { accessorKey: "email", header: "Email" },
       { accessorKey: "phone", header: "Phone" },
       { accessorKey: "license_number", header: "License" },
+      {
+        accessorKey: "license_expires_on",
+        header: "Licence expiry",
+        cell: ({ row }) =>
+          row.original.license_expires_on
+            ? row.original.license_expires_on.slice(0, 10)
+            : "—",
+      },
+      {
+        accessorKey: "pdp_expires_on",
+        header: "PDP expiry",
+        cell: ({ row }) =>
+          row.original.pdp_expires_on
+            ? row.original.pdp_expires_on.slice(0, 10)
+            : "—",
+      },
       {
         id: "linked_user",
         header: "Linked user",
