@@ -23,6 +23,8 @@ begin
     raise exception 'Authentication required';
   end if;
 
+  perform pg_advisory_xact_lock(hashtext(uid::text));
+
   clean_name := trim(p_name);
   if clean_name is null or length(clean_name) < 2 then
     raise exception 'Organisation name must be at least 2 characters';
