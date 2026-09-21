@@ -1,7 +1,8 @@
 -- =============================================================================
 -- WorkOps — Staff waybill complete → draft weekly invoice line (Mon–Sun SAST)
 -- =============================================================================
--- Requires 00023_invoice_per_trip_company_unique.sql
+-- Founder lock (PR #28): **one draft invoice per driver per service week**;
+-- mixed trip companies on the same bill. Do not split drafts by trip_company.
 
 alter type public.trip_event_type add value if not exists 'updated';
 
@@ -139,7 +140,6 @@ declare
   v_driver_id uuid;
   v_bounds record;
   v_company_name text;
-  v_trip_company_label text;
   v_bill_to uuid;
   inv public.invoices%rowtype;
   v_rate numeric;
@@ -205,8 +205,6 @@ begin
 
   select * into v_bounds from public.service_week_bounds_sast(t.planned_start);
 
-  v_trip_company_label := public.staff_company_display_name(t.staff_company);
-
   select unit_amount, rate_card_id
   into v_rate, v_rate_card_id
   from public.resolve_trip_line_rate(t.organisation_id, t.company_id, v_bounds.period_start);
@@ -229,9 +227,9 @@ begin
     and i.driver_id = v_driver_id
     and i.period_start = v_bounds.period_start
     and i.period_end = v_bounds.period_end
-    and coalesce(i.trip_company, '') = v_trip_company_label
+    and coalesce(i.trip_company, '') = ''
     and i.deleted_at is null
-    and i.status <> 'void'
+    and i.status = 'draft'
   limit 1;
 
   if not found then
@@ -239,7 +237,6 @@ begin
       organisation_id,
       company_id,
       driver_id,
-      trip_company,
       period_start,
       period_end,
       status,
@@ -250,7 +247,6 @@ begin
       t.organisation_id,
       v_bill_to,
       v_driver_id,
-      v_trip_company_label,
       v_bounds.period_start,
       v_bounds.period_end,
       'draft',
@@ -728,7 +724,7 @@ grant execute on function public.backfill_staff_waybill(
 ) to authenticated;
 
 comment on function public.sync_staff_trip_invoice_line is
-  'Upsert or remove draft weekly invoice line for a staff waybill trip (SAST Mon–Sun service week).';
+  'Upsert or remove a line on the single draft driver-week invoice (mixed companies; SAST Mon–Sun).';
 
 comment on function public.backfill_staff_waybill is
   'Admin creates a completed staff waybill and appends the driver draft weekly invoice line (no driver notification).';

@@ -1,7 +1,8 @@
 -- =============================================================================
 -- WorkOps — Staff waybill complete → draft weekly invoice line (Mon–Sun SAST)
 -- =============================================================================
--- Requires 00023_invoice_per_trip_company_unique.sql
+-- Founder lock (PR #28): **one draft invoice per driver per service week**;
+-- mixed trip companies on the same bill. Do not split drafts by trip_company.
 
 alter type public.trip_event_type add value if not exists 'updated';
 
