@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useOrg } from "@/components/layout/org-context";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -93,6 +94,9 @@ export function StaffTripsMonitorPage() {
   const [playbackTripId, setPlaybackTripId] = useState<string | null>(null);
   const [createWaybillOpen, setCreateWaybillOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<StaffTrip | null>(null);
+  const [voidOrCancelTrip, setVoidOrCancelTrip] = useState<StaffTrip | null>(
+    null
+  );
 
   const tripsQuery = useQuery({
     queryKey: organisationId
@@ -186,10 +190,15 @@ export function StaffTripsMonitorPage() {
   const cancelMutation = useMutation({
     mutationFn: cancelStaffTrip,
     onSuccess: async () => {
+      const voiding = voidOrCancelTrip?.status === "completed";
+      toast.success(voiding ? "Waybill voided" : "Trip cancelled");
+      setVoidOrCancelTrip(null);
       await invalidateStaffTrips();
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
+
+  const voidOrCancelIsCompleted = voidOrCancelTrip?.status === "completed";
 
   if (!organisationId) {
     return (
@@ -427,21 +436,11 @@ export function StaffTripsMonitorPage() {
                                   variant="ghost"
                                   className="h-6 px-1.5 text-[10px] text-destructive"
                                   disabled={cancelMutation.isPending}
-                                  onClick={() => {
-                                    const voiding = trip.status === "completed";
-                                    cancelMutation.mutate(trip.id, {
-                                      onSuccess: async () => {
-                                        toast.success(
-                                          voiding
-                                            ? "Waybill voided"
-                                            : "Trip cancelled"
-                                        );
-                                        await invalidateStaffTrips();
-                                      },
-                                    });
-                                  }}
+                                  onClick={() => setVoidOrCancelTrip(trip)}
                                 >
-                                  {trip.status === "completed" ? "Void" : "Cancel"}
+                                  {trip.status === "completed"
+                                    ? "Void waybill"
+                                    : "Cancel"}
                                 </Button>
                               ) : null}
                             </div>
@@ -477,6 +476,28 @@ export function StaffTripsMonitorPage() {
         }}
         trip={editingTrip}
         onSaved={() => void invalidateStaffTrips()}
+      />
+
+      <ConfirmDialog
+        open={Boolean(voidOrCancelTrip)}
+        onOpenChange={(open) => {
+          if (!open) setVoidOrCancelTrip(null);
+        }}
+        title={
+          voidOrCancelIsCompleted ? "Void waybill?" : "Cancel staff trip?"
+        }
+        description={
+          voidOrCancelIsCompleted
+            ? "This voids the completed waybill and marks the trip as cancelled. If the linked weekly invoice is still a draft, its line for this waybill will be removed."
+            : "This cancels the trip before completion. The driver will no longer see it as active."
+        }
+        confirmLabel={
+          voidOrCancelIsCompleted ? "Void waybill" : "Cancel trip"
+        }
+        loading={cancelMutation.isPending}
+        onConfirm={() => {
+          if (voidOrCancelTrip) cancelMutation.mutate(voidOrCancelTrip.id);
+        }}
       />
     </div>
   );
