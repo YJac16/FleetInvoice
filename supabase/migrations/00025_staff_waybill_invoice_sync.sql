@@ -53,7 +53,7 @@ begin
   where rc.organisation_id = p_organisation_id
     and rc.deleted_at is null
     and rc.line_type = 'trip'
-    and rc.unit = 'trip'
+    and rc.unit::text in ('trip', 'fixed')
     and (rc.company_id = p_company_id or rc.company_id is null)
     and rc.effective_from <= p_period_start
     and (rc.effective_to is null or rc.effective_to >= p_period_start)
@@ -673,7 +673,6 @@ begin
     opening_km,
     closing_km,
     total_km,
-    staff_completed_at,
     created_by
   )
   values (
@@ -681,7 +680,7 @@ begin
     null,
     v_company_id,
     p_planned_start,
-    'completed',
+    'planned',
     true,
     p_staff_company,
     trim(p_area_text),
@@ -689,12 +688,16 @@ begin
     p_opening_km,
     p_closing_km,
     v_total,
-    timezone('utc', now()),
     auth.uid()
   )
   returning id into v_trip_id;
 
   perform public.assign_trip(v_trip_id, p_driver_id, null);
+
+  update public.trips
+  set status = 'completed',
+      staff_completed_at = timezone('utc', now())
+  where id = v_trip_id;
 
   insert into public.trip_events (
     organisation_id,
