@@ -197,7 +197,7 @@ export function TripsPage() {
                 Monitor
               </Button>
               <Button variant="secondary" onClick={() => setAssignStaffOpen(true)}>
-                Assign staff trip
+                Create waybill
               </Button>
               <Button onClick={() => setGenerateOpen(true)}>
                 <Plus className="size-4" />
