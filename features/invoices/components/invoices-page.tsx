@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -190,6 +190,8 @@ function GeneratePeriodInvoiceForm({
     ? formatInvoiceDatePreview(periodStart)
     : "—";
 
+  const submitLock = useRef(false);
+
   const mutation = useMutation({
     mutationFn: (values: GeneratePeriodInvoiceValues) =>
       generatePeriodInvoice(
@@ -205,12 +207,23 @@ function GeneratePeriodInvoiceForm({
       onDone();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
+    onSettled: () => {
+      submitLock.current = false;
+    },
   });
 
   return (
     <form
       className="space-y-4"
-      onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={form.handleSubmit(async (values) => {
+        if (submitLock.current || mutation.isPending) return;
+        submitLock.current = true;
+        try {
+          await mutation.mutateAsync(values);
+        } catch {
+          /* toast handled in onError */
+        }
+      })}
     >
       <SelectField
         control={form.control}

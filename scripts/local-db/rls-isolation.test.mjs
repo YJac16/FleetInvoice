@@ -78,7 +78,9 @@ const INV_B1 = "b0000000-0000-4000-8000-000000000401";
 const adminA = "a0000000-0000-4000-8000-000000000011";
 const adminB = "b0000000-0000-4000-8000-000000000011";
 const driverA = "a0000000-0000-4000-8000-000000000012";
+const employeeA = "a0000000-0000-4000-8000-000000000013";
 const cmA = "a0000000-0000-4000-8000-000000000014";
+const CO_A1 = "a0000000-0000-4000-8000-000000000101";
 const signupA = "c0000000-0000-4000-8000-000000000011";
 const signupB = "c0000000-0000-4000-8000-000000000012";
 const platform = "f0000000-0000-4000-8000-000000000001";
@@ -152,11 +154,27 @@ const cmOtherCo = psql(
 assert("Company manager A cannot read other company invoice in same org", cmOtherCo === "0");
 
 // Invoice lines follow invoice scope (00029)
-const cmLines = psql(
-  `select count(*)::text from public.invoice_lines where organisation_id = '${ORG_A}';`,
+const cmLinesOtherCo = psql(
+  `select count(*)::text from public.invoice_lines il
+   join public.invoices i on i.id = il.invoice_id
+   where il.organisation_id = '${ORG_A}' and i.company_id = 'a0000000-0000-4000-8000-000000000102';`,
   { userId: cmA }
 );
-assert("Company manager A sees invoice_lines only for scoped company", cmLines === "1");
+assert(
+  "Company manager A cannot read invoice_lines for unscoped company",
+  cmLinesOtherCo === "0"
+);
+
+const cmLinesScoped = psql(
+  `select count(*)::text from public.invoice_lines il
+   join public.invoices i on i.id = il.invoice_id
+   where il.organisation_id = '${ORG_A}' and i.company_id = '${CO_A1}';`,
+  { userId: cmA }
+);
+assert(
+  "Company manager A sees invoice_lines for scoped company",
+  Number(cmLinesScoped) >= 1
+);
 
 const cmLineCross = psql(
   `select count(*)::text from public.invoice_lines il join public.invoices i on i.id = il.invoice_id where i.id = '${INV_B1}';`,
@@ -170,6 +188,57 @@ const driverInv = psql(
   { userId: driverA }
 );
 assert("Driver A cannot read invoices", driverInv === "0");
+
+const employeeInv = psql(
+  `select count(*)::text from public.invoices where deleted_at is null;`,
+  { userId: employeeA }
+);
+assert("Employee A cannot read invoices (00030)", employeeInv === "0");
+
+// generate_period_invoice idempotency (00031)
+const idemStart = "2030-06-03";
+const idemEnd = "2030-06-10";
+const idemCountBefore = psql(
+  `select count(*)::text from public.invoices
+   where organisation_id = '${ORG_A}'
+     and company_id = '${CO_A1}'
+     and period_start = '${idemStart}'::date
+     and period_end = '${idemEnd}'::date
+     and deleted_at is null
+     and status <> 'void'
+     and driver_id is null;`,
+  { userId: adminA }
+);
+const idemFirst = psql(
+  `select (public.generate_period_invoice(
+     '${ORG_A}'::uuid, '${CO_A1}'::uuid, '${idemStart}'::date, '${idemEnd}'::date
+   )).id::text;`,
+  { userId: adminA, commit: true }
+);
+const idemSecond = psql(
+  `select (public.generate_period_invoice(
+     '${ORG_A}'::uuid, '${CO_A1}'::uuid, '${idemStart}'::date, '${idemEnd}'::date
+   )).id::text;`,
+  { userId: adminA, commit: true }
+);
+const idemCountAfter = psql(
+  `select count(*)::text from public.invoices
+   where organisation_id = '${ORG_A}'
+     and company_id = '${CO_A1}'
+     and period_start = '${idemStart}'::date
+     and period_end = '${idemEnd}'::date
+     and deleted_at is null
+     and status <> 'void'
+     and driver_id is null;`,
+  { userId: adminA }
+);
+assert(
+  "generate_period_invoice is idempotent for org/company/period",
+  idemFirst.length === 36 &&
+    idemFirst === idemSecond &&
+    idemCountAfter === "1" &&
+    (idemCountBefore === "0" || idemCountBefore === "1")
+);
 
 // Drivers list isolated
 const driverListA = psql(
@@ -231,22 +300,21 @@ let bootstrapUserId = adminPsql(
 );
 
 if (!bootstrapUserId) {
-  adminPsql(
+  bootstrapUserId = adminPsql(
     `insert into auth.users (
        instance_id, id, aud, role, email, encrypted_password,
        created_at, updated_at, raw_app_meta_data, raw_user_meta_data
      )
      select
        '00000000-0000-0000-0000-000000000000',
-       'd0000000-0000-4000-8000-000000000011',
+       gen_random_uuid(),
        'authenticated', 'authenticated',
-       'rls.bootstrap@audit.test',
+       'rls.bootstrap.' || replace(gen_random_uuid()::text, '-', '') || '@audit.test',
        encrypted_password,
        now(), now(), '{}', '{}'
      from auth.users where email = 'signup.a@audit.test'
-     on conflict (id) do update set role = 'authenticated';`
+     returning id::text;`
   );
-  bootstrapUserId = "d0000000-0000-4000-8000-000000000011";
 }
 
 let createdOrg;
