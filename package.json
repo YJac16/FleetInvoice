@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:rls": "node scripts/local-db/rls-isolation.test.mjs",
+    "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --local > types/database.ts",
     "db:audit": "node scripts/audit-supabase.mjs",

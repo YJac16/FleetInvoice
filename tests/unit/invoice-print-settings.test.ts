@@ -41,17 +41,15 @@ describe("parseInvoicePrintSettings", () => {
     });
   });
 
-  it("falls back to Personal defaults when invoice_print is missing", () => {
+  it("does not inject founder defaults when invoice_print is missing", () => {
     const settings = parseInvoicePrintSettings({
-      name: "Yaseen Org",
+      name: "Demo Transport Co",
       settings: {},
     });
 
-    expect(settings.banking?.bank).toBe("FNB");
-    expect(settings.banking?.account_number).toBe("62731713170");
-    expect(settings.contact?.name).toBe("Yaseen Jacobs");
-    expect(settings.contact?.phone).toBe("082 327 7446");
-    expect(settings.contact?.email).toBe("yaseenjacobs97@gmail.com");
+    expect(settings.banking).toEqual({});
+    expect(settings.contact).toEqual({});
+    expect(settings.supplier?.name).toBe("Demo Transport Co");
   });
 
   it("still reads supplier header fields from settings.invoice", () => {
@@ -102,14 +100,14 @@ describe("resolvePrintSupplierName", () => {
     );
   });
 
-  it("falls back to contact name when supplier is the organisation name", () => {
+  it("falls back to organisation name when no supplier or contact is set", () => {
     const settings = parseInvoicePrintSettings({
-      name: "Yaseen Org",
+      name: "Demo Transport Co",
       settings: {},
     });
 
-    expect(resolvePrintSupplierName(settings, "Yaseen Org")).toBe(
-      "Yaseen Jacobs"
+    expect(resolvePrintSupplierName(settings, "Demo Transport Co")).toBe(
+      "Demo Transport Co"
     );
   });
 });

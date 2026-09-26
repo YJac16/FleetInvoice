@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { assertBillingManageAccess } from "@/lib/auth/billing-access";
 import { env } from "@/lib/env";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
   };
   if (!body.organisationId || !body.planId) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  try {
+    await assertBillingManageAccess(supabase, body.organisationId);
+  } catch {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { data: plan, error: planError } = await supabase

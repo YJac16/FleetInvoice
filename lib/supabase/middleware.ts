@@ -8,6 +8,19 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   if (!isSupabaseConfigured()) {
+    const pathname = request.nextUrl.pathname;
+    const isPublic =
+      pathname === "/" ||
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/forgot-password") ||
+      pathname.startsWith("/auth") ||
+      pathname.startsWith("/invite") ||
+      pathname.startsWith("/api/webhooks/") ||
+      pathname.startsWith("/api/cron/") ||
+      pathname.startsWith("/api/notifications/process");
+    if (process.env.NODE_ENV === "production" && !isPublic) {
+      return new NextResponse("Service unavailable", { status: 503 });
+    }
     return supabaseResponse;
   }
 

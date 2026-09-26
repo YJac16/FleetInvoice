@@ -117,7 +117,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="flex min-h-screen w-64 flex-1 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center px-5">
         <GoOpsLogo
           variant="sidebar"

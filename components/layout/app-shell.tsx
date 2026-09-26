@@ -30,10 +30,8 @@ export function AppShell({
       isPlatformOwner={isPlatformOwner}
     >
       <div className="flex min-h-screen bg-background">
-        <div className="hidden md:block print:hidden">
-          <div className="sticky top-0 h-screen">
-            <AppSidebar />
-          </div>
+        <div className="hidden min-h-screen shrink-0 self-stretch bg-sidebar md:flex md:flex-col print:hidden">
+          <AppSidebar />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="print:hidden">
