@@ -114,7 +114,10 @@ const aInvoices = psql(
   `select count(*)::text from public.invoices where deleted_at is null;`,
   { userId: adminA }
 );
-assert("Org A admin sees 2 invoices in org A", aInvoices === "2");
+assert(
+  "Org A admin sees seeded + audit invoices in org A",
+  Number(aInvoices) >= 2
+);
 
 const aCross = psql(
   `select count(*)::text from public.invoices where id = '${INV_B1}';`,
@@ -134,7 +137,13 @@ const cmInvoices = psql(
   `select count(*)::text from public.invoices where deleted_at is null;`,
   { userId: cmA }
 );
-assert("Company manager A sees 1 scoped invoice", cmInvoices === "1");
+assert(
+  "Company manager A sees only scoped company invoices",
+  psql(
+    `select count(*)::text from public.invoices where company_id <> 'a0000000-0000-4000-8000-000000000101';`,
+    { userId: cmA }
+  ) === "0" && Number(cmInvoices) >= 1
+);
 
 const cmOtherCo = psql(
   `select count(*)::text from public.invoices where id = '${INV_A2}';`,
@@ -188,30 +197,81 @@ const orgSettingsCross = psql(
 );
 assert("Org A admin cannot read Org B organisation row", orgSettingsCross === "0");
 
-// create_own_organisation (00028): signup user B with no membership
+// create_own_organisation (00028): prefer signup user with zero memberships (fresh bootstrap)
+function adminPsql(sql) {
+  const res = spawnSync(
+    "psql",
+    [
+      "-q",
+      "-h",
+      PG.host,
+      "-p",
+      PG.port,
+      "-U",
+      "supabase_admin",
+      "-d",
+      PG.database,
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-tA",
+      "-c",
+      sql,
+    ],
+    { env: { ...process.env, PGPASSWORD: "postgres" }, encoding: "utf8" }
+  );
+  if (res.status !== 0) throw new Error(res.stderr || res.stdout);
+  return (res.stdout ?? "").trim();
+}
+
+let bootstrapUserId = adminPsql(
+  `select u.id::text from auth.users u
+   left join public.organisation_members m on m.user_id = u.id and m.status = 'active'
+   where u.email like 'signup.%@audit.test' and m.id is null
+   order by u.email limit 1;`
+);
+
+if (!bootstrapUserId) {
+  adminPsql(
+    `insert into auth.users (
+       instance_id, id, aud, role, email, encrypted_password,
+       created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+     )
+     select
+       '00000000-0000-0000-0000-000000000000',
+       'd0000000-0000-4000-8000-000000000011',
+       'authenticated', 'authenticated',
+       'rls.bootstrap@audit.test',
+       encrypted_password,
+       now(), now(), '{}', '{}'
+     from auth.users where email = 'signup.a@audit.test'
+     on conflict (id) do update set role = 'authenticated';`
+  );
+  bootstrapUserId = "d0000000-0000-4000-8000-000000000011";
+}
+
 let createdOrg;
 try {
   createdOrg = psql(
-    `select public.create_own_organisation('Signup Org B', 'signup-org-b-${Date.now()}', '{"invoice_print":{"contact":{"name":"Signup B"}}}'::jsonb)::text;`,
-    { userId: signupB, commit: true }
+    `select public.create_own_organisation('Signup Org', 'signup-org-${Date.now()}', '{"invoice_print":{"contact":{"name":"Signup"}}}'::jsonb)::text;`,
+    { userId: bootstrapUserId, commit: true }
   );
-  assert("Signup user B creates own org via RPC", createdOrg.length === 36);
+  assert("Signup user creates own org via RPC", createdOrg.length === 36);
 } catch (e) {
-  assert("Signup user B creates own org via RPC", false);
+  assert("Signup user creates own org via RPC", false);
   console.error(e.message);
 }
 
 if (createdOrg) {
   const signupInvoices = psql(
     `select count(*)::text from public.invoices where organisation_id = '${ORG_A}';`,
-    { userId: signupB }
+    { userId: bootstrapUserId }
   );
   assert("New signup org admin cannot see Org A invoices", signupInvoices === "0");
 
   try {
     psql(
-      `select public.create_own_organisation('Second Org Ltd', 'signup-org-b-2-${Date.now()}', '{}'::jsonb)::text;`,
-      { userId: signupB, commit: true }
+      `select public.create_own_organisation('Second Org Ltd', 'signup-org-2-${Date.now()}', '{}'::jsonb)::text;`,
+      { userId: bootstrapUserId, commit: true }
     );
     assert("Signup user cannot create second org", false);
   } catch {

@@ -45,6 +45,12 @@ fi
 PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres \
   -f "$ROOT/scripts/local-db/seed-audit-fixtures.sql" >/dev/null
 
+if [[ -f "$ROOT/scripts/local-db/seed-invoice-lifecycle.sql" ]]; then
+  echo "Seeding invoice lifecycle fixtures..."
+  PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
+    -f "$ROOT/scripts/local-db/seed-invoice-lifecycle.sql" >/dev/null
+fi
+
 PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'audit_rls') THEN
