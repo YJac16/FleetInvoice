@@ -19,6 +19,7 @@ import {
 import { signInWithPassword } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
 import { isSupabaseConfigured } from "@/lib/env";
+import { sanitizeAppRedirectPath } from "@/lib/auth/safe-redirect";
 import { readKeepSignedInPreference } from "@/lib/supabase/auth-persistence";
 
 export function LoginForm() {
@@ -46,7 +47,10 @@ export function LoginForm() {
     try {
       await signInWithPassword(values.email, values.password, keepSignedIn);
       toast.success("Signed in");
-      const redirect = searchParams.get("redirect") || "/hub";
+      const redirect = sanitizeAppRedirectPath(
+        searchParams.get("redirect"),
+        "/hub"
+      );
       router.replace(redirect);
       router.refresh();
     } catch (error) {

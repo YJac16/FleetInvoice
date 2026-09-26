@@ -58,10 +58,19 @@ export function OrgProvider({
     string | null
   >(initialOrganisationId);
 
-  const setActiveOrganisationId = useCallback((organisationId: string) => {
-    setActiveOrganisationIdState(organisationId);
-    writeOrgCookie(organisationId);
-  }, []);
+  const setActiveOrganisationId = useCallback(
+    (organisationId: string) => {
+      const allowed = memberships.some(
+        (m) => m.organisation_id === organisationId
+      );
+      if (!allowed && !isPlatformOwner) {
+        return;
+      }
+      setActiveOrganisationIdState(organisationId);
+      writeOrgCookie(organisationId);
+    },
+    [memberships, isPlatformOwner]
+  );
 
   const activeRole =
     memberships.find((m) => m.organisation_id === activeOrganisationId)?.role ??
