@@ -7,6 +7,17 @@ WorkOps enforces multi-tenant isolation in Postgres via Row Level Security. Auto
 1. Apply migrations `00001` through `00012` (run `00005` alone before `00006`; run `00010` alone before `00011`)
 2. Create two Auth users and two organisations with memberships
 
+## PR #36 compliance (driver/vehicle RLS + alerts)
+
+Full automated suite (T1–T10 + milestones) against **local Postgres only** — never production:
+
+```bash
+npm run test:compliance-rls
+# or: bash scripts/local-db/bootstrap-native.sh && node tests/rls/compliance-pr36.test.mjs
+```
+
+Requires PostgreSQL 16+ on the host (Docker optional). Uses database `workops_audit` on port 5432.
+
 ## Quick checks
 
 Run [`foundation_checks.sql`](./foundation_checks.sql), [`phase4_checks.sql`](./phase4_checks.sql), [`phase5_checks.sql`](./phase5_checks.sql), [`phase6_checks.sql`](./phase6_checks.sql), [`phase7_checks.sql`](./phase7_checks.sql), [`phase8_checks.sql`](./phase8_checks.sql), and [`phase8_payroll_checks.sql`](./phase8_payroll_checks.sql) in the Supabase SQL editor.

@@ -554,7 +554,6 @@ begin
             select 1 from public.trip_passengers tp
             join public.employees e on e.id = tp.employee_id
             where tp.trip_id = t.id
-              and tp.deleted_at is null
               and e.profile_id = auth.uid()
           )
         )
@@ -1166,6 +1165,10 @@ create policy vehicles_select on public.vehicles
       )
       or (
         organisation_id in (select public.user_organisation_ids())
+        and not public.has_org_role_names(
+          organisation_id,
+          array['driver']
+        )
         and (
           company_id is null
           or public.has_company_scope(organisation_id, company_id)

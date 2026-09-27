@@ -330,6 +330,7 @@ revoke all on function public.enqueue_compliance_expiry_alerts() from public;
 revoke all on function public.enqueue_compliance_expiry_alerts() from anon;
 revoke all on function public.enqueue_compliance_expiry_alerts() from authenticated;
 grant execute on function public.enqueue_compliance_expiry_alerts() to service_role;
+alter function public.enqueue_compliance_expiry_alerts() owner to postgres;
 
 comment on function public.enqueue_compliance_expiry_alerts() is
   'Cron: in-app compliance expiry alerts at 60/30/7/expired milestones (service role only).';
