@@ -91,6 +91,25 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.get_trip_driver_names(uuid[]) TO authenticated;
   REVOKE EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.register_compliance_document(
+    uuid, uuid, text, uuid, text, text, text, text, text, integer, text, text, text
+  ) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.register_compliance_document(
+    uuid, uuid, text, uuid, text, text, text, text, text, integer, text, text, text
+  ) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_compliance_document(uuid, uuid, text, uuid)
+    FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_compliance_document(uuid, uuid, text, uuid)
+    TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer)
+    FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb) TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_temp_objects TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_quota TO service_role;
 END $$;
 SQL
 

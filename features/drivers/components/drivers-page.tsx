@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { useOrg } from "@/components/layout/org-context";
+import { ComplianceDocumentSection } from "@/features/compliance/components/compliance-document-section";
 import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
 import { LICENSE_CODES } from "@/features/compliance/lib/compliance-status";
 import { PRDP_SHORT_LABEL } from "@/features/compliance/lib/prdp-label";
@@ -159,6 +160,14 @@ function DriverForm({
         label="Licence expires"
         type="date"
       />
+      {initial?.id ? (
+        <ComplianceDocumentSection
+          subjectKind="driver"
+          subjectId={initial.id}
+          docType="driver_licence"
+          label="Driver licence document"
+        />
+      ) : null}
       <TextField
         control={form.control}
         name="pdp_number"
@@ -170,6 +179,14 @@ function DriverForm({
         label={`${PRDP_SHORT_LABEL} expires`}
         type="date"
       />
+      {initial?.id ? (
+        <ComplianceDocumentSection
+          subjectKind="driver"
+          subjectId={initial.id}
+          docType="prdp"
+          label={`${PRDP_SHORT_LABEL} document`}
+        />
+      ) : null}
       <SelectField
         control={form.control}
         name="profile_id"

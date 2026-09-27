@@ -22,3 +22,7 @@ immutable
 as $$
   select string_to_array(name, '/');
 $$;
+
+grant usage on schema storage to authenticated, anon, service_role;
+grant select on storage.buckets to authenticated, anon, service_role;
+grant select on storage.objects to authenticated, anon, service_role;

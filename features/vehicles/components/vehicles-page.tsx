@@ -15,6 +15,7 @@ import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { vehicleImportSchema } from "@/features/import/schemas/import-schemas";
+import { ComplianceDocumentSection } from "@/features/compliance/components/compliance-document-section";
 import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
 import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import { VehicleDocumentsDialog } from "@/features/vehicles/components/vehicle-documents-dialog";
@@ -150,6 +151,28 @@ function VehicleForm({
         label="Licence disc expiry"
         type="date"
       />
+      {initial?.id ? (
+        <>
+          <ComplianceDocumentSection
+            subjectKind="vehicle"
+            subjectId={initial.id}
+            docType="license_disk"
+            label="Licence disc document"
+          />
+          <ComplianceDocumentSection
+            subjectKind="vehicle"
+            subjectId={initial.id}
+            docType="operating_permit"
+            label="Operating permit document"
+          />
+          <ComplianceDocumentSection
+            subjectKind="vehicle"
+            subjectId={initial.id}
+            docType="registration_certificate"
+            label="Registration certificate"
+          />
+        </>
+      ) : null}
       <SelectField
         control={form.control}
         name="vehicle_type"
