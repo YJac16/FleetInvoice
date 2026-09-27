@@ -26,6 +26,14 @@ vi.mock("@/lib/supabase/admin", () => ({
   })),
 }));
 
+vi.mock("@/lib/compliance/process-storage-purge-queue", () => ({
+  processComplianceStoragePurgeQueue: vi.fn().mockResolvedValue({
+    processed: 0,
+    removed: 0,
+    failed: 0,
+  }),
+}));
+
 describe("cron bearer auth", () => {
   const envBackup = { ...process.env };
 
@@ -75,6 +83,24 @@ describe("cron bearer auth", () => {
     expect(res.status).toBe(200);
   });
 
+  it("rejects missing bearer on compliance-doc-retention with 401 (not middleware redirect)", async () => {
+    const { GET } = await import("@/app/api/cron/compliance-doc-retention/route");
+    const res = await GET(
+      new Request("http://localhost/api/cron/compliance-doc-retention")
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts CRON_SECRET bearer on compliance-doc-retention", async () => {
+    const { GET } = await import("@/app/api/cron/compliance-doc-retention/route");
+    const res = await GET(
+      new Request("http://localhost/api/cron/compliance-doc-retention", {
+        headers: { Authorization: "Bearer cron-secret-value" },
+      })
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("accepts CRON_SECRET on notifications process route", async () => {
     const { POST } = await import("@/app/api/notifications/process/route");
     const res = await POST(
@@ -84,6 +110,14 @@ describe("cron bearer auth", () => {
       })
     );
     expect(res.status).toBe(200);
+  });
+});
+
+describe("isPublicBearerApiPath", () => {
+  it("matches compliance-doc-retention with and without trailing slash", async () => {
+    const { isPublicBearerApiPath } = await import("@/lib/auth/cron-public-paths");
+    expect(isPublicBearerApiPath("/api/cron/compliance-doc-retention")).toBe(true);
+    expect(isPublicBearerApiPath("/api/cron/compliance-doc-retention/")).toBe(true);
   });
 });
 
@@ -104,6 +138,7 @@ describe("middleware bearer API passthrough", () => {
       "/api/cron/compliance-alerts",
       "/api/cron/compliance-digest",
       "/api/cron/notifications",
+      "/api/cron/compliance-doc-retention",
     ]) {
       const req = new NextRequest(new URL(`http://localhost${path}`));
       const res = await updateSession(req);
