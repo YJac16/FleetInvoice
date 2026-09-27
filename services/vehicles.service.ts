@@ -1,13 +1,17 @@
 import {
-  createTenantRow,
-  createTenantRows,
   listTenantRows,
   restoreTenantRow,
   softDeleteTenantRow,
   updateTenantRow,
   type ListTenantOptions,
 } from "@/services/tenant-entity.service";
-import { writeAuditLog } from "@/services/audit.service";
+import {
+  mergeVehicleCaptureFields,
+  vehicleImportRowToCaptureFields,
+  vehicleToCaptureFields,
+} from "@/lib/capture/fleet-fields";
+import { saveVehicleCapture } from "@/services/capture.service";
+import { createClient } from "@/lib/supabase/client";
 import type { Vehicle } from "@/types";
 
 const TABLE = "vehicles";
@@ -22,6 +26,18 @@ export function listVehicles(
   });
 }
 
+async function fetchVehicle(id: string): Promise<Vehicle> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+  if (error || !data) throw error ?? new Error("vehicle_not_found");
+  return data as Vehicle;
+}
+
 export async function createVehicle(
   organisationId: string,
   input: Omit<
@@ -29,23 +45,13 @@ export async function createVehicle(
     "id" | "organisation_id" | "created_at" | "updated_at" | "deleted_at" | "created_by"
   > & { name: string }
 ) {
-  const created = await createTenantRow<Vehicle>(TABLE, {
-    organisation_id: organisationId,
-    vehicle_type: input.vehicle_type ?? "other",
-    ...input,
+  return saveVehicleCapture({
+    organisationId,
+    fields: vehicleToCaptureFields({
+      vehicle_type: input.vehicle_type ?? "other",
+      ...input,
+    }),
   });
-  try {
-    await writeAuditLog({
-      organisationId,
-      action: "vehicle.created",
-      entityType: "vehicle",
-      entityId: (created as Vehicle).id,
-      metadata: { name: input.name },
-    });
-  } catch {
-    // best-effort
-  }
-  return created;
 }
 
 export async function createVehiclesBulk(
@@ -62,40 +68,42 @@ export async function createVehiclesBulk(
     > & { name: string }
   >
 ) {
-  const created = await createTenantRows<Vehicle>(
-    TABLE,
-    rows.map((row) => ({
-      organisation_id: organisationId,
-      vehicle_type: row.vehicle_type ?? "other",
-      ...row,
-    }))
-  );
-  try {
-    await writeAuditLog({
+  if (rows.length === 0) return [];
+  const res = await fetch("/api/capture/vehicles/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       organisationId,
-      action: "vehicles.imported",
-      entityType: "vehicle",
-      metadata: { count: created.length },
-    });
-  } catch {
-    // best-effort
-  }
-  return created;
+      rows: rows.map((row) =>
+        vehicleImportRowToCaptureFields({
+          ...row,
+          vehicle_type: row.vehicle_type ?? "other",
+        } as Record<string, unknown>)
+      ),
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    ids?: string[];
+  };
+  if (!res.ok) throw new Error(body.error ?? "import_failed");
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .in("id", body.ids ?? []);
+  if (error) throw error;
+  return (data ?? []) as Vehicle[];
 }
 
 export async function updateVehicle(id: string, input: Partial<Vehicle>) {
-  const updated = await updateTenantRow<Vehicle>(TABLE, id, input);
-  try {
-    await writeAuditLog({
-      organisationId: (updated as Vehicle).organisation_id,
-      action: "vehicle.updated",
-      entityType: "vehicle",
-      entityId: id,
-    });
-  } catch {
-    // best-effort
-  }
-  return updated;
+  const existing = await fetchVehicle(id);
+  return saveVehicleCapture({
+    organisationId: existing.organisation_id,
+    vehicleId: id,
+    fields: mergeVehicleCaptureFields(existing, input),
+  });
 }
 
 export const deleteVehicle = (id: string) => softDeleteTenantRow(TABLE, id);

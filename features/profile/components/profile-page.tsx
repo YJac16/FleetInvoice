@@ -20,6 +20,7 @@ import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   getMyEmployeeRecord,
   getProfile,
+  syncDriverSelfContact,
   updateMyEmployeeHome,
   updateProfile,
   uploadAvatar,
@@ -93,6 +94,13 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
         full_name: values.full_name.trim(),
         phone: values.phone?.trim() || null,
       });
+      if (variant === "driver" && organisationId) {
+        await syncDriverSelfContact({
+          organisationId,
+          fullName: values.full_name.trim(),
+          phone: values.phone?.trim() || null,
+        });
+      }
       if (showHome && organisationId) {
         await updateMyEmployeeHome({
           organisationId,

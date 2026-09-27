@@ -40,6 +40,21 @@ export async function updateProfile(input: {
   return data as Profile;
 }
 
+/** Sync driver fleet row contact fields after profile edit (audited RPC). */
+export async function syncDriverSelfContact(input: {
+  organisationId: string;
+  fullName: string;
+  phone: string | null;
+}): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("save_driver_self_contact", {
+    p_org: input.organisationId,
+    p_full_name: input.fullName,
+    p_phone: input.phone ?? "",
+  });
+  if (error) throw error;
+}
+
 export async function uploadAvatar(file: File): Promise<string> {
   const supabase = createClient();
   const {

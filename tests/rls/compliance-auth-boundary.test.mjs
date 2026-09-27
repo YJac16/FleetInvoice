@@ -84,6 +84,7 @@ function psqlServiceExpectFail(sql) {
 for (const f of [
   "00044_admin_capture_fields.sql",
   "00045_mandatory_audit_auth_retention.sql",
+  "00046_fleet_audited_writes.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -181,6 +182,22 @@ record(
 psqlAdmin(`
   update public.vehicles set deleted_at = null where id = '${V1}';
 `);
+
+const driverAUser = "a0000000-0000-4000-8000-000000000012";
+const selfPhoneBefore = psqlAdmin(
+  `select coalesce(phone, '') from public.drivers where id = '${driverAId}';`
+);
+record(
+  "AUTH-driver-self-contact-audit-rollback",
+  psqlRaw(
+    `select set_config('app.force_audit_failure', 'true', true);
+     select public.save_driver_self_contact('${ORG_A}', 'Org A Driver', '0777000111');`,
+    { userId: driverAUser, allowError: true }
+  ).ok === false &&
+    psqlAdmin(`select coalesce(phone, '') from public.drivers where id = '${driverAId}';`) ===
+      selfPhoneBefore,
+  `phone=${selfPhoneBefore}`
+);
 
 console.log("\n--- Auth boundary summary ---");
 for (const r of results) {

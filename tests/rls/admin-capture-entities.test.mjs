@@ -63,34 +63,69 @@ function psqlAdmin(sql) {
   return (res.stdout ?? "").trim().split("\n").filter(Boolean).at(-1) ?? "";
 }
 
-const mig = spawnSync(
-  "sudo",
-  ["-u", "postgres", "psql", "-d", PG.database, "-v", "ON_ERROR_STOP=1", "-q", "-f", join(ROOT, "supabase/migrations/00044_admin_capture_fields.sql")],
-  { encoding: "utf8" }
-);
-record("MIG-00044", mig.status === 0, "admin capture columns");
+function psqlService(sql) {
+  const body = `BEGIN;\nSET LOCAL ROLE service_role;\n${sql}\nCOMMIT;`;
+  const res = spawnSync(
+    "sudo",
+    ["-u", "postgres", "psql", "-q", "-d", PG.database, "-v", "ON_ERROR_STOP=1", "-tA", "-c", body],
+    { encoding: "utf8" }
+  );
+  if (res.status !== 0) throw new Error(res.stderr || res.stdout);
+  return (res.stdout ?? "").trim().split("\n").filter(Boolean).at(-1) ?? "";
+}
+
+for (const f of ["00044_admin_capture_fields.sql", "00046_fleet_audited_writes.sql"]) {
+  const mig = spawnSync(
+    "sudo",
+    ["-u", "postgres", "psql", "-d", PG.database, "-v", "ON_ERROR_STOP=1", "-q", "-f", join(ROOT, "supabase/migrations", f)],
+    { encoding: "utf8" }
+  );
+  record(`MIG-${f}`, mig.status === 0, `re-apply ${f}`);
+}
 
 const newDriverId = "a0000000-0000-4000-8000-000000000210";
 psqlAdmin(`delete from public.drivers where id = '${newDriverId}';`);
 
 record(
-  "CAP-driver-admin-create",
-  psqlAs(
+  "CAP-driver-direct-insert-denied",
+  psqlAsExpectFail(
     adminA,
     `insert into public.drivers (id, organisation_id, full_name, status)
-     values ('${newDriverId}', '${ORG_A}', 'Capture Test Driver', 'active')
-     returning id;`
-  ) === newDriverId,
-  "admin creates driver in org A"
+     values ('${newDriverId}', '${ORG_A}', 'Capture Test Driver', 'active');`
+  ),
+  "direct insert blocked"
+);
+
+const rpcDriverId = psqlService(`
+  select public.save_driver_capture(
+    '${adminA}', '${ORG_A}', null,
+    '{"full_name":"Capture Test Driver","status":"active"}'::jsonb
+  )::text;
+`);
+record(
+  "CAP-driver-admin-create-rpc",
+  /^[0-9a-f-]{36}$/.test(rpcDriverId),
+  `id=${rpcDriverId}`
 );
 
 record(
-  "CAP-driver-admin-update",
+  "CAP-driver-direct-update-denied",
   psqlAs(
     adminA,
     `update public.drivers set phone = '0820000000' where id = '${driverAId}' and organisation_id = '${ORG_A}' returning id;`
-  ) === driverAId,
-  "admin updates driver in org A"
+  ) === "",
+  "direct update affects 0 rows"
+);
+
+record(
+  "CAP-driver-admin-update-rpc",
+  psqlService(`
+    select public.save_driver_capture(
+      '${adminA}', '${ORG_A}', '${driverAId}',
+      '{"full_name":"Org A Driver","phone":"0820000000","status":"active"}'::jsonb
+    )::text;
+  `) === driverAId,
+  "RPC update driver in org A"
 );
 
 record(
@@ -130,23 +165,45 @@ const newVehicleId = "a0000000-0000-4000-8000-000000000610";
 psqlAdmin(`delete from public.vehicles where id = '${newVehicleId}';`);
 
 record(
-  "CAP-vehicle-admin-create",
-  psqlAs(
+  "CAP-vehicle-direct-insert-denied",
+  psqlAsExpectFail(
     adminA,
     `insert into public.vehicles (id, organisation_id, name, vehicle_type, status, vin, engine_number)
-     values ('${newVehicleId}', '${ORG_A}', 'Capture Van', 'other', 'active', 'VIN123', 'ENG456')
-     returning id;`
-  ) === newVehicleId,
-  "admin creates vehicle with vin/engine"
+     values ('${newVehicleId}', '${ORG_A}', 'Capture Van', 'other', 'active', 'VIN123', 'ENG456');`
+  ),
+  "direct vehicle insert blocked"
+);
+
+const rpcVehicleId = psqlService(`
+  select public.save_vehicle_capture(
+    '${adminA}', '${ORG_A}', null,
+    '{"name":"Capture Van","vehicle_type":"other","status":"active","vin":"VIN123","engine_number":"ENG456"}'::jsonb
+  )::text;
+`);
+record(
+  "CAP-vehicle-admin-create-rpc",
+  /^[0-9a-f-]{36}$/.test(rpcVehicleId),
+  `id=${rpcVehicleId}`
 );
 
 record(
-  "CAP-vehicle-admin-update",
+  "CAP-vehicle-direct-update-denied",
   psqlAs(
     adminA,
     `update public.vehicles set make = 'Toyota' where id = '${V1}' and organisation_id = '${ORG_A}' returning id;`
-  ) === V1,
-  "admin updates vehicle in org A"
+  ) === "",
+  "direct vehicle update affects 0 rows"
+);
+
+record(
+  "CAP-vehicle-admin-update-rpc",
+  psqlService(`
+    select public.save_vehicle_capture(
+      '${adminA}', '${ORG_A}', '${V1}',
+      '{"name":"Compliance Van 1","make":"Toyota","vehicle_type":"van","status":"active"}'::jsonb
+    )::text;
+  `) === V1,
+  "RPC update vehicle in org A"
 );
 
 record(

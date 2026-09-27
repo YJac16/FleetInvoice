@@ -101,6 +101,7 @@ for (const f of [
   "00043_compliance_rc_scan_only.sql",
   "00044_admin_capture_fields.sql",
   "00045_mandatory_audit_auth_retention.sql",
+  "00046_fleet_audited_writes.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -406,6 +407,61 @@ record(
       `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'driver_licence' and deleted_at is null;`
     ) === docsBeforeAuditFail,
   `docs=${docsBeforeAuditFail}`
+);
+
+const listEditPhoneBefore = psqlAdmin(
+  `select coalesce(phone, '') from public.drivers where id = '${driverAId}';`
+);
+record(
+  "AUDIT-list-edit-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.save_driver_capture(
+      '${adminA}', '${ORG_A}', '${driverAId}',
+      '{"full_name":"List Edit Test","phone":"9998887777","status":"active"}'::jsonb
+    );
+  `) &&
+    psqlAdmin(`select coalesce(phone, '') from public.drivers where id = '${driverAId}';`) ===
+    listEditPhoneBefore,
+  `phone=${listEditPhoneBefore}`
+);
+
+const bulkBefore = psqlAdmin(
+  `select count(*)::text from public.drivers where organisation_id = '${ORG_A}' and full_name like 'Bulk Audit %';`
+);
+record(
+  "AUDIT-bulk-import-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.import_drivers_capture(
+      '${adminA}', '${ORG_A}',
+      '[{"full_name":"Bulk Audit One","status":"active"},{"full_name":"Bulk Audit Two","status":"active"}]'::jsonb
+    );
+  `) &&
+    psqlAdmin(
+      `select count(*)::text from public.drivers where organisation_id = '${ORG_A}' and full_name like 'Bulk Audit %';`
+    ) === bulkBefore,
+  `bulkRows=${bulkBefore}`
+);
+
+record(
+  "FLEET-rls-no-direct-insert",
+  psqlRaw(
+    `insert into public.drivers (organisation_id, full_name, status)
+     values ('${ORG_A}', 'Direct Insert Hack', 'active');`,
+    { userId: adminA, allowError: true }
+  ).ok === false,
+  "admin authenticated insert denied"
+);
+
+const directUpdateId = psqlAs(
+  adminA,
+  `update public.drivers set phone = '000' where id = '${driverAId}' returning id;`
+);
+record(
+  "FLEET-rls-no-direct-update",
+  directUpdateId === "",
+  "admin authenticated update affects 0 rows"
 );
 
 // RC-NaTIS: no retained registration_certificate row or vehicle-docs object
