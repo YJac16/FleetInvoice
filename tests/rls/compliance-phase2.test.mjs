@@ -121,6 +121,7 @@ for (const f of [
   "00045_mandatory_audit_auth_retention.sql",
   "00046_fleet_audited_writes.sql",
   "00047_fleet_audited_archive_restore.sql",
+  "00048_audit_log_hardening_compliance_purge.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -708,6 +709,71 @@ record(
       '${ORG_A}/drivers/${driverAId}/x.jpg', 'x', 'image/jpeg', 10, 'h', 'admin', 'accepted'
     );`, { userId: adminA, allowError: true }).ok === false,
   "cross-org + authenticated denied"
+);
+
+// AUDIT-48: direct write_audit_log EXECUTE denied for authenticated/anon
+record(
+  "AUDIT-48-exec-denied-auth",
+  psqlRaw(
+    `select public.write_audit_log('${ORG_A}', 'test.forged', 'test', null, '{}'::jsonb, '${adminB}');`,
+    { userId: adminA, allowError: true }
+  ).ok === false,
+  "authenticated cannot execute write_audit_log"
+);
+record(
+  "AUDIT-48-exec-denied-anon",
+  psqlRaw(`select public.write_audit_log('${ORG_A}', 'test.forged', 'test');`, {
+    role: "anon",
+    allowError: true,
+  }).ok === false,
+  "anon cannot execute write_audit_log"
+);
+
+// Definer RPC still logs with authorised actor (no forged actor in audit row)
+const fleetAuditDriver = psqlService(`
+  select public.save_driver_capture(
+    '${adminA}', '${ORG_A}', null,
+    jsonb_build_object('full_name', 'Audit Actor Check', 'status', 'active')
+  )::text;
+`);
+const fleetAuditActor = psqlAdmin(
+  `select actor_id::text from public.audit_logs where entity_id = '${fleetAuditDriver}'::uuid and action = 'driver.created' order by created_at desc limit 1;`
+);
+record(
+  "AUDIT-48-fleet-rpc-actor",
+  fleetAuditActor === adminA,
+  `capture audit actor=${fleetAuditActor}`
+);
+
+// Document delete enqueues storage purge and queue drain removes object
+const deleteDocPath = `${ORG_A}/drivers/${driverAId}/delete-purge.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${deleteDocPath}')
+  on conflict do nothing;
+`);
+const deleteDocId = psqlService(`
+  select (public.register_compliance_document(
+    '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'driver_licence', 'single',
+    '${deleteDocPath}', 'del.jpg', 'image/jpeg', 100, 'delhash', 'admin', 'accepted'
+  )->>'new_id');
+`);
+psqlService(`
+  select public.soft_delete_compliance_document('${adminA}', '${ORG_A}', 'driver', '${deleteDocId}');
+`);
+const deleteQueued = psqlAdmin(
+  `select count(*)::text from public.compliance_storage_purge_queue where storage_path = '${deleteDocPath}' and reason = 'document_deleted' and purged_at is null;`
+);
+processStoragePurgeQueue();
+const deleteStorageLeft = psqlAdmin(
+  `select count(*)::text from storage.objects where name = '${deleteDocPath}';`
+);
+const deletePurged = psqlAdmin(
+  `select count(*)::text from public.compliance_storage_purge_queue where storage_path = '${deleteDocPath}' and purged_at is not null;`
+);
+record(
+  "PURGE-48-delete-enqueue-drain",
+  deleteQueued === "1" && deleteStorageLeft === "0" && deletePurged === "1",
+  `queued=${deleteQueued} storage=${deleteStorageLeft} purged=${deletePurged}`
 );
 
 record("S8", true, "60s signed URL + document.viewed audit (vitest integration)");
