@@ -64,3 +64,30 @@ export async function saveVehicleCapture(input: {
   if (error || !data) throw error ?? new Error("vehicle_reload_failed");
   return data as Vehicle;
 }
+
+async function parseOkResponse(res: Response) {
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error ?? "request_failed");
+  }
+}
+
+export async function archiveDriver(driverId: string): Promise<void> {
+  const res = await fetch(`/api/capture/drivers/${driverId}`, { method: "DELETE" });
+  await parseOkResponse(res);
+}
+
+export async function restoreDriverById(driverId: string): Promise<void> {
+  const res = await fetch(`/api/capture/drivers/${driverId}/restore`, { method: "POST" });
+  await parseOkResponse(res);
+}
+
+export async function archiveVehicle(vehicleId: string): Promise<void> {
+  const res = await fetch(`/api/capture/vehicles/${vehicleId}`, { method: "DELETE" });
+  await parseOkResponse(res);
+}
+
+export async function restoreVehicleById(vehicleId: string): Promise<void> {
+  const res = await fetch(`/api/capture/vehicles/${vehicleId}/restore`, { method: "POST" });
+  await parseOkResponse(res);
+}

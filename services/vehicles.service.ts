@@ -1,16 +1,14 @@
-import {
-  listTenantRows,
-  restoreTenantRow,
-  softDeleteTenantRow,
-  updateTenantRow,
-  type ListTenantOptions,
-} from "@/services/tenant-entity.service";
+import { listTenantRows, type ListTenantOptions } from "@/services/tenant-entity.service";
 import {
   mergeVehicleCaptureFields,
   vehicleImportRowToCaptureFields,
   vehicleToCaptureFields,
 } from "@/lib/capture/fleet-fields";
-import { saveVehicleCapture } from "@/services/capture.service";
+import {
+  archiveVehicle,
+  restoreVehicleById,
+  saveVehicleCapture,
+} from "@/services/capture.service";
 import { createClient } from "@/lib/supabase/client";
 import type { Vehicle } from "@/types";
 
@@ -106,8 +104,10 @@ export async function updateVehicle(id: string, input: Partial<Vehicle>) {
   });
 }
 
-export const deleteVehicle = (id: string) => softDeleteTenantRow(TABLE, id);
+export async function deleteVehicle(id: string) {
+  await archiveVehicle(id);
+}
 
 export async function restoreVehicle(id: string) {
-  await restoreTenantRow(TABLE, id);
+  await restoreVehicleById(id);
 }

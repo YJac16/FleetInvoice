@@ -113,6 +113,14 @@ DO $$ BEGIN
   REVOKE EXECUTE ON FUNCTION public.import_vehicles_capture(uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
   GRANT EXECUTE ON FUNCTION public.import_drivers_capture(uuid, uuid, jsonb) TO service_role;
   GRANT EXECUTE ON FUNCTION public.import_vehicles_capture(uuid, uuid, jsonb) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_driver(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_driver(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;

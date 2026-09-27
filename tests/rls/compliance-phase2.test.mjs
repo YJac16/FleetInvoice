@@ -102,6 +102,7 @@ for (const f of [
   "00044_admin_capture_fields.sql",
   "00045_mandatory_audit_auth_retention.sql",
   "00046_fleet_audited_writes.sql",
+  "00047_fleet_audited_archive_restore.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -462,6 +463,113 @@ record(
   "FLEET-rls-no-direct-update",
   directUpdateId === "",
   "admin authenticated update affects 0 rows"
+);
+
+const archiveDriverId = psqlService(`
+  select public.save_driver_capture(
+    '${adminA}', '${ORG_A}', null,
+    '{"full_name":"Archive Test Driver","status":"active"}'::jsonb
+  )::text;
+`);
+psqlService(`
+  select public.soft_delete_driver('${adminA}', '${ORG_A}', '${archiveDriverId}');
+`);
+const archiveDeleted = psqlAdmin(
+  `select (deleted_at is not null)::text from public.drivers where id = '${archiveDriverId}';`
+);
+const archiveAudit = psqlAdmin(
+  `select count(*)::text from public.audit_logs where action = 'driver.deleted' and entity_id = '${archiveDriverId}';`
+);
+record(
+  "FLEET-soft-delete-audit",
+  (archiveDeleted === "t" || archiveDeleted === "true") && archiveAudit === "1",
+  `deleted=${archiveDeleted} audit=${archiveAudit}`
+);
+
+psqlService(`
+  select public.restore_driver('${adminA}', '${ORG_A}', '${archiveDriverId}');
+`);
+const restoreActive = psqlAdmin(
+  `select (deleted_at is null)::text from public.drivers where id = '${archiveDriverId}';`
+);
+const restoreAudit = psqlAdmin(
+  `select count(*)::text from public.audit_logs where action = 'driver.restored' and entity_id = '${archiveDriverId}';`
+);
+record(
+  "FLEET-restore-audit",
+  (restoreActive === "t" || restoreActive === "true") && restoreAudit === "1",
+  `active=${restoreActive} audit=${restoreAudit}`
+);
+
+const auditFailDriverId = psqlService(`
+  select public.save_driver_capture(
+    '${adminA}', '${ORG_A}', null,
+    '{"full_name":"Audit Fail Archive Driver","status":"active"}'::jsonb
+  )::text;
+`);
+record(
+  "AUDIT-soft-delete-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.soft_delete_driver('${adminA}', '${ORG_A}', '${auditFailDriverId}');
+  `) &&
+    ["t", "true"].includes(
+      psqlAdmin(
+        `select (deleted_at is null)::text from public.drivers where id = '${auditFailDriverId}';`
+      )
+    ),
+  "delete rolled back"
+);
+
+psqlService(`
+  select public.soft_delete_driver('${adminA}', '${ORG_A}', '${auditFailDriverId}');
+`);
+record(
+  "AUDIT-restore-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.restore_driver('${adminA}', '${ORG_A}', '${auditFailDriverId}');
+  `) &&
+    ["t", "true"].includes(
+      psqlAdmin(
+        `select (deleted_at is not null)::text from public.drivers where id = '${auditFailDriverId}';`
+      )
+    ),
+  "restore rolled back"
+);
+
+record(
+  "FLEET-soft-delete-driver-denied",
+  psqlServiceExpectFail(`
+    select public.soft_delete_driver('${driverAUser}', '${ORG_A}', '${driverAId}');
+  `),
+  "driver role denied"
+);
+
+record(
+  "FLEET-soft-delete-employee-denied",
+  psqlServiceExpectFail(`
+    select public.soft_delete_driver('${employeeA}', '${ORG_A}', '${driverAId}');
+  `),
+  "employee role denied"
+);
+
+record(
+  "FLEET-soft-delete-cross-org",
+  psqlServiceExpectFail(`
+    select public.soft_delete_driver('${adminB}', '${ORG_A}', '${driverAId}');
+  `),
+  "cross-org admin denied"
+);
+
+const directSoftDelete = psqlAs(
+  adminA,
+  `update public.drivers set deleted_at = timezone('utc', now()) where id = '${driverAId}' returning id;`
+);
+record(
+  "FLEET-rls-no-direct-soft-delete",
+  directSoftDelete === "",
+  "direct soft-delete update affects 0 rows"
 );
 
 // RC-NaTIS: no retained registration_certificate row or vehicle-docs object

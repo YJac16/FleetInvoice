@@ -1,15 +1,14 @@
-import {
-  listTenantRows,
-  restoreTenantRow,
-  softDeleteTenantRow,
-  type ListTenantOptions,
-} from "@/services/tenant-entity.service";
+import { listTenantRows, type ListTenantOptions } from "@/services/tenant-entity.service";
 import {
   driverImportRowToCaptureFields,
   driverToCaptureFields,
   mergeDriverCaptureFields,
 } from "@/lib/capture/fleet-fields";
-import { saveDriverCapture } from "@/services/capture.service";
+import {
+  archiveDriver,
+  restoreDriverById,
+  saveDriverCapture,
+} from "@/services/capture.service";
 import { createClient } from "@/lib/supabase/client";
 import type { Driver } from "@/types";
 
@@ -105,8 +104,10 @@ export async function updateDriver(id: string, input: Partial<Driver>) {
   });
 }
 
-export const deleteDriver = (id: string) => softDeleteTenantRow(TABLE, id);
+export async function deleteDriver(id: string) {
+  await archiveDriver(id);
+}
 
 export async function restoreDriver(id: string) {
-  await restoreTenantRow(TABLE, id);
+  await restoreDriverById(id);
 }
