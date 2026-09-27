@@ -1,30 +1,23 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleUser, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import Link from "next/link";
 
 import { useOrg } from "@/components/layout/org-context";
-import { ComplianceDocumentSection } from "@/features/compliance/components/compliance-document-section";
 import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
-import { LICENSE_CODES } from "@/features/compliance/lib/compliance-status";
 import { PRDP_SHORT_LABEL } from "@/features/compliance/lib/prdp-label";
+import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
+import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
 import { DriverVehicleAssignDialog } from "@/features/drivers/components/driver-vehicle-assign-dialog";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { driverImportSchema } from "@/features/import/schemas/import-schemas";
-import {
-  driverSchema,
-  type DriverValues,
-} from "@/features/drivers/schemas/driver";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { createClient } from "@/lib/supabase/client";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import {
   createDriver,
@@ -40,27 +33,7 @@ import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import type { Driver } from "@/types";
 import { queryKeys } from "@/utils/query";
 
-const statusOptions = ENTITY_STATUSES.map((status) => ({
-  label: STATUS_LABELS[status],
-  value: status,
-}));
-
-const licenseCodeOptions = [
-  { label: "Not set", value: "" },
-  ...LICENSE_CODES.map((code) => ({ label: code, value: code })),
-];
-
-function emptyToNull(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function toDateInput(value: string | null | undefined): string {
-  if (!value) return "";
-  return value.slice(0, 10);
-}
-
-function DriverForm({
+function DriverFormDialog({
   initial,
   onSubmit,
   submitting,
@@ -75,6 +48,7 @@ function DriverForm({
     queryKey: queryKeys.members(organisationId),
     queryFn: () => listMembers(organisationId),
   });
+  const scanAssist = useComplianceScanAssist(organisationId);
 
   const profileOptions = useMemo(() => {
     const options = [{ label: "None", value: "" }];
@@ -83,153 +57,20 @@ function DriverForm({
       if (!profile) continue;
       options.push({
         value: profile.id,
-        label:
-          profile.full_name ||
-          profile.email ||
-          profile.id.slice(0, 8),
+        label: profile.full_name || profile.email || profile.id.slice(0, 8),
       });
     }
     return options;
   }, [membersQuery.data]);
 
-  const form = useForm<DriverValues>({
-    resolver: zodResolver(driverSchema),
-    defaultValues: {
-      full_name: initial?.full_name ?? "",
-      email: initial?.email ?? "",
-      phone: initial?.phone ?? "",
-      license_number: initial?.license_number ?? "",
-      license_code: (initial?.license_code as DriverValues["license_code"]) ?? "",
-      license_code_other: initial?.license_code_other ?? "",
-      license_expires_on: toDateInput(initial?.license_expires_on),
-      pdp_number: initial?.pdp_number ?? "",
-      pdp_expires_on: toDateInput(initial?.pdp_expires_on),
-      profile_id: initial?.profile_id ?? "",
-      status: initial?.status ?? "active",
-    },
-  });
-
-  const licenseCode = useWatch({ control: form.control, name: "license_code" });
-
-  const scanEnabledQuery = useQuery({
-    queryKey: [...queryKeys.organisation(organisationId), "compliance-scan"],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("organisations")
-        .select("compliance_scan_enabled")
-        .eq("id", organisationId)
-        .maybeSingle();
-      return data?.compliance_scan_enabled === true;
-    },
-  });
-
   return (
-    <form
-      className="space-y-4"
-      onSubmit={form.handleSubmit((values) =>
-        onSubmit({
-          full_name: values.full_name.trim(),
-          email: emptyToNull(values.email),
-          phone: emptyToNull(values.phone),
-          license_number: emptyToNull(values.license_number),
-          license_code: emptyToNull(values.license_code),
-          license_code_other:
-            values.license_code === "Other"
-              ? emptyToNull(values.license_code_other)
-              : null,
-          license_expires_on: emptyToNull(values.license_expires_on),
-          pdp_number: emptyToNull(values.pdp_number),
-          pdp_expires_on: emptyToNull(values.pdp_expires_on),
-          profile_id: emptyToNull(values.profile_id),
-          status: values.status,
-        })
-      )}
-    >
-      <TextField control={form.control} name="full_name" label="Full name" />
-      <TextField control={form.control} name="email" label="Email" type="email" />
-      <TextField control={form.control} name="phone" label="Phone" />
-      <TextField
-        control={form.control}
-        name="license_number"
-        label="License number"
-      />
-      <SelectField
-        control={form.control}
-        name="license_code"
-        label="Licence code"
-        options={licenseCodeOptions}
-        placeholder="Optional"
-      />
-      {licenseCode === "Other" ? (
-        <TextField
-          control={form.control}
-          name="license_code_other"
-          label="Explain licence code"
-        />
-      ) : null}
-      <TextField
-        control={form.control}
-        name="license_expires_on"
-        label="Licence expires"
-        type="date"
-      />
-      {initial?.id ? (
-        <ComplianceDocumentSection
-          subjectKind="driver"
-          subjectId={initial.id}
-          docType="driver_licence"
-          label="Driver licence document"
-          scanEnabled={scanEnabledQuery.data === true}
-          onApplyScanFields={(values) => {
-            for (const [key, value] of Object.entries(values)) {
-              form.setValue(key as keyof DriverValues, value, { shouldDirty: true });
-            }
-          }}
-        />
-      ) : null}
-      <TextField
-        control={form.control}
-        name="pdp_number"
-        label={`${PRDP_SHORT_LABEL} number`}
-      />
-      <TextField
-        control={form.control}
-        name="pdp_expires_on"
-        label={`${PRDP_SHORT_LABEL} expires`}
-        type="date"
-      />
-      {initial?.id ? (
-        <ComplianceDocumentSection
-          subjectKind="driver"
-          subjectId={initial.id}
-          docType="prdp"
-          label={`${PRDP_SHORT_LABEL} document`}
-          scanEnabled={scanEnabledQuery.data === true}
-          onApplyScanFields={(values) => {
-            for (const [key, value] of Object.entries(values)) {
-              form.setValue(key as keyof DriverValues, value, { shouldDirty: true });
-            }
-          }}
-        />
-      ) : null}
-      <SelectField
-        control={form.control}
-        name="profile_id"
-        label="Linked user profile"
-        options={profileOptions}
-        placeholder="Optional"
-      />
-      <SelectField
-        control={form.control}
-        name="status"
-        label="Status"
-        options={statusOptions}
-      />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
-    </form>
+    <DriverCaptureForm
+      initial={initial}
+      profileOptions={profileOptions}
+      scanAssistEnabled={scanAssist.data === true}
+      submitting={submitting}
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -357,31 +198,43 @@ export function DriversPage() {
             .includes(query)
         }
         emptyIcon={CircleUser}
-        createLabel="Add driver"
+        createLabel="Quick add"
         headerActions={
           canManage ? (
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="size-4" />
-              Import CSV
-            </Button>
+            <>
+              <Button render={<Link href="/drivers/capture" />}>Capture driver</Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" />
+                Import CSV
+              </Button>
+            </>
           ) : null
         }
         rowActions={
           canManage
             ? (row) => (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAssignDriver(row)}
-                >
-                  Vehicle
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    render={<Link href={`/drivers/${row.id}/capture`} />}
+                  >
+                    Capture
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAssignDriver(row)}
+                  >
+                    Vehicle
+                  </Button>
+                </>
               )
             : undefined
         }
         renderForm={({ initial, onSubmit, submitting }) =>
           organisationId ? (
-            <DriverForm
+            <DriverFormDialog
               key={initial?.id ?? "create"}
               initial={initial}
               onSubmit={onSubmit}

@@ -1,39 +1,26 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Car, Upload } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { vehicleImportSchema } from "@/features/import/schemas/import-schemas";
-import { ComplianceDocumentSection } from "@/features/compliance/components/compliance-document-section";
 import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
 import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
+import { VehicleCaptureForm } from "@/features/vehicles/components/vehicle-capture-form";
 import { VehicleDocumentsDialog } from "@/features/vehicles/components/vehicle-documents-dialog";
+import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
 import { listOpenDriverVehicleAssignments } from "@/services/driver-vehicle-assignment.service";
-import {
-  normalizeVehicleFields,
-  vehicleSchema,
-  type VehicleValues,
-} from "@/features/vehicles/schemas/vehicle";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { createClient } from "@/lib/supabase/client";
 import { useEntityOptions } from "@/hooks/use-entity-options";
-import {
-  ENTITY_STATUSES,
-  STATUS_LABELS,
-  VEHICLE_TYPE_LABELS,
-  VEHICLE_TYPES,
-} from "@/lib/constants";
+import { VEHICLE_TYPE_LABELS } from "@/lib/constants";
 import {
   createVehicle,
   createVehiclesBulk,
@@ -47,23 +34,7 @@ import { queryKeys } from "@/utils/query";
 
 const NONE = "none";
 
-const statusOptions = ENTITY_STATUSES.map((status) => ({
-  label: STATUS_LABELS[status],
-  value: status,
-}));
-
-const vehicleTypeOptions = VEHICLE_TYPES.map((type) => ({
-  label: VEHICLE_TYPE_LABELS[type],
-  value: type,
-}));
-
-function emptyToNull(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed || trimmed === NONE) return null;
-  return trimmed;
-}
-
-function VehicleForm({
+function VehicleFormDialog({
   organisationId,
   initial,
   onSubmit,
@@ -75,167 +46,17 @@ function VehicleForm({
   submitting: boolean;
 }) {
   const { companies } = useEntityOptions(organisationId);
-  const form = useForm<VehicleValues>({
-    resolver: zodResolver(vehicleSchema),
-    defaultValues: {
-      name: initial?.name ?? "",
-      registration_number: initial?.registration_number ?? "",
-      make: initial?.make ?? "",
-      model: initial?.model ?? "",
-      model_year:
-        initial?.model_year === null || initial?.model_year === undefined
-          ? ""
-          : String(initial.model_year),
-      colour: initial?.colour ?? "",
-      classification: initial?.classification ?? "",
-      operating_permit_number: initial?.operating_permit_number ?? "",
-      operating_permit_expires_on: initial?.operating_permit_expires_on?.slice(0, 10) ?? "",
-      license_disc_expires_on: initial?.license_disc_expires_on?.slice(0, 10) ?? "",
-      vehicle_type: initial?.vehicle_type ?? "other",
-      capacity:
-        initial?.capacity === null || initial?.capacity === undefined
-          ? ""
-          : String(initial.capacity),
-      company_id: initial?.company_id ?? NONE,
-      status: initial?.status ?? "active",
-    },
-  });
-
-  const scanEnabledQuery = useQuery({
-    queryKey: [...queryKeys.organisation(organisationId ?? ""), "compliance-scan"],
-    queryFn: async () => {
-      if (!organisationId) return false;
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("organisations")
-        .select("compliance_scan_enabled")
-        .eq("id", organisationId)
-        .maybeSingle();
-      return data?.compliance_scan_enabled === true;
-    },
-    enabled: Boolean(organisationId),
-  });
+  const scanAssist = useComplianceScanAssist(organisationId);
+  const companyOptions = [{ label: "None", value: NONE }, ...companies];
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={form.handleSubmit((values) => {
-        const normalized = normalizeVehicleFields(values);
-        if (!normalized.ok) {
-          toast.error(normalized.message);
-          return;
-        }
-        onSubmit(normalized.data);
-      })}
-    >
-      <TextField control={form.control} name="name" label="Name" />
-      <TextField
-        control={form.control}
-        name="registration_number"
-        label="Registration number"
-      />
-      <TextField control={form.control} name="make" label="Make" />
-      <TextField control={form.control} name="model" label="Model" />
-      <TextField
-        control={form.control}
-        name="model_year"
-        label="Year"
-        type="number"
-        placeholder="e.g. 2022"
-      />
-      <TextField control={form.control} name="colour" label="Colour" />
-      <TextField
-        control={form.control}
-        name="classification"
-        label="Classification"
-        placeholder="Free text until confirmed"
-      />
-      <TextField
-        control={form.control}
-        name="operating_permit_number"
-        label="Operating permit (fleet record) number"
-      />
-      <TextField
-        control={form.control}
-        name="operating_permit_expires_on"
-        label="Operating permit expiry"
-        type="date"
-      />
-      <TextField
-        control={form.control}
-        name="license_disc_expires_on"
-        label="Licence disc expiry"
-        type="date"
-      />
-      {initial?.id ? (
-        <>
-          <ComplianceDocumentSection
-            subjectKind="vehicle"
-            subjectId={initial.id}
-            docType="license_disk"
-            label="Licence disc document"
-            scanEnabled={scanEnabledQuery.data === true}
-            onApplyScanFields={(values) => {
-              for (const [key, value] of Object.entries(values)) {
-                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
-              }
-            }}
-          />
-          <ComplianceDocumentSection
-            subjectKind="vehicle"
-            subjectId={initial.id}
-            docType="operating_permit"
-            label="Operating permit document"
-            scanEnabled={scanEnabledQuery.data === true}
-            onApplyScanFields={(values) => {
-              for (const [key, value] of Object.entries(values)) {
-                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
-              }
-            }}
-          />
-          <ComplianceDocumentSection
-            subjectKind="vehicle"
-            subjectId={initial.id}
-            docType="registration_certificate"
-            label="Registration certificate"
-            scanEnabled={scanEnabledQuery.data === true}
-            onApplyScanFields={(values) => {
-              for (const [key, value] of Object.entries(values)) {
-                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
-              }
-            }}
-          />
-        </>
-      ) : null}
-      <SelectField
-        control={form.control}
-        name="vehicle_type"
-        label="Vehicle type"
-        options={vehicleTypeOptions}
-      />
-      <SelectField
-        control={form.control}
-        name="company_id"
-        label="Company (optional)"
-        options={[{ label: "None", value: NONE }, ...companies]}
-      />
-      <TextField
-        control={form.control}
-        name="capacity"
-        label="Capacity"
-        type="number"
-        placeholder="Optional"
-      />
-      <SelectField
-        control={form.control}
-        name="status"
-        label="Status"
-        options={statusOptions}
-      />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
-    </form>
+    <VehicleCaptureForm
+      initial={initial}
+      companies={companyOptions}
+      scanAssistEnabled={scanAssist.data === true}
+      submitting={submitting}
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -354,26 +175,40 @@ export function VehiclesPage() {
             .includes(query)
         }
         emptyIcon={Car}
-        createLabel="Add vehicle"
+        createLabel="Quick add"
         headerActions={
           canManage ? (
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="size-4" />
-              Import CSV
-            </Button>
+            <>
+              <Button render={<Link href="/vehicles/capture" />}>Capture vehicle</Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="size-4" />
+                Import CSV
+              </Button>
+            </>
           ) : null
         }
         rowActions={(row) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDocsVehicle(row)}
-          >
-            Docs
-          </Button>
+          <>
+            {canManage ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href={`/vehicles/${row.id}/capture`} />}
+              >
+                Capture
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDocsVehicle(row)}
+            >
+              Docs
+            </Button>
+          </>
         )}
         renderForm={({ initial, onSubmit, submitting }) => (
-          <VehicleForm
+          <VehicleFormDialog
             key={initial?.id ?? "create"}
             organisationId={organisationId}
             initial={initial}
