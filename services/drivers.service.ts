@@ -23,7 +23,7 @@ export function listDrivers(
   });
 }
 
-export const createDriver = (
+export async function createDriver(
   organisationId: string,
   input: Omit<
     Partial<Driver>,
@@ -35,11 +35,24 @@ export const createDriver = (
     | "created_by"
     | "profiles"
   > & { full_name: string }
-) =>
-  createTenantRow<Driver>(TABLE, {
+) {
+  const created = await createTenantRow<Driver>(TABLE, {
     organisation_id: organisationId,
     ...input,
   });
+  try {
+    await writeAuditLog({
+      organisationId,
+      action: "driver.created",
+      entityType: "driver",
+      entityId: (created as Driver).id,
+      metadata: { full_name: input.full_name },
+    });
+  } catch {
+    // best-effort
+  }
+  return created;
+}
 
 export async function createDriversBulk(
   organisationId: string,
@@ -73,8 +86,20 @@ export async function createDriversBulk(
   return created;
 }
 
-export const updateDriver = (id: string, input: Partial<Driver>) =>
-  updateTenantRow<Driver>(TABLE, id, input);
+export async function updateDriver(id: string, input: Partial<Driver>) {
+  const updated = await updateTenantRow<Driver>(TABLE, id, input);
+  try {
+    await writeAuditLog({
+      organisationId: (updated as Driver).organisation_id,
+      action: "driver.updated",
+      entityType: "driver",
+      entityId: id,
+    });
+  } catch {
+    // best-effort
+  }
+  return updated;
+}
 
 export const deleteDriver = (id: string) => softDeleteTenantRow(TABLE, id);
 
