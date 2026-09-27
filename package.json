@@ -11,6 +11,7 @@
     "test:rls": "node scripts/local-db/rls-isolation.test.mjs",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",
+    "test:admin-capture-rls": "bash tests/rls/run-admin-capture-rls.sh",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --local > types/database.ts",
