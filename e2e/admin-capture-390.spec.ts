@@ -1,6 +1,15 @@
 import { test, expect } from "@playwright/test";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+const ARTIFACTS = "/opt/cursor/artifacts";
+const SCREENSHOTS = join(ARTIFACTS, "screenshots");
 
 test.use({ viewport: { width: 390, height: 844 } });
+
+test.beforeAll(() => {
+  mkdirSync(SCREENSHOTS, { recursive: true });
+});
 
 test.describe("admin capture @390px", () => {
   test.skip(
@@ -10,16 +19,22 @@ test.describe("admin capture @390px", () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/login");
-    await page.getByLabel(/email/i).fill(process.env.E2E_USER_EMAIL!);
-    await page.getByLabel(/password/i).fill(process.env.E2E_USER_PASSWORD!);
+    await page.locator('input[name="email"]').fill(process.env.E2E_USER_EMAIL!);
+    await page.locator('input[name="password"]').fill(process.env.E2E_USER_PASSWORD!);
     await page.getByRole("button", { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
+    await page.waitForURL(/\/(hub|dashboard|driver|employee|company|awaiting-invite)/, {
+      timeout: 30_000,
+    });
   });
 
   test("driver capture shows document controls after save", async ({ page }) => {
     await page.goto("/drivers/capture", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /new driver capture/i })).toBeVisible({
       timeout: 30_000,
+    });
+    await page.screenshot({
+      path: join(SCREENSHOTS, "e2e-driver-capture-390-before-save.png"),
+      fullPage: true,
     });
 
     const specimen = `E2E Specimen ${Date.now()}`;
@@ -28,6 +43,10 @@ test.describe("admin capture @390px", () => {
 
     await expect(page.getByText(/licence document/i)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/photo or upload/i).first()).toBeVisible();
+    await page.screenshot({
+      path: join(SCREENSHOTS, "e2e-driver-capture-390-post-save-documents.png"),
+      fullPage: true,
+    });
   });
 
   test("vehicle capture shows document controls after save", async ({ page }) => {
@@ -37,11 +56,20 @@ test.describe("admin capture @390px", () => {
     });
 
     const specimen = `E2E Van ${Date.now()}`;
-    await page.getByLabel(/^name$/i).fill(specimen);
+    await page.getByLabel(/display name/i).fill(specimen);
+    await page.screenshot({
+      path: join(SCREENSHOTS, "e2e-vehicle-capture-390-before-save.png"),
+      fullPage: true,
+    });
     await page.getByRole("button", { name: /create vehicle/i }).click();
+    await expect(page).toHaveURL(/\/vehicles\/[^/]+\/capture/, { timeout: 30_000 });
 
-    await expect(page.getByText(/license disc|licence disc/i)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/photo or upload/i).first()).toBeVisible();
+    await expect(page.getByText(/licence disc document/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: /take photo/i }).first()).toBeVisible();
+    await page.screenshot({
+      path: join(SCREENSHOTS, "e2e-vehicle-capture-390-post-save-documents.png"),
+      fullPage: true,
+    });
   });
 });
 
@@ -55,15 +83,23 @@ test.describe("driver blocked from admin capture @390px", () => {
 
   test("driver role cannot open admin capture routes", async ({ page }) => {
     await page.goto("/login");
-    await page.getByLabel(/email/i).fill(process.env.E2E_DRIVER_EMAIL!);
-    await page.getByLabel(/password/i).fill(process.env.E2E_DRIVER_PASSWORD!);
+    await page.locator('input[name="email"]').fill(process.env.E2E_DRIVER_EMAIL!);
+    await page.locator('input[name="password"]').fill(process.env.E2E_DRIVER_PASSWORD!);
     await page.getByRole("button", { name: /sign in/i }).click();
-    await expect(page).not.toHaveURL(/\/login/, { timeout: 30_000 });
+    await page.waitForURL(/\/(hub|dashboard|driver|employee|company|awaiting-invite)/, {
+      timeout: 30_000,
+    });
 
     await page.goto("/drivers/capture", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/access denied/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/driver(\/|$)/, { timeout: 30_000 });
+    await expect(page).not.toHaveURL(/\/drivers\/capture/);
 
     await page.goto("/vehicles/capture", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/access denied/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/driver(\/|$)/, { timeout: 30_000 });
+    await expect(page).not.toHaveURL(/\/vehicles\/capture/);
+    await page.screenshot({
+      path: join(SCREENSHOTS, "e2e-driver-denied-admin-capture-390.png"),
+      fullPage: true,
+    });
   });
 });
