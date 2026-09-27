@@ -13,6 +13,16 @@ describe("formatVehicleLabel", () => {
     ).toBe("Quantam 1 / CA 123-456");
   });
 
+  it("uses make and model when name is empty", () => {
+    expect(
+      formatVehicleLabel({
+        make: "Toyota",
+        model: "Quantum",
+        registration_number: "CA 123-456",
+      })
+    ).toBe("Toyota Quantum / CA 123-456");
+  });
+
   it("falls back to name, then registration, then id", () => {
     expect(formatVehicleLabel({ name: "Quantam 1" })).toBe("Quantam 1");
     expect(formatVehicleLabel({ registration_number: "CA 123-456" })).toBe(

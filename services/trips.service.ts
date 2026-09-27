@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
 import {
+  getTripDriverNames,
+  mergeTripDriverNames,
+} from "@/services/trip-driver-names.service";
+import {
   listTenantRows,
   type ListTenantOptions,
 } from "@/services/tenant-entity.service";
@@ -9,14 +13,19 @@ import type { Trip } from "@/types";
 const TABLE = "trips";
 
 const TRIP_SELECT =
-  "*, routes:route_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (full_name), vehicles:vehicle_id (name, registration_number, capacity))";
+  "*, routes:route_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
 
-export function listTrips(organisationId: string, options?: ListTenantOptions) {
-  return listTenantRows<Trip>(TABLE, organisationId, {
+export async function listTrips(
+  organisationId: string,
+  options?: ListTenantOptions
+) {
+  const rows = await listTenantRows<Trip>(TABLE, organisationId, {
     orderBy: "planned_start",
     select: TRIP_SELECT,
     ...options,
   });
+  const names = await getTripDriverNames(rows.map((r) => r.id));
+  return mergeTripDriverNames(rows, names);
 }
 
 export async function transitionTrip(

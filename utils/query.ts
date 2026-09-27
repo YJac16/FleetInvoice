@@ -64,4 +64,10 @@ export const queryKeys = {
     ["vehicles-count", orgId] as const,
   complianceRenewals: (orgId: string, withinDays: number) =>
     ["compliance-renewals", orgId, withinDays] as const,
+  complianceMissing: (orgId: string) => ["compliance-missing", orgId] as const,
+  driverVehicleAssignments: (orgId: string) =>
+    ["driver-vehicle-assignments", orgId] as const,
+  adminNotifications: (orgId: string) =>
+    ["admin-notifications", orgId] as const,
+  myCompliance: (orgId: string) => ["my-compliance", orgId] as const,
 };

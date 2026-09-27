@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CircleUser,
   Clock,
+  FileText,
   Home,
   LogOut,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const DRIVER_TABS = [
   { href: "/driver", label: "Today", icon: Home, exact: true },
   { href: "/driver/week", label: "Week", icon: CalendarDays },
   { href: "/driver/history", label: "History", icon: Clock },
+  { href: "/driver/documents", label: "Docs", icon: FileText },
   { href: "/driver/profile", label: "Profile", icon: CircleUser },
 ] as const;
 

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { OrganisationSwitcher } from "@/components/layout/organisation-switcher";
 import { UserNav } from "@/components/layout/user-nav";
+import { AdminNotificationBell } from "@/features/compliance/components/admin-notification-bell";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -39,6 +40,7 @@ export function AppHeader() {
       </div>
       <OrganisationSwitcher />
       <div className="ml-auto flex items-center gap-1">
+        <AdminNotificationBell />
         <UserNav />
       </div>
     </header>

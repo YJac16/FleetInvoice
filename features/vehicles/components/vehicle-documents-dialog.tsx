@@ -163,7 +163,7 @@ export function VehicleDocumentsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={vehicle ? `Documents · ${vehicle.name}` : "Documents"}
-      description="Track license disks, insurance, and other vehicle compliance files."
+      description="Track license disks, insurance, and other vehicle compliance files. Licence disc expiry for alerts is set on the vehicle record."
     >
       {!vehicle ? null : docsQuery.isLoading ? (
         <LoadingSkeleton rows={3} />
