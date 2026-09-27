@@ -8,6 +8,7 @@ import {
 import { complianceScanBodySchema } from "@/lib/compliance/scan-schema";
 import { normaliseScanResult } from "@/lib/compliance/scan-normalise";
 import { resolveScanProvider } from "@/lib/compliance/scan/provider";
+import { complianceLogSafe } from "@/lib/compliance/safe-log";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { VEHICLE_DOCS_BUCKET } from "@/services/vehicle-documents.service";
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    return NextResponse.json({ error: "rejected_input" }, { status: 400 });
   }
 
   const parsed = complianceScanBodySchema.safeParse(body);
@@ -70,10 +71,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "scan_disabled" }, { status: 403 });
   }
 
-  if (parsed.data.storage_mode === "scan_discard" && !scanEnabled) {
-    return NextResponse.json({ error: "scan_disabled" }, { status: 403 });
-  }
-
   const provider = resolveScanProvider(
     complianceScanProviderName(),
     process.env.NODE_ENV
@@ -108,21 +105,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "quota_exceeded" }, { status: 429 });
   }
 
-  let bytes: Uint8Array | null = null;
-  const tempPath: string | null = null;
+  let tempPath: string | null = null;
 
   try {
-    if (parsed.data.document_id) {
+    let bytes: Uint8Array | null = null;
+
+    if (parsed.data.storage_mode === "scan_discard" && parsed.data.temp_scan_id) {
+      const loaded = await loadTempScanBytes(admin, parsed.data.temp_scan_id, orgId);
+      if (!loaded) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      bytes = loaded.bytes;
+      tempPath = loaded.path;
+    } else if (parsed.data.document_id) {
       const loaded = await loadRetainedDocumentBytes(admin, parsed.data.document_id);
       if (!loaded) {
         return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
       bytes = loaded.bytes;
-    } else if (parsed.data.storage_mode === "scan_discard") {
-      return NextResponse.json({ error: "document_id_required" }, { status: 400 });
-    }
-
-    if (!bytes) {
+    } else {
       return NextResponse.json({ error: "rejected_input" }, { status: 400 });
     }
 
@@ -150,7 +151,10 @@ export async function POST(request: Request) {
         latencyMs: Date.now() - started,
       });
       return NextResponse.json(
-        { error: "scan_failed", message: "Couldn't read the document. Please type the details." },
+        {
+          error: "scan_failed",
+          message: "Couldn't read the document. Please type the details.",
+        },
         { status: 502 }
       );
     }
@@ -178,6 +182,13 @@ export async function POST(request: Request) {
       latencyMs: Date.now() - started,
       fieldsSuggested: Object.keys(normalised.fields).length,
     });
+
+    if (process.env.NODE_ENV === "test") {
+      console.info(
+        "scan.completed",
+        JSON.stringify(complianceLogSafe({ status: "succeeded", fields: Object.keys(normalised.fields).length }))
+      );
+    }
 
     return NextResponse.json({
       suggestions: normalised.fields,
@@ -236,6 +247,20 @@ async function scanAuthorised(
   ].includes(data.role);
 }
 
+async function loadTempScanBytes(
+  admin: NonNullable<ReturnType<typeof createServiceClient>>,
+  tempScanId: string,
+  orgId: string
+): Promise<{ bytes: Uint8Array; path: string } | null> {
+  const { data: temp } = await admin
+    .from("compliance_scan_temp_objects")
+    .select("storage_path, organisation_id, deleted_at")
+    .eq("id", tempScanId)
+    .maybeSingle();
+  if (!temp || temp.deleted_at || temp.organisation_id !== orgId) return null;
+  return downloadObject(admin, temp.storage_path);
+}
+
 async function loadRetainedDocumentBytes(
   admin: NonNullable<ReturnType<typeof createServiceClient>>,
   documentId: string
@@ -246,18 +271,16 @@ async function loadRetainedDocumentBytes(
     .eq("id", documentId)
     .is("deleted_at", null)
     .maybeSingle();
-  const path = dd?.storage_path;
-  if (!path) {
-    const { data: vd } = await admin
-      .from("vehicle_documents")
-      .select("storage_path")
-      .eq("id", documentId)
-      .is("deleted_at", null)
-      .maybeSingle();
-    if (!vd?.storage_path) return null;
-    return downloadObject(admin, vd.storage_path);
-  }
-  return downloadObject(admin, path);
+  if (dd?.storage_path) return downloadObject(admin, dd.storage_path);
+
+  const { data: vd } = await admin
+    .from("vehicle_documents")
+    .select("storage_path")
+    .eq("id", documentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!vd?.storage_path) return null;
+  return downloadObject(admin, vd.storage_path);
 }
 
 async function downloadObject(
@@ -277,14 +300,13 @@ async function recordScanEvent(input: {
   status: string;
   consumedQuota: boolean;
   payload?: unknown;
-  body?: unknown;
   provider?: string;
   latencyMs?: number;
   fieldsSuggested?: number;
 }) {
   const admin = input.admin ?? createServiceClient();
   if (!admin || !input.organisationId) return;
-  const payload = (input.payload ?? input.body) as {
+  const payload = input.payload as {
     subject_kind?: string;
     subject_id?: string;
     document_id?: string;

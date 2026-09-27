@@ -111,14 +111,23 @@ export async function POST(request: Request) {
   }
 
   if (parsed.data.storage_mode === "scan_discard") {
-    await admin.from("compliance_scan_temp_objects").insert({
-      organisation_id: auth.ctx.organisationId,
-      storage_path: storagePath,
-      created_by: user.id,
-    });
+    const { data: tempRow, error: tempErr } = await admin
+      .from("compliance_scan_temp_objects")
+      .insert({
+        organisation_id: auth.ctx.organisationId,
+        storage_path: storagePath,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (tempErr || !tempRow) {
+      await admin.storage.from(VEHICLE_DOCS_BUCKET).remove([storagePath]);
+      return NextResponse.json({ error: "temp_track_failed" }, { status: 500 });
+    }
     return NextResponse.json({
       ok: true,
       temp_only: true,
+      temp_scan_id: tempRow.id,
     });
   }
 

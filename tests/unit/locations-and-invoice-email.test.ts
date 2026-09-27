@@ -94,6 +94,8 @@ describe("buildInvoiceEmailContent", () => {
         id: "inv-1",
         organisation_id: "org",
         company_id: "co",
+        driver_id: null,
+        trip_company: null,
         period_start: "2025-08-18",
         period_end: "2025-08-25",
         status: "issued",

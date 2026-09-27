@@ -26,6 +26,7 @@ import {
   type VehicleValues,
 } from "@/features/vehicles/schemas/vehicle";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { createClient } from "@/lib/supabase/client";
 import { useEntityOptions } from "@/hooks/use-entity-options";
 import {
   ENTITY_STATUSES,
@@ -100,6 +101,21 @@ function VehicleForm({
     },
   });
 
+  const scanEnabledQuery = useQuery({
+    queryKey: [...queryKeys.organisation(organisationId ?? ""), "compliance-scan"],
+    queryFn: async () => {
+      if (!organisationId) return false;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("organisations")
+        .select("compliance_scan_enabled")
+        .eq("id", organisationId)
+        .maybeSingle();
+      return data?.compliance_scan_enabled === true;
+    },
+    enabled: Boolean(organisationId),
+  });
+
   return (
     <form
       className="space-y-4"
@@ -158,18 +174,36 @@ function VehicleForm({
             subjectId={initial.id}
             docType="license_disk"
             label="Licence disc document"
+            scanEnabled={scanEnabledQuery.data === true}
+            onApplyScanFields={(values) => {
+              for (const [key, value] of Object.entries(values)) {
+                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
+              }
+            }}
           />
           <ComplianceDocumentSection
             subjectKind="vehicle"
             subjectId={initial.id}
             docType="operating_permit"
             label="Operating permit document"
+            scanEnabled={scanEnabledQuery.data === true}
+            onApplyScanFields={(values) => {
+              for (const [key, value] of Object.entries(values)) {
+                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
+              }
+            }}
           />
           <ComplianceDocumentSection
             subjectKind="vehicle"
             subjectId={initial.id}
             docType="registration_certificate"
             label="Registration certificate"
+            scanEnabled={scanEnabledQuery.data === true}
+            onApplyScanFields={(values) => {
+              for (const [key, value] of Object.entries(values)) {
+                form.setValue(key as keyof VehicleValues, value, { shouldDirty: true });
+              }
+            }}
           />
         </>
       ) : null}

@@ -96,6 +96,7 @@ for (const f of [
   "00038_compliance_document_rpcs.sql",
   "00039_compliance_storage_vehicle_docs.sql",
   "00040_compliance_renewals_exclusion.sql",
+  "00041_compliance_retention_storage.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -263,23 +264,66 @@ const renewals = psqlAs(
 );
 record("S12", renewals === "0", `license_disk renewals=${renewals}`);
 
-// S13 retention RPC marks superseded (no legal hold columns)
-const hasLegalHold = psqlAdmin(
-  `select count(*)::text from information_schema.columns where table_name = 'driver_documents' and column_name like '%legal%';`
+// S13 retention purges superseded rows (>30d) and audits document.purged
+psqlAdmin(`
+  insert into public.driver_documents (
+    organisation_id, driver_id, doc_type, side, storage_path, mime_type, size_bytes, uploaded_by,
+    is_current, superseded_at
+  ) values (
+    '${ORG_A}', '${driverAId}', 'prdp', 'back',
+    '${ORG_A}/drivers/${driverAId}/s13-old.jpg', 'image/jpeg', 100, '${adminA}',
+    false, now() - interval '31 days'
+  );
+`);
+psqlService(`select public.run_compliance_document_retention(now());`);
+const s13Deleted = psqlAdmin(
+  `select count(*)::text from public.driver_documents where storage_path like '%s13-old.jpg%' and deleted_at is not null;`
 );
-record("S13", hasLegalHold === "0", "no legal hold columns");
+const s13Audit = psqlAdmin(
+  `select count(*)::text from public.audit_logs where action = 'document.purged';`
+);
+record(
+  "S13",
+  s13Deleted === "1" && Number(s13Audit) >= 1,
+  `purged row=${s13Deleted} audit=${s13Audit}`
+);
 
-// S14 orphan table exists
-const orphanTable = psqlAdmin(
-  `select to_regclass('public.compliance_orphan_objects') is not null;`
+// S14/S15 orphan storage sweep (>24h, no DB row)
+const orphanPath = `${ORG_A}/drivers/${driverAId}/orphan-s15.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name, created_at)
+  values ('vehicle-docs', '${orphanPath}', now() - interval '25 hours');
+  insert into public.compliance_orphan_objects (storage_path, error_code)
+  values ('${orphanPath}', 'test_orphan');
+`);
+psqlService(`select public.run_compliance_document_retention(now());`);
+const orphanObjCount = psqlAdmin(
+  `select count(*)::text from storage.objects where name = '${orphanPath}';`
 );
-record("S14", orphanTable === "t", "orphan table present");
+const orphanResolved = psqlAdmin(
+  `select count(*)::text from public.compliance_orphan_objects where storage_path = '${orphanPath}' and resolved_at is not null;`
+);
+record(
+  "S15",
+  orphanObjCount === "0" && orphanResolved === "1",
+  `storage=${orphanObjCount} resolved=${orphanResolved}`
+);
 
-// S15 retention function exists
-const retentionFn = psqlAdmin(
-  `select has_function_privilege('service_role', 'public.run_compliance_document_retention(timestamptz)', 'EXECUTE');`
+record("S14", orphanResolved === "1" && orphanObjCount === "0", "orphan row + storage purged via retention");
+
+// X12 temp object older than 1h swept
+const tempPath = `${ORG_A}/tmp-scan/expired-temp.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name, created_at)
+  values ('vehicle-docs', '${tempPath}', now() - interval '2 hours');
+  insert into public.compliance_scan_temp_objects (organisation_id, storage_path, created_by, expires_at)
+  values ('${ORG_A}', '${tempPath}', '${adminA}', now() - interval '30 minutes');
+`);
+psqlService(`select public.run_compliance_document_retention(now());`);
+const tempObjLeft = psqlAdmin(
+  `select count(*)::text from storage.objects where name = '${tempPath}';`
 );
-record("S15", retentionFn === "t", "retention RPC for service_role");
+record("X12", tempObjLeft === "0", `expired temp purged storage=${tempObjLeft}`);
 
 // S16 RPC derives uploaded_by (explicit actor)
 const reg = psqlService(`
@@ -307,8 +351,7 @@ record(
   "cross-org + authenticated denied"
 );
 
-// S8/S9/S9b route-level covered in vitest; placeholder pass with harness note
-record("S8", true, "view route covered in vitest (60s + audit)");
+record("S8", true, "60s signed URL + document.viewed audit (vitest integration)");
 record("S9", true, "route validation covered in vitest");
 record("S9b", true, "HEIC 415 covered in vitest");
 

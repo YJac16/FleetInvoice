@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 import { validateComplianceFile } from "@/lib/compliance/file-validation";
+import { assertComplianceLogSafe } from "@/lib/compliance/safe-log";
 import { normaliseEvidence } from "@/lib/compliance/evidence";
 import { normaliseScanResult } from "@/lib/compliance/scan-normalise";
 import { mockExtractCompliance } from "@/lib/compliance/scan/mock-provider";
@@ -119,6 +120,12 @@ describe("compliance phase 2 spec tests", () => {
   it("U1 capture attributes on compliance section inputs", async () => {
     const mod = await import("@/features/compliance/components/compliance-document-section");
     expect(mod.ComplianceDocumentSection).toBeDefined();
+  });
+
+  it("X9 log capture avoids sensitive values", () => {
+    expect(assertComplianceLogSafe("scan completed status=ok")).toBe(true);
+    expect(assertComplianceLogSafe("storage_path=secret/path")).toBe(false);
+    expect(assertComplianceLogSafe("licence_number=ABC")).toBe(false);
   });
 
   it("X1 scan disabled when flag off", async () => {

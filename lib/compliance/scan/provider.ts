@@ -11,7 +11,16 @@ export function resolveScanProvider(
 ): ScanProvider | null {
   const name = providerName ?? (nodeEnv === "test" ? "mock" : undefined);
   if (name === "mock") {
-    return { name: "mock", extract: mockExtractCompliance };
+    const extract = async (docType: string, bytes: Uint8Array) => {
+      if (process.env.COMPLIANCE_SCAN_MOCK_FAIL === "1") {
+        throw new Error("mock_provider_failed");
+      }
+      if (process.env.COMPLIANCE_SCAN_MOCK_TIMEOUT === "1") {
+        await new Promise((resolve) => setTimeout(resolve, 20_000));
+      }
+      return mockExtractCompliance(docType, bytes);
+    };
+    return { name: "mock", extract };
   }
   return null;
 }

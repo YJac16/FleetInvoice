@@ -24,6 +24,7 @@ import {
   type DriverValues,
 } from "@/features/drivers/schemas/driver";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { createClient } from "@/lib/supabase/client";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import {
   createDriver,
@@ -110,6 +111,19 @@ function DriverForm({
 
   const licenseCode = useWatch({ control: form.control, name: "license_code" });
 
+  const scanEnabledQuery = useQuery({
+    queryKey: [...queryKeys.organisation(organisationId), "compliance-scan"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("organisations")
+        .select("compliance_scan_enabled")
+        .eq("id", organisationId)
+        .maybeSingle();
+      return data?.compliance_scan_enabled === true;
+    },
+  });
+
   return (
     <form
       className="space-y-4"
@@ -166,6 +180,12 @@ function DriverForm({
           subjectId={initial.id}
           docType="driver_licence"
           label="Driver licence document"
+          scanEnabled={scanEnabledQuery.data === true}
+          onApplyScanFields={(values) => {
+            for (const [key, value] of Object.entries(values)) {
+              form.setValue(key as keyof DriverValues, value, { shouldDirty: true });
+            }
+          }}
         />
       ) : null}
       <TextField
@@ -185,6 +205,12 @@ function DriverForm({
           subjectId={initial.id}
           docType="prdp"
           label={`${PRDP_SHORT_LABEL} document`}
+          scanEnabled={scanEnabledQuery.data === true}
+          onApplyScanFields={(values) => {
+            for (const [key, value] of Object.entries(values)) {
+              form.setValue(key as keyof DriverValues, value, { shouldDirty: true });
+            }
+          }}
         />
       ) : null}
       <SelectField
