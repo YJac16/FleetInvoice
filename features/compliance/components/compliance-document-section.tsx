@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { prepareComplianceUploadFile } from "@/lib/compliance/client/prepare-upload";
+import { isRegistrationCertificateDocType } from "@/lib/compliance/rc-policy";
 import {
   deleteComplianceDocument,
   fetchCurrentComplianceDocument,
@@ -107,11 +108,13 @@ export function ComplianceDocumentSection({
 
   const scanSubject = docTypeToScanSubject(subjectKind, docType);
   const fieldMappings = SCAN_FIELD_MAP[scanSubject];
+  const rcScanOnly = isRegistrationCertificateDocType(docType);
 
   const docQuery = useQuery({
     queryKey: queryKeys.complianceDocuments(subjectKind, subjectId, docType, side),
     queryFn: () =>
       fetchCurrentComplianceDocument({ subjectKind, subjectId, docType, side }),
+    enabled: !rcScanOnly,
   });
 
   const uploadMutation = useMutation({
@@ -202,7 +205,12 @@ export function ComplianceDocumentSection({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium">{label}</p>
-          {docQuery.data ? (
+          {rcScanOnly ? (
+            <p className="text-xs text-muted-foreground">
+              Scan to capture vehicle details only — the RC image is not stored. Enter fields
+              manually if scan is off.
+            </p>
+          ) : docQuery.data ? (
             <p className="text-xs text-muted-foreground">
               On file · {docQuery.data.file_name ?? "document"} (
               {new Date(docQuery.data.created_at).toLocaleDateString()})
@@ -220,8 +228,14 @@ export function ComplianceDocumentSection({
             className="hidden"
             data-testid={`${docType}-photo-input`}
             onChange={(e) => {
-              const mode = scanEnabled && !keepCopy ? "scan_discard" : "retained";
-              if (mode === "scan_discard" && e.target.files?.[0]) {
+              const useScanDiscard =
+                rcScanOnly || (scanEnabled && !keepCopy);
+              if (useScanDiscard && e.target.files?.[0]) {
+                if (!scanEnabled) {
+                  setError("Enable scan to capture from a photo, or enter details manually.");
+                  e.target.value = "";
+                  return;
+                }
                 void handleScanDiscardUpload(e.target.files[0]).catch((err) =>
                   setError(err instanceof Error ? err.message : "scan_failed")
                 );
@@ -238,8 +252,14 @@ export function ComplianceDocumentSection({
             className="hidden"
             data-testid={`${docType}-file-input`}
             onChange={(e) => {
-              const mode = scanEnabled && !keepCopy ? "scan_discard" : "retained";
-              if (mode === "scan_discard" && e.target.files?.[0]) {
+              const useScanDiscard =
+                rcScanOnly || (scanEnabled && !keepCopy);
+              if (useScanDiscard && e.target.files?.[0]) {
+                if (!scanEnabled) {
+                  setError("Enable scan to capture from a file, or enter details manually.");
+                  e.target.value = "";
+                  return;
+                }
                 void handleScanDiscardUpload(e.target.files[0]).catch((err) =>
                   setError(err instanceof Error ? err.message : "scan_failed")
                 );
@@ -249,15 +269,31 @@ export function ComplianceDocumentSection({
               e.target.value = "";
             }}
           />
-          <Button type="button" size="sm" variant="outline" onClick={() => photoRef.current?.click()}>
-            <Camera className="mr-1 h-4 w-4" />
-            Take photo
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-            <FileUp className="mr-1 h-4 w-4" />
-            Upload file
-          </Button>
-          {scanEnabled ? (
+          {scanEnabled || !rcScanOnly ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={rcScanOnly && !scanEnabled}
+                onClick={() => photoRef.current?.click()}
+              >
+                <Camera className="mr-1 h-4 w-4" />
+                Take photo
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={rcScanOnly && !scanEnabled}
+                onClick={() => fileRef.current?.click()}
+              >
+                <FileUp className="mr-1 h-4 w-4" />
+                Upload file
+              </Button>
+            </>
+          ) : null}
+          {scanEnabled && !rcScanOnly ? (
             <Button type="button" size="sm" variant="secondary" onClick={() => void handleScanToFill()}>
               Scan to fill
             </Button>
@@ -265,51 +301,53 @@ export function ComplianceDocumentSection({
         </div>
       </div>
 
-      {scanEnabled ? (
+      {scanEnabled && !rcScanOnly ? (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <Checkbox checked={keepCopy} onCheckedChange={(v) => setKeepCopy(v === true)} />
           Keep a copy of this document (required for a permanent stored file)
         </label>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={!docQuery.data}
-          onClick={() => {
-            if (docQuery.data) window.open(`/api/compliance/documents/${docQuery.data.id}/view`, "_blank");
-          }}
-        >
-          <Eye className="mr-1 h-4 w-4" />
-          View
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => fileRef.current?.click()}
-        >
-          <RefreshCw className="mr-1 h-4 w-4" />
-          Replace
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={!docQuery.data || uploadMutation.isPending}
-          onClick={() => {
-            if (!docQuery.data) return;
-            void deleteComplianceDocument(docQuery.data.id)
-              .then(() => docQuery.refetch())
-              .catch((err) => setError(err.message));
-          }}
-        >
-          <Trash2 className="mr-1 h-4 w-4" />
-          Delete
-        </Button>
-      </div>
+      {!rcScanOnly ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!docQuery.data}
+            onClick={() => {
+              if (docQuery.data) window.open(`/api/compliance/documents/${docQuery.data.id}/view`, "_blank");
+            }}
+          >
+            <Eye className="mr-1 h-4 w-4" />
+            View
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => fileRef.current?.click()}
+          >
+            <RefreshCw className="mr-1 h-4 w-4" />
+            Replace
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!docQuery.data || uploadMutation.isPending}
+            onClick={() => {
+              if (!docQuery.data) return;
+              void deleteComplianceDocument(docQuery.data.id)
+                .then(() => docQuery.refetch())
+                .catch((err) => setError(err.message));
+            }}
+          >
+            <Trash2 className="mr-1 h-4 w-4" />
+            Delete
+          </Button>
+        </div>
+      ) : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

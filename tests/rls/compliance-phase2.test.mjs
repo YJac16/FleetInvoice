@@ -98,6 +98,7 @@ for (const f of [
   "00040_compliance_renewals_exclusion.sql",
   "00041_compliance_retention_storage.sql",
   "00042_compliance_founder_decisions.sql",
+  "00043_compliance_rc_scan_only.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -323,6 +324,27 @@ record(
   afterTwoRenewals === "2" && v1Storage === "0",
   `rows=${afterTwoRenewals} oldest storage gone`
 );
+
+// RC-NaTIS: no retained registration_certificate row or vehicle-docs object
+const rcPath = `${ORG_A}/vehicles/${V1}/rc-blocked.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${rcPath}')
+  on conflict do nothing;
+`);
+record(
+  "RC-no-retained-rpc",
+  psqlServiceExpectFail(`
+    select public.register_compliance_document(
+      '${adminA}', '${ORG_A}', 'vehicle', '${V1}', 'registration_certificate', 'single',
+      '${rcPath}', 'rc.jpg', 'image/jpeg', 100, 'hash', 'admin', 'accepted'
+    );
+  `),
+  "registration_certificate register denied"
+);
+const rcRows = psqlAdmin(
+  `select count(*)::text from public.vehicle_documents where vehicle_id = '${V1}' and doc_type = 'registration_certificate' and deleted_at is null;`
+);
+record("RC-no-retained-row", rcRows === "0", `rc_rows=${rcRows}`);
 
 // Driver write denial at RPC / RLS / storage
 record(
