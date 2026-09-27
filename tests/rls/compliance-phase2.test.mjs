@@ -97,6 +97,7 @@ for (const f of [
   "00039_compliance_storage_vehicle_docs.sql",
   "00040_compliance_renewals_exclusion.sql",
   "00041_compliance_retention_storage.sql",
+  "00042_compliance_founder_decisions.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -264,28 +265,96 @@ const renewals = psqlAs(
 );
 record("S12", renewals === "0", `license_disk renewals=${renewals}`);
 
-// S13 retention purges superseded rows (>30d) and audits document.purged
-psqlAdmin(`
-  insert into public.driver_documents (
-    organisation_id, driver_id, doc_type, side, storage_path, mime_type, size_bytes, uploaded_by,
-    is_current, superseded_at
-  ) values (
-    '${ORG_A}', '${driverAId}', 'prdp', 'back',
-    '${ORG_A}/drivers/${driverAId}/s13-old.jpg', 'image/jpeg', 100, '${adminA}',
-    false, now() - interval '31 days'
+// S13 / R-retention: count-based superseded retention (current + 1 previous)
+const retBase = `${ORG_A}/drivers/${driverAId}/ret-prdp`;
+for (const [suffix, path] of [
+  ["v1", `${retBase}-v1.jpg`],
+  ["v2", `${retBase}-v2.jpg`],
+  ["v3", `${retBase}-v3.jpg`],
+]) {
+  psqlAdmin(`
+    insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${path}')
+    on conflict do nothing;
+  `);
+}
+
+psqlService(`
+  select public.register_compliance_document(
+    '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'prdp', 'single',
+    '${retBase}-v1.jpg', 'v1.jpg', 'image/jpeg', 100, 'h1', 'admin', 'accepted'
   );
 `);
-psqlService(`select public.run_compliance_document_retention(now());`);
-const s13Deleted = psqlAdmin(
-  `select count(*)::text from public.driver_documents where storage_path like '%s13-old.jpg%' and deleted_at is not null;`
+psqlService(`
+  select public.register_compliance_document(
+    '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'prdp', 'single',
+    '${retBase}-v2.jpg', 'v2.jpg', 'image/jpeg', 100, 'h2', 'admin', 'accepted'
+  );
+`);
+const afterOneRenewal = psqlAdmin(
+  `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'prdp' and side = 'single' and deleted_at is null;`
 );
-const s13Audit = psqlAdmin(
-  `select count(*)::text from public.audit_logs where action = 'document.purged';`
+record("R-after-1-renewal", afterOneRenewal === "2", `rows=${afterOneRenewal}`);
+
+psqlService(`
+  select public.register_compliance_document(
+    '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'prdp', 'single',
+    '${retBase}-v3.jpg', 'v3.jpg', 'image/jpeg', 100, 'h3', 'admin', 'accepted'
+  );
+`);
+const afterTwoRenewals = psqlAdmin(
+  `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'prdp' and side = 'single' and deleted_at is null;`
+);
+const v1PurgedRow = psqlAdmin(
+  `select count(*)::text from public.driver_documents where storage_path = '${retBase}-v1.jpg' and deleted_at is not null;`
+);
+const v1Storage = psqlAdmin(
+  `select count(*)::text from storage.objects where name = '${retBase}-v1.jpg';`
+);
+const purgeAudit = psqlAdmin(
+  `select count(*)::text from public.audit_logs where action = 'document.purged' and metadata ? 'object_ref';`
 );
 record(
   "S13",
-  s13Deleted === "1" && Number(s13Audit) >= 1,
-  `purged row=${s13Deleted} audit=${s13Audit}`
+  afterTwoRenewals === "2" && v1PurgedRow === "1" && v1Storage === "0" && Number(purgeAudit) >= 1,
+  `rows=${afterTwoRenewals} v1RowPurged=${v1PurgedRow} v1Storage=${v1Storage} audit=${purgeAudit}`
+);
+record(
+  "R-after-2-renewals",
+  afterTwoRenewals === "2" && v1Storage === "0",
+  `rows=${afterTwoRenewals} oldest storage gone`
+);
+
+// Driver write denial at RPC / RLS / storage
+record(
+  "D-driver-rpc",
+  psqlServiceExpectFail(`
+    select public.register_compliance_document(
+      '${driverAUser}', '${ORG_A}', 'driver', '${driverAId}', 'driver_licence', 'single',
+      '${ORG_A}/drivers/${driverAId}/driver-denied.jpg', 'x.jpg', 'image/jpeg', 100, 'x', 'driver', 'pending_review'
+    );
+  `),
+  "driver actor cannot register"
+);
+record(
+  "D-driver-rls",
+  psqlAsExpectFail(
+    driverAUser,
+    `insert into public.driver_documents (
+      organisation_id, driver_id, doc_type, side, storage_path, mime_type, size_bytes, uploaded_by
+    ) values (
+      '${ORG_A}', '${driverAId}', 'driver_licence', 'single',
+      '${ORG_A}/drivers/${driverAId}/x.jpg', 'image/jpeg', 100, '${driverAUser}'
+    );`
+  ),
+  "driver cannot insert driver_documents"
+);
+record(
+  "D-driver-storage",
+  psqlAsExpectFail(
+    driverAUser,
+    `insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${ORG_A}/drivers/${driverAId}/hack.jpg');`
+  ),
+  "driver cannot insert storage.objects"
 );
 
 // S14/S15 orphan storage sweep (>24h, no DB row)
