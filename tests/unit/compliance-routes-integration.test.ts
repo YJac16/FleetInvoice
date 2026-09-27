@@ -126,6 +126,35 @@ describe("compliance route integration", () => {
     expect(res.status).toBe(429);
   });
 
+  it("X3 returns 403 for wrong role", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "driver-1" } }, error: null });
+    fromChain.mockImplementation((table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data:
+          table === "organisation_members"
+            ? { role: "driver" }
+            : table === "drivers"
+              ? { organisation_id: "org-1" }
+              : null,
+        error: null,
+      }),
+    }));
+    const { POST } = await import("@/app/api/compliance/scan/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/compliance/scan", {
+        method: "POST",
+        body: JSON.stringify({
+          subject_kind: "driver_licence",
+          subject_id: "a0000000-0000-4000-8000-000000000201",
+          document_id: "a0000000-0000-4000-8000-000000000301",
+        }),
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
   it("X3 returns 401 when unauthenticated", async () => {
     getUser.mockResolvedValue({ data: { user: null }, error: null });
     const { POST } = await import("@/app/api/compliance/scan/route");

@@ -102,6 +102,14 @@ describe("compliance phase 2 spec tests", () => {
     expect(normalised.fields.license_number?.evidence).toBeNull();
   });
 
+  it("X5 flags low confidence and invalid fields as warnings", async () => {
+    const raw = await mockExtractCompliance("driver_licence", jpegBytes());
+    raw.fields.license_code = { value: "NOT_A_CODE", confidence: 0.95, evidence: null };
+    const normalised = normaliseScanResult("driver_licence", raw, null);
+    expect(normalised.warnings.some((w) => w.includes("license_code"))).toBe(true);
+    expect(normalised.fields.license_code?.confidence).toBeLessThan(0.86);
+  });
+
   it("X6 strips id_number", async () => {
     const raw = await mockExtractCompliance("driver_licence", jpegBytes());
     const normalised = normaliseScanResult("driver_licence", raw, null);
