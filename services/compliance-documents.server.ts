@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { ComplianceUploadFields } from "@/lib/compliance/upload-schema";
+import { rcPermanentStorageForbidden } from "@/lib/compliance/rc-policy";
 
 export type ComplianceAuthContext = {
   userId: string;
@@ -79,10 +80,16 @@ export async function resolveComplianceAuth(input: {
   const source = "admin" as const;
   const reviewStatus = "accepted" as const;
 
+  if (rcPermanentStorageForbidden(input.fields.doc_type, input.fields.storage_mode)) {
+    return { ok: false, status: 403, code: "rc_permanent_storage_forbidden" };
+  }
+
   const allowedDoc =
     input.fields.subject_kind === "driver"
       ? ["driver_licence", "prdp"]
-      : ["license_disk", "operating_permit", "registration_certificate"];
+      : input.fields.storage_mode === "scan_discard"
+        ? ["license_disk", "operating_permit", "registration_certificate"]
+        : ["license_disk", "operating_permit"];
   if (!allowedDoc.includes(input.fields.doc_type)) {
     return { ok: false, status: 400, code: "invalid_doc_type" };
   }
