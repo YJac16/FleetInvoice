@@ -5,7 +5,11 @@
  * Run: WORKOPS_AUDIT_PG_DATABASE=workops_audit node tests/rls/compliance-pr36.test.mjs
  */
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PG = {
   host: process.env.WORKOPS_AUDIT_PG_HOST ?? "127.0.0.1",
@@ -291,27 +295,31 @@ psqlAs(adminA, `select public.assign_vehicle_to_driver('${driverA2Id}', '${V2}')
 const auditAfter = psqlAdmin(`select count(*)::text from public.audit_logs where action like 'driver_vehicle.%';`);
 record("T4d", Number(auditAfter) > Number(auditBefore), `audit logs before=${auditBefore} after=${auditAfter}`);
 
-// T4c concurrency (two parallel assigns to same vehicle)
-psqlAdmin(`update public.driver_vehicle_assignments set ends_on = current_date where vehicle_id = '${V1}' and ends_on is null;`);
-const concurrentScript = (driverId) => `
-BEGIN;
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claim.sub = '${adminA}';
-select pg_sleep(0.05);
-select public.assign_vehicle_to_driver('${driverId}', '${V1}');
-COMMIT;
-`;
-const p1 = spawnSync("sudo", ["-u", "postgres", "psql", "-d", PG.database, "-c", concurrentScript(driverAId)], {
-  encoding: "utf8",
-});
-const p2 = spawnSync("sudo", ["-u", "postgres", "psql", "-d", PG.database, "-c", concurrentScript(driverA2Id)], {
-  encoding: "utf8",
-});
-const openCount = psqlAdmin(
-  `select count(*)::text from public.driver_vehicle_assignments where vehicle_id = '${V1}' and ends_on is null and deleted_at is null;`
-);
-const oneSucceeded = (p1.status === 0) !== (p2.status === 0) || (p1.status === 0 && p2.status === 0);
-record("T4c", openCount === "1" && oneSucceeded, `open assignments=${openCount} p1=${p1.status} p2=${p2.status}`);
+// T4c — genuine overlapping concurrent assign (session 1 holds xact during pg_sleep)
+{
+  const race = spawnSync("bash", [join(__dirname, "helpers/run-t4c-race.sh")], {
+    encoding: "utf8",
+    env: { ...process.env, WORKOPS_AUDIT_PG_DATABASE: PG.database },
+  });
+  const out = race.stdout ?? "";
+  const openV = /OPEN_V=(\d+)/.exec(out)?.[1] ?? "?";
+  const openDrivers = /OPEN_DRIVERS=(\d+)/.exec(out)?.[1] ?? "?";
+  const elapsed = Number(/ELAPSED_MS=(\d+)/.exec(out)?.[1] ?? 0);
+  const chalExit = Number(/CHAL_EXIT=(\d+)/.exec(out)?.[1] ?? 1);
+  const chalErr = /CHAL_ERR=(.*)/.exec(out)?.[1] ?? "";
+  const dupV = /DUP_V=(\d+)/.exec(out)?.[1] ?? "?";
+  const dupD = /DUP_D=(\d+)/.exec(out)?.[1] ?? "?";
+  const waited = elapsed >= 3500;
+  const oneOpenVehicle = openV === "1";
+  const atMostOneDriverOpen = openDrivers === "1";
+  const noDupes = dupV === "0" && dupD === "0";
+  const waitedOrFailed = chalExit !== 0 || waited;
+  record(
+    "T4c",
+    race.status === 0 && oneOpenVehicle && atMostOneDriverOpen && noDupes && waitedOrFailed,
+    `open_vehicle=${openV} open_driver_slots=${openDrivers} dup_v=${dupV} dup_d=${dupD} elapsed_ms=${elapsed} challenger_exit=${chalExit} err=${chalErr.trim()}`
+  );
+}
 
 // T5 model_year trigger + licence code Other
 const badYear = psqlAdmin(`
@@ -433,6 +441,43 @@ const insertDriverNoteFail = psqlAsExpectFail(
 );
 record("T8e-driver", insertDriverNoteFail, "driver cannot insert driver_inbox_notifications");
 
+record(
+  "T8e-admin-inbox",
+  psqlAsExpectFail(
+    adminA,
+    `insert into public.admin_inbox_notifications (organisation_id, recipient_user_id, title, body)
+     values ('${ORG_A}', '${adminA}', 'fake', 'fake');`
+  ),
+  "authenticated cannot insert admin_inbox_notifications"
+);
+
+record(
+  "T8e-alerts-sent",
+  psqlAsExpectFail(
+    adminA,
+    `insert into public.compliance_alerts_sent (
+       organisation_id, subject_kind, subject_id, expires_on, milestone, audience, recipient_user_id
+     ) values (
+       '${ORG_A}', 'driver_license', '${driverAId}', current_date, '60', 'admin', '${adminA}'
+     );`
+  ),
+  "authenticated cannot insert compliance_alerts_sent"
+);
+
+// T8f company_manager cannot read admin/compliance alert tables
+const cmAdminInbox = psqlAs(cmA, `select count(*)::text from public.admin_inbox_notifications;`);
+record("T8f-admin-inbox", cmAdminInbox === "0", `company_manager admin_inbox count=${cmAdminInbox}`);
+
+const cmAlertsSent = psqlRaw(`select count(*)::text from public.compliance_alerts_sent;`, {
+  userId: cmA,
+  allowError: true,
+});
+record(
+  "T8f-alerts-sent",
+  cmAlertsSent.out === "0" || !cmAlertsSent.ok,
+  `company_manager compliance_alerts_sent count=${cmAlertsSent.out || "denied"}`
+);
+
 // T9 missing data
 const missing = psqlAs(adminA, `select count(*)::text from public.list_compliance_missing_data('${ORG_A}');`);
 record("T9", Number(missing) > 0, `missing data rows=${missing}`);
@@ -478,6 +523,124 @@ if (otherNote) {
     `select read_at is null from public.admin_inbox_notifications where id = '${otherNote}';`
   );
   record("T8d", stillUnread === "t", `admin1 cannot mark admin2 read (still unread=${stillUnread})`);
+}
+
+// T6d renewal re-arm (new expires_on → new alert cycle)
+{
+  const exp1 = psqlAdmin(`select (public.compliance_today_sast() + 45)::text;`);
+  psqlAdmin(`
+    delete from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}';
+    delete from public.admin_inbox_notifications where subject_kind = 'driver_license' and subject_id = '${driverAId}';
+    update public.drivers set license_expires_on = '${exp1}'::date where id = '${driverAId}';
+  `);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const sent1 = psqlAdmin(
+    `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and expires_on = '${exp1}'::date;`
+  );
+  const exp2 = psqlAdmin(`select (public.compliance_today_sast() + 20)::text;`);
+  psqlAdmin(`update public.drivers set license_expires_on = '${exp2}'::date where id = '${driverAId}';`);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const sent2 = psqlAdmin(
+    `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and expires_on = '${exp2}'::date;`
+  );
+  record(
+    "T6d",
+    Number(sent1) > 0 && Number(sent2) > 0,
+    `first_cycle expires=${exp1} sent=${sent1}; re-arm expires=${exp2} sent=${sent2}`
+  );
+}
+
+// T6e missed run — only current milestone (5 days → 7 only)
+{
+  psqlAdmin(`
+    delete from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}';
+    update public.drivers set license_expires_on = (public.compliance_today_sast() + 5) where id = '${driverAId}';
+  `);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const milestones = psqlAdmin(
+    `select coalesce(string_agg(distinct milestone, ',' order by milestone), '') from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}';`
+  );
+  record("T6e", milestones === "7", `milestones_sent=${milestones} (expected 7 only)`);
+}
+
+// T6f expired once per cycle; rerun zero; renewal allows new expired
+{
+  const expiredDate = psqlAdmin(`select (public.compliance_today_sast() - 1)::text;`);
+  psqlAdmin(`
+    delete from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}';
+    delete from public.admin_inbox_notifications where subject_kind = 'driver_license' and subject_id = '${driverAId}';
+    update public.drivers set license_expires_on = '${expiredDate}'::date where id = '${driverAId}';
+  `);
+  const run1 = psqlService(`select public.enqueue_compliance_expiry_alerts()::text;`);
+  const expiredRows1 = psqlAdmin(
+    `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and milestone = 'expired' and expires_on = '${expiredDate}'::date;`
+  );
+  const run2 = psqlService(`select public.enqueue_compliance_expiry_alerts()::text;`);
+  const expiredRows2 = psqlAdmin(
+    `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and milestone = 'expired' and expires_on = '${expiredDate}'::date;`
+  );
+  const newExpired = psqlAdmin(`select (public.compliance_today_sast() - 2)::text;`);
+  psqlAdmin(`update public.drivers set license_expires_on = '${newExpired}'::date where id = '${driverAId}';`);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const newCycle = psqlAdmin(
+    `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and milestone = 'expired' and expires_on = '${newExpired}'::date;`
+  );
+  record(
+    "T6f",
+    Number(expiredRows1) > 0 && expiredRows1 === expiredRows2 && run2 === "0" && Number(newCycle) > 0,
+    `expired_sent=${expiredRows1} rerun_created=${run2} after_renewal_expired=${newCycle}`
+  );
+}
+
+// T7 reassignment recipient dedupe (vehicle permit alert moves to new driver)
+{
+  psqlAdmin(`
+    delete from public.compliance_alerts_sent where organisation_id = '${ORG_A}' and subject_kind = 'vehicle_permit' and subject_id = '${V1}';
+    delete from public.driver_inbox_notifications where organisation_id = '${ORG_A}' and notification_type = 'compliance_expiry';
+    update public.driver_vehicle_assignments set ends_on = current_date where vehicle_id = '${V1}' and ends_on is null;
+  `);
+  psqlAs(adminA, `select public.assign_vehicle_to_driver('${driverAId}', '${V1}');`);
+  const permitExp = psqlAdmin(`select (public.compliance_today_sast() + 20)::text;`);
+  psqlAdmin(`
+    update public.vehicles set operating_permit_expires_on = '${permitExp}'::date, operating_permit_number = 'PERMIT-T7' where id = '${V1}';
+  `);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const aNotesBefore = psqlAdmin(
+    `select count(*)::text from public.driver_inbox_notifications where driver_id = '${driverAId}' and notification_type = 'compliance_expiry';`
+  );
+  const bNotesBefore = psqlAdmin(
+    `select count(*)::text from public.driver_inbox_notifications where driver_id = '${driverA2Id}' and notification_type = 'compliance_expiry';`
+  );
+  psqlAs(adminA, `select public.assign_vehicle_to_driver('${driverA2Id}', '${V1}');`);
+  psqlService(`select public.enqueue_compliance_expiry_alerts();`);
+  const aNotesAfter = psqlAdmin(
+    `select count(*)::text from public.driver_inbox_notifications where driver_id = '${driverAId}' and notification_type = 'compliance_expiry';`
+  );
+  const bNotesAfter = psqlAdmin(
+    `select count(*)::text from public.driver_inbox_notifications where driver_id = '${driverA2Id}' and notification_type = 'compliance_expiry';`
+  );
+  const bGotNew = Number(bNotesAfter) > Number(bNotesBefore);
+  const aUnchanged = aNotesAfter === aNotesBefore;
+  const aHasHistory = Number(aNotesBefore) >= 1;
+  record(
+    "T7",
+    aHasHistory && aUnchanged && bGotNew,
+    `A before=${aNotesBefore} after=${aNotesAfter}; B before=${bNotesBefore} after=${bNotesAfter}`
+  );
+}
+
+// Regression: broad GRANT EXECUTE must not leave enqueue callable by authenticated (bootstrap re-revoke)
+{
+  psqlAdmin(`GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;`);
+  psqlAdmin(`
+    REVOKE EXECUTE ON FUNCTION public.enqueue_compliance_expiry_alerts() FROM PUBLIC, authenticated;
+    GRANT EXECUTE ON FUNCTION public.enqueue_compliance_expiry_alerts() TO service_role;
+  `);
+  record(
+    "REG-bootstrap-revoke",
+    psqlAsExpectFail(adminA, `select public.enqueue_compliance_expiry_alerts();`),
+    "after simulated bootstrap broad grant + re-revoke, authenticated still denied"
+  );
 }
 
 // Write evidence file
