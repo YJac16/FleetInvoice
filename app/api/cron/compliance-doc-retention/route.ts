@@ -9,7 +9,8 @@ import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
  * Compliance document retention (superseded / temp / orphan markers).
- * Not scheduled in vercel.json — manual/cron-secret only.
+ * Scheduled daily at 01:00 UTC via vercel.json.
+ * Auth: Authorization: Bearer CRON_SECRET or NOTIFICATIONS_PROCESS_SECRET.
  */
 export async function GET(request: Request) {
   return runRetention(request);
