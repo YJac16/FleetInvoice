@@ -12,6 +12,7 @@
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",
     "test:admin-capture-rls": "bash tests/rls/run-admin-capture-rls.sh",
+    "test:compliance-auth-boundary": "bash tests/rls/run-compliance-auth-boundary.sh",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --local > types/database.ts",

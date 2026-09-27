@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
 import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { createDriver, updateDriver } from "@/services/drivers.service";
+import { driverValuesToPayload } from "@/features/drivers/components/driver-capture-form";
+import { saveDriverCapture } from "@/services/capture.service";
 import { listMembers } from "@/services/users.service";
 import type { Driver } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
@@ -69,10 +70,11 @@ export function DriverCaptureScreen({ driverId }: { driverId?: string }) {
   const saveMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
       if (!organisationId) throw new Error("No organisation");
-      if (driverId) {
-        return updateDriver(driverId, values as Partial<Driver>);
-      }
-      return createDriver(organisationId, values as Parameters<typeof createDriver>[1]);
+      return saveDriverCapture({
+        organisationId,
+        driverId,
+        fields: values,
+      });
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.drivers(organisationId!) });

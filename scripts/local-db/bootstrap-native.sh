@@ -104,7 +104,7 @@ DO $$ BEGIN
   REVOKE EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer)
     FROM PUBLIC, anon, authenticated;
   GRANT EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer) TO service_role;
-  GRANT EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb, uuid) TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;

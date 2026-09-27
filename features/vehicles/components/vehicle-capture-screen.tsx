@@ -14,7 +14,7 @@ import { VehicleCaptureForm } from "@/features/vehicles/components/vehicle-captu
 import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
-import { createVehicle, updateVehicle } from "@/services/vehicles.service";
+import { saveVehicleCapture } from "@/services/capture.service";
 import type { Vehicle } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
@@ -54,10 +54,11 @@ export function VehicleCaptureScreen({ vehicleId }: { vehicleId?: string }) {
   const saveMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
       if (!organisationId) throw new Error("No organisation");
-      if (vehicleId) {
-        return updateVehicle(vehicleId, values as Partial<Vehicle>);
-      }
-      return createVehicle(organisationId, values as Parameters<typeof createVehicle>[1]);
+      return saveVehicleCapture({
+        organisationId,
+        vehicleId,
+        fields: values,
+      });
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vehicles(organisationId!) });

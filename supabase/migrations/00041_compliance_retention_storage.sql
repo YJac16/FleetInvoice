@@ -16,22 +16,7 @@ declare
   v_orphan_storage integer := 0;
   rec record;
 begin
-  update public.driver_documents
-  set deleted_at = p_now,
-      is_current = false
-  where is_current = false
-    and superseded_at is not null
-    and superseded_at < p_now - interval '30 days'
-    and deleted_at is null;
-
-  update public.vehicle_documents
-  set deleted_at = p_now,
-      is_current = false
-  where is_current = false
-    and superseded_at is not null
-    and superseded_at < p_now - interval '30 days'
-    and deleted_at is null
-    and doc_type in ('license_disk', 'operating_permit', 'registration_certificate');
+  -- Superseded compliance versions: count-based trim (see 00042 / 00045 run_compliance_document_retention).
 
   for rec in
     select t.storage_path

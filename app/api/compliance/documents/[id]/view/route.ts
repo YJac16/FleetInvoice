@@ -47,6 +47,15 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  const { error: auditError } = await admin.rpc("audit_compliance_document_view", {
+    p_actor: user.id,
+    p_org: organisationId,
+    p_document_id: id,
+  });
+  if (auditError) {
+    return NextResponse.json({ error: "audit_failed" }, { status: 500 });
+  }
+
   const { data: signed, error } = await admin.storage
     .from(VEHICLE_DOCS_BUCKET)
     .createSignedUrl(storagePath, COMPLIANCE_VIEW_URL_SECONDS);
@@ -54,14 +63,6 @@ export async function GET(_request: Request, context: RouteContext) {
   if (error || !signed?.signedUrl) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-
-  await admin.rpc("write_audit_log", {
-    p_organisation_id: organisationId,
-    p_action: "document.viewed",
-    p_entity_type: "compliance_document",
-    p_entity_id: id,
-    p_metadata: { document_id: id },
-  });
 
   const response = NextResponse.redirect(signed.signedUrl, 302);
   response.headers.set("Cache-Control", "no-store");

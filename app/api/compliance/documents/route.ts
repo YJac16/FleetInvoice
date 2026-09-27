@@ -183,19 +183,6 @@ export async function POST(request: Request) {
   const newId = (regData as { new_id?: string })?.new_id;
   const supersededId = (regData as { superseded_id?: string | null })?.superseded_id;
 
-  await admin.rpc("write_audit_log", {
-    p_organisation_id: auth.ctx.organisationId,
-    p_action: supersededId ? "document.replaced" : "document.uploaded",
-    p_entity_type: "compliance_document",
-    p_entity_id: newId ?? null,
-    p_metadata: {
-      doc_type: parsed.data.doc_type,
-      subject_id: parsed.data.subject_id,
-      size_bytes: bytes.length,
-      mime_type: validated.mime,
-    },
-  });
-
   return NextResponse.json({
     ok: true,
     document_id: newId,

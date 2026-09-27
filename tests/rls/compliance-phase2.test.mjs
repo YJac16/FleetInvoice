@@ -99,6 +99,8 @@ for (const f of [
   "00041_compliance_retention_storage.sql",
   "00042_compliance_founder_decisions.sql",
   "00043_compliance_rc_scan_only.sql",
+  "00044_admin_capture_fields.sql",
+  "00045_mandatory_audit_auth_retention.sql",
 ]) {
   const idem = spawnSync(
     "sudo",
@@ -323,6 +325,87 @@ record(
   "R-after-2-renewals",
   afterTwoRenewals === "2" && v1Storage === "0",
   `rows=${afterTwoRenewals} oldest storage gone`
+);
+
+const v3Current = psqlAdmin(
+  `select count(*)::text from public.driver_documents where storage_path = '${retBase}-v3.jpg' and is_current and deleted_at is null;`
+);
+const v2Prior = psqlAdmin(
+  `select count(*)::text from public.driver_documents where storage_path = '${retBase}-v2.jpg' and not is_current and deleted_at is null;`
+);
+const v1Gone = psqlAdmin(
+  `select count(*)::text from public.driver_documents where storage_path = '${retBase}-v1.jpg' and deleted_at is null;`
+);
+record(
+  "R-V1-V2-V3-chain",
+  v3Current === "1" && v2Prior === "1" && v1Gone === "0",
+  `v3Current=${v3Current} v2Prior=${v2Prior} v1ActiveRows=${v1Gone}`
+);
+
+const prdpCountBeforeFail = psqlAdmin(
+  `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'prdp' and side = 'single' and deleted_at is null;`
+);
+const failPath = `${retBase}-fail.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${failPath}')
+  on conflict do nothing;
+`);
+record(
+  "R-no-advance-audit-fail",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.register_compliance_document(
+      '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'prdp', 'single',
+      '${failPath}', 'fail.jpg', 'image/jpeg', 100, 'hfail', 'admin', 'accepted'
+    );
+  `) &&
+    psqlAdmin(
+      `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'prdp' and side = 'single' and deleted_at is null;`
+    ) === prdpCountBeforeFail,
+  `rowsStill=${prdpCountBeforeFail}`
+);
+
+const captureName = "Audit Rollback Capture Driver";
+psqlAdmin(`delete from public.drivers where organisation_id = '${ORG_A}' and full_name = '${captureName}';`);
+const driversBeforeAuditFail = psqlAdmin(
+  `select count(*)::text from public.drivers where organisation_id = '${ORG_A}' and full_name = '${captureName}';`
+);
+record(
+  "AUDIT-capture-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.save_driver_capture(
+      '${adminA}', '${ORG_A}', null,
+      '{"full_name":"${captureName}","status":"active"}'::jsonb
+    );
+  `) &&
+    psqlAdmin(
+      `select count(*)::text from public.drivers where organisation_id = '${ORG_A}' and full_name = '${captureName}';`
+    ) === driversBeforeAuditFail,
+  `drivers=${driversBeforeAuditFail}`
+);
+
+const regAuditPath = `${ORG_A}/drivers/${driverAId}/audit-fail-reg.jpg`;
+psqlAdmin(`
+  insert into storage.objects (bucket_id, name) values ('vehicle-docs', '${regAuditPath}')
+  on conflict do nothing;
+`);
+const docsBeforeAuditFail = psqlAdmin(
+  `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'driver_licence' and deleted_at is null;`
+);
+record(
+  "AUDIT-register-rollback",
+  psqlServiceExpectFail(`
+    select set_config('app.force_audit_failure', 'true', true);
+    select public.register_compliance_document(
+      '${adminA}', '${ORG_A}', 'driver', '${driverAId}', 'driver_licence', 'single',
+      '${regAuditPath}', 'x.jpg', 'image/jpeg', 100, 'hauditfail', 'admin', 'accepted'
+    );
+  `) &&
+    psqlAdmin(
+      `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'driver_licence' and deleted_at is null;`
+    ) === docsBeforeAuditFail,
+  `docs=${docsBeforeAuditFail}`
 );
 
 // RC-NaTIS: no retained registration_certificate row or vehicle-docs object

@@ -43,6 +43,19 @@ values
     now(),
     '{}',
     '{"full_name":"Org A Admin Two"}'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    'a0000000-0000-4000-8000-000000000018',
+    'authenticated',
+    'authenticated',
+    'supervisor.a@audit.test',
+    crypt('TestPassword123!', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{}',
+    '{"full_name":"Org A Supervisor"}'
   )
 on conflict (id) do nothing;
 
@@ -50,7 +63,8 @@ insert into public.organisation_members (organisation_id, user_id, role, status)
 values
   ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000015', 'driver', 'active'),
   ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000016', 'manager', 'active'),
-  ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000017', 'organisation_admin', 'active')
+  ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000017', 'organisation_admin', 'active'),
+  ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000018', 'supervisor', 'active')
 on conflict do nothing;
 
 insert into public.drivers (

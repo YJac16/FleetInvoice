@@ -317,23 +317,7 @@ declare
   v_orphans integer := 0;
   v_temp integer := 0;
 begin
-  -- Superseded > 30 days: soft-delete rows (object purge is app/cron responsibility)
-  update public.driver_documents
-  set deleted_at = p_now,
-      is_current = false
-  where is_current = false
-    and superseded_at is not null
-    and superseded_at < p_now - interval '30 days'
-    and deleted_at is null;
-
-  update public.vehicle_documents
-  set deleted_at = p_now,
-      is_current = false
-  where is_current = false
-    and superseded_at is not null
-    and superseded_at < p_now - interval '30 days'
-    and deleted_at is null
-    and doc_type in ('license_disk', 'operating_permit', 'registration_certificate');
+  -- Superseded compliance versions: count-based trim (see 00042 trim_superseded_compliance_versions).
 
   update public.compliance_scan_temp_objects
   set deleted_at = p_now
@@ -359,5 +343,3 @@ $$;
 
 revoke all on function public.run_compliance_document_retention(timestamptz) from public, anon, authenticated;
 grant execute on function public.run_compliance_document_retention(timestamptz) to service_role;
-
-grant execute on function public.write_audit_log(uuid, text, text, uuid, jsonb) to service_role;

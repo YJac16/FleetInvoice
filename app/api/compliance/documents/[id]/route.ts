@@ -70,13 +70,5 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "delete_failed" }, { status: 500 });
   }
 
-  await admin.rpc("write_audit_log", {
-    p_organisation_id: orgId,
-    p_action: "document.deleted",
-    p_entity_type: "compliance_document",
-    p_entity_id: id,
-    p_metadata: { document_id: id },
-  });
-
   return NextResponse.json({ ok: true });
 }

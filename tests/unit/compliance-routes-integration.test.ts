@@ -64,7 +64,12 @@ describe("compliance route integration", () => {
       data: { signedUrl: "https://example.test/signed" },
       error: null,
     });
-    rpc.mockResolvedValue({ data: "audit-id", error: null });
+    rpc.mockImplementation((name: string) => {
+      if (name === "audit_compliance_document_view") {
+        return Promise.resolve({ data: null, error: null });
+      }
+      return Promise.resolve({ data: "audit-id", error: null });
+    });
 
     const { GET } = await import("@/app/api/compliance/documents/[id]/view/route");
     const res = await GET(new NextRequest("http://localhost/api/compliance/documents/doc-1/view"), {
@@ -73,8 +78,8 @@ describe("compliance route integration", () => {
     expect(res.status).toBe(302);
     expect(createSignedUrl).toHaveBeenCalledWith("org/drivers/x/a.jpg", 60);
     expect(rpc).toHaveBeenCalledWith(
-      "write_audit_log",
-      expect.objectContaining({ p_action: "document.viewed" })
+      "audit_compliance_document_view",
+      expect.objectContaining({ p_document_id: "doc-1" })
     );
   });
 
