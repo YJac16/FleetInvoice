@@ -15,6 +15,7 @@ export const driverSchema = z
     license_code_other: z.string().optional(),
     license_expires_on: optionalDate,
     pdp_number: z.string().optional(),
+    pdp_categories: z.string().optional(),
     pdp_expires_on: optionalDate,
     profile_id: z.union([z.string().uuid(), z.literal("")]).optional(),
     status: z.enum(ENTITY_STATUSES),
