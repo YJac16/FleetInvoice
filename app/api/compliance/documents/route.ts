@@ -11,6 +11,7 @@ import {
   sha256Hex,
   validateComplianceFile,
 } from "@/lib/compliance/file-validation";
+import { rcPermanentStorageForbidden } from "@/lib/compliance/rc-policy";
 import { complianceUploadFieldsSchema } from "@/lib/compliance/upload-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -47,6 +48,10 @@ export async function POST(request: Request) {
   const parsed = complianceUploadFieldsSchema.safeParse(rawFields);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_fields" }, { status: 400 });
+  }
+
+  if (rcPermanentStorageForbidden(parsed.data.doc_type, parsed.data.storage_mode)) {
+    return NextResponse.json({ error: "rc_permanent_storage_forbidden" }, { status: 403 });
   }
 
   const file = form.get("file");

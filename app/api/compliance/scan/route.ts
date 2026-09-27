@@ -5,6 +5,7 @@ import {
   complianceScanProviderName,
   isComplianceScanEnvEnabled,
 } from "@/lib/compliance/flags";
+import { isRegistrationCertificateDocType } from "@/lib/compliance/rc-policy";
 import { complianceScanBodySchema } from "@/lib/compliance/scan-schema";
 import { normaliseScanResult } from "@/lib/compliance/scan-normalise";
 import { resolveScanProvider } from "@/lib/compliance/scan/provider";
@@ -34,6 +35,16 @@ export async function POST(request: Request) {
   const parsed = complianceScanBodySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "rejected_input" }, { status: 400 });
+  }
+
+  const rcScan =
+    isRegistrationCertificateDocType(parsed.data.doc_type ?? "") ||
+    parsed.data.subject_kind === "registration_certificate";
+  if (rcScan && parsed.data.document_id) {
+    return NextResponse.json({ error: "rc_permanent_storage_forbidden" }, { status: 403 });
+  }
+  if (rcScan && parsed.data.storage_mode !== "scan_discard") {
+    return NextResponse.json({ error: "rc_permanent_storage_forbidden" }, { status: 403 });
   }
 
   const admin = createServiceClient();
