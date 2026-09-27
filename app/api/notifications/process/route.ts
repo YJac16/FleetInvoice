@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import {
+  isAuthorizedCronBearer,
+  unauthorizedCronResponse,
+} from "@/lib/auth/cron-bearer";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 type OutboxRow = {
@@ -44,11 +48,8 @@ async function sendViaResend(row: OutboxRow): Promise<void> {
  * or CRON_SECRET for Vercel cron.
  */
 export async function POST(request: Request) {
-  const secret =
-    process.env.NOTIFICATIONS_PROCESS_SECRET ?? process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAuthorizedCronBearer(request)) {
+    return unauthorizedCronResponse();
   }
 
   const admin = createServiceClient();

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { POST as processNotifications } from "@/app/api/notifications/process/route";
+import {
+  isAuthorizedCronBearer,
+  unauthorizedCronResponse,
+} from "@/lib/auth/cron-bearer";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
@@ -16,11 +20,8 @@ export async function POST(request: Request) {
 }
 
 async function runComplianceDigest(request: Request) {
-  const secret =
-    process.env.NOTIFICATIONS_PROCESS_SECRET ?? process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAuthorizedCronBearer(request)) {
+    return unauthorizedCronResponse();
   }
 
   const admin = createServiceClient();

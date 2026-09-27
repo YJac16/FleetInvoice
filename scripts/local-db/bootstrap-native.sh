@@ -78,6 +78,19 @@ DO $$ BEGIN
   REVOKE EXECUTE ON FUNCTION public.enqueue_compliance_renewals_digests(integer) FROM PUBLIC, authenticated;
   GRANT EXECUTE ON FUNCTION public.enqueue_compliance_expiry_alerts() TO service_role;
   GRANT EXECUTE ON FUNCTION public.enqueue_compliance_renewals_digests(integer) TO service_role;
+  -- 00034 security definer RPCs (bootstrap broad grant must not reopen anon/public)
+  REVOKE EXECUTE ON FUNCTION public.driver_serves_company(uuid, uuid, integer) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.driver_serves_company(uuid, uuid, integer) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.vehicle_in_company_scope(uuid, uuid) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.vehicle_in_company_scope(uuid, uuid) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.assign_vehicle_to_driver(uuid, uuid) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.assign_vehicle_to_driver(uuid, uuid) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.unassign_vehicle(uuid) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.unassign_vehicle(uuid) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.get_trip_driver_names(uuid[]) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.get_trip_driver_names(uuid[]) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) TO authenticated;
 END $$;
 SQL
 

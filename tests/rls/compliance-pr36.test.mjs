@@ -64,6 +64,34 @@ try {
   record("MIG-idempotent", false, e.message);
 }
 
+try {
+  const idem34 = spawnSync(
+    "sudo",
+    [
+      "-u",
+      "postgres",
+      "psql",
+      "-d",
+      PG.database,
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-q",
+      "-f",
+      "/workspace/supabase/migrations/00034_compliance_security_hardening.sql",
+      "-f",
+      "/workspace/supabase/migrations/00034_compliance_security_hardening.sql",
+    ],
+    { encoding: "utf8" }
+  );
+  record(
+    "MIG-00034-idempotent",
+    idem34.status === 0,
+    `00034 double-apply exit=${idem34.status}`
+  );
+} catch (e) {
+  record("MIG-00034-idempotent", false, e.message);
+}
+
 function psqlRaw(sql, { role = "authenticated", userId, allowError = false } = {}) {
   const jwt = userId ? `SET LOCAL request.jwt.claim.sub = '${userId}';` : "";
   const body = `
@@ -132,6 +160,24 @@ function record(id, pass, evidence) {
   results.push({ id, pass, evidence });
   console.log(pass ? `PASS ${id}` : `FAIL ${id}`, evidence);
   if (!pass) process.exitCode = 1;
+}
+
+const anonRevokedFunctions = [
+  ["driver_serves_company", "public.driver_serves_company(uuid, uuid, integer)"],
+  ["vehicle_in_company_scope", "public.vehicle_in_company_scope(uuid, uuid)"],
+  ["assign_vehicle_to_driver", "public.assign_vehicle_to_driver(uuid, uuid)"],
+  ["unassign_vehicle", "public.unassign_vehicle(uuid)"],
+  ["get_trip_driver_names", "public.get_trip_driver_names(uuid[])"],
+  ["mark_admin_notification_read", "public.mark_admin_notification_read(uuid)"],
+  ["enqueue_compliance_expiry_alerts", "public.enqueue_compliance_expiry_alerts()"],
+];
+
+for (const [label, fn] of anonRevokedFunctions) {
+  const priv = psqlAdmin(
+    `select has_function_privilege('anon', '${fn}', 'EXECUTE')::text;`
+  );
+  const anonDenied = priv === "f" || priv === "false";
+  record(`PRIV-anon-${label}`, anonDenied, `anon execute ${label}=${priv}`);
 }
 
 function psqlAs(userId, sql) {
@@ -635,6 +681,10 @@ if (otherNote) {
   psqlAdmin(`
     REVOKE EXECUTE ON FUNCTION public.enqueue_compliance_expiry_alerts() FROM PUBLIC, authenticated;
     GRANT EXECUTE ON FUNCTION public.enqueue_compliance_expiry_alerts() TO service_role;
+    REVOKE EXECUTE ON FUNCTION public.driver_serves_company(uuid, uuid, integer) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.driver_serves_company(uuid, uuid, integer) TO authenticated;
+    REVOKE EXECUTE ON FUNCTION public.assign_vehicle_to_driver(uuid, uuid) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.assign_vehicle_to_driver(uuid, uuid) TO authenticated;
   `);
   record(
     "REG-bootstrap-revoke",
