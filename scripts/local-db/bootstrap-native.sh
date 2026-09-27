@@ -107,6 +107,8 @@ DO $$ BEGIN
   REVOKE EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer)
     FROM PUBLIC, anon, authenticated;
   GRANT EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb, uuid)
+    FROM PUBLIC, anon, authenticated;
   GRANT EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb, uuid) TO service_role;
   REVOKE EXECUTE ON FUNCTION public.save_driver_capture(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
   REVOKE EXECUTE ON FUNCTION public.save_vehicle_capture(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;

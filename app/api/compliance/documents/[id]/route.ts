@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -68,6 +69,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   if (error) {
     return NextResponse.json({ error: "delete_failed" }, { status: 500 });
+  }
+
+  try {
+    await processComplianceStoragePurgeQueue(admin);
+  } catch {
+    // Queue drain is best-effort; row is already enqueued in SQL.
   }
 
   return NextResponse.json({ ok: true });

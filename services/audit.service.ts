@@ -1,5 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
-
 export type AuditWriteInput = {
   organisationId: string | null;
   action: string;
@@ -9,14 +7,20 @@ export type AuditWriteInput = {
 };
 
 export async function writeAuditLog(input: AuditWriteInput): Promise<string> {
-  const supabase = createClient();
-  const { data, error } = await supabase.rpc("write_audit_log", {
-    p_organisation_id: input.organisationId,
-    p_action: input.action,
-    p_entity_type: input.entityType,
-    p_entity_id: input.entityId ?? null,
-    p_metadata: input.metadata ?? {},
+  const res = await fetch("/api/audit/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      organisationId: input.organisationId,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      metadata: input.metadata ?? {},
+    }),
   });
-  if (error) throw error;
-  return data as string;
+  if (!res.ok) {
+    throw new Error(`audit_write_failed:${res.status}`);
+  }
+  const payload = (await res.json()) as { id?: string };
+  return payload.id ?? "";
 }

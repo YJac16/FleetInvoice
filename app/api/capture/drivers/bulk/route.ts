@@ -19,23 +19,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_fields" }, { status: 400 });
-  }
-
   const admin = createServiceClient();
   if (!admin) {
     return NextResponse.json({ error: "service_unavailable" }, { status: 503 });
   }
 
-  const access = await assertFleetCaptureAccess(
-    admin,
-    user.id,
-    parsed.data.organisationId
-  );
-  if (!access.ok) {
-    return NextResponse.json({ error: access.code }, { status: access.status });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "invalid_fields" }, { status: 400 });
+  }
+
+  const orgId =
+    body !== null &&
+    typeof body === "object" &&
+    "organisationId" in body &&
+    typeof (body as { organisationId?: unknown }).organisationId === "string"
+      ? (body as { organisationId: string }).organisationId
+      : null;
+
+  if (orgId) {
+    const access = await assertFleetCaptureAccess(admin, user.id, orgId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.code }, { status: access.status });
+    }
+  }
+
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_fields" }, { status: 400 });
   }
 
   const { data, error } = await admin.rpc("import_drivers_capture", {
