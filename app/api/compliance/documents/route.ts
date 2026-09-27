@@ -5,7 +5,7 @@ import {
   mimeToExt,
   resolveComplianceAuth,
 } from "@/services/compliance-documents.server";
-import { isComplianceScanEnvEnabled } from "@/lib/compliance/flags";
+import { isComplianceScanAssistActive } from "@/lib/compliance/scan-assist";
 import {
   sanitiseDisplayFileName,
   sha256Hex,
@@ -77,8 +77,7 @@ export async function POST(request: Request) {
       .select("compliance_scan_enabled")
       .eq("id", auth.ctx.organisationId)
       .maybeSingle();
-    const scanOn =
-      isComplianceScanEnvEnabled() || org?.compliance_scan_enabled === true;
+    const scanOn = isComplianceScanAssistActive(org?.compliance_scan_enabled);
     if (!scanOn) {
       return NextResponse.json({ error: "scan_disabled" }, { status: 403 });
     }

@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { COMPLIANCE_SCAN_QUOTA_CAP } from "@/lib/compliance/constants";
 import {
   complianceScanProviderName,
-  isComplianceScanEnvEnabled,
 } from "@/lib/compliance/flags";
+import { isComplianceScanAssistActive } from "@/lib/compliance/scan-assist";
 import { isRegistrationCertificateDocType } from "@/lib/compliance/rc-policy";
 import { complianceScanBodySchema } from "@/lib/compliance/scan-schema";
 import { normaliseScanResult } from "@/lib/compliance/scan-normalise";
@@ -68,8 +68,7 @@ export async function POST(request: Request) {
     .eq("id", orgId)
     .maybeSingle();
 
-  const scanEnabled =
-    isComplianceScanEnvEnabled() || org?.compliance_scan_enabled === true;
+  const scanEnabled = isComplianceScanAssistActive(org?.compliance_scan_enabled);
   if (!scanEnabled) {
     await recordScanEvent({
       admin,
