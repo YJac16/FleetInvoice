@@ -35,6 +35,24 @@ function record(id, pass, evidence) {
   if (!pass) process.exitCode = 1;
 }
 
+function processStoragePurgeQueue() {
+  const res = spawnSync(
+    "node",
+    [join(ROOT, "scripts/local-db/process-storage-purge-queue.mjs")],
+    {
+      env: {
+        ...process.env,
+        WORKOPS_AUDIT_PG_USE_SUDO: "1",
+        WORKOPS_AUDIT_PG_DATABASE: PG.database,
+      },
+      encoding: "utf8",
+    }
+  );
+  if (res.status !== 0) {
+    throw new Error(res.stderr || res.stdout || "storage purge queue processor failed");
+  }
+}
+
 function psqlRaw(sql, { role = "authenticated", userId, allowError = false } = {}) {
   const jwt = userId ? `SET LOCAL request.jwt.claim.sub = '${userId}';` : "";
   const body = `BEGIN;\nSET LOCAL ROLE ${role};\n${jwt}\n${sql}\nCOMMIT;`;
@@ -306,6 +324,7 @@ psqlService(`
     '${retBase}-v3.jpg', 'v3.jpg', 'image/jpeg', 100, 'h3', 'admin', 'accepted'
   );
 `);
+processStoragePurgeQueue();
 const afterTwoRenewals = psqlAdmin(
   `select count(*)::text from public.driver_documents where driver_id = '${driverAId}' and doc_type = 'prdp' and side = 'single' and deleted_at is null;`
 );
@@ -635,6 +654,7 @@ psqlAdmin(`
   values ('${orphanPath}', 'test_orphan');
 `);
 psqlService(`select public.run_compliance_document_retention(now());`);
+processStoragePurgeQueue();
 const orphanObjCount = psqlAdmin(
   `select count(*)::text from storage.objects where name = '${orphanPath}';`
 );
@@ -658,6 +678,7 @@ psqlAdmin(`
   values ('${ORG_A}', '${tempPath}', '${adminA}', now() - interval '30 minutes');
 `);
 psqlService(`select public.run_compliance_document_retention(now());`);
+processStoragePurgeQueue();
 const tempObjLeft = psqlAdmin(
   `select count(*)::text from storage.objects where name = '${tempPath}';`
 );

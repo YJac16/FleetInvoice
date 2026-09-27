@@ -11,6 +11,7 @@ import {
   sha256Hex,
   validateComplianceFile,
 } from "@/lib/compliance/file-validation";
+import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
 import { rcPermanentStorageForbidden } from "@/lib/compliance/rc-policy";
 import { complianceUploadFieldsSchema } from "@/lib/compliance/upload-schema";
 import { createClient } from "@/lib/supabase/server";
@@ -182,6 +183,12 @@ export async function POST(request: Request) {
 
   const newId = (regData as { new_id?: string })?.new_id;
   const supersededId = (regData as { superseded_id?: string | null })?.superseded_id;
+
+  try {
+    await processComplianceStoragePurgeQueue(admin);
+  } catch {
+    return NextResponse.json({ error: "storage_purge_failed" }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,

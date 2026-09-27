@@ -114,8 +114,7 @@ grant execute on function public.storage_org_id(text) to authenticated, anon, se
 grant execute on function public.storage_path_segment(text, integer) to authenticated, anon, service_role;
 grant execute on function public.compliance_storage_path_allowed(text) to authenticated, anon, service_role;
 
-alter table storage.objects enable row level security;
-
+-- storage.objects is owned by supabase_storage_admin on hosted; RLS is already enabled.
 drop policy if exists vehicle_docs_select on storage.objects;
 create policy vehicle_docs_select on storage.objects
   for select

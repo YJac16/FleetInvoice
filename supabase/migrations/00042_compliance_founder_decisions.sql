@@ -1,7 +1,5 @@
 -- Founder decisions 27 Sep 2026: no driver compliance writes; count-based superseded retention.
 
-create extension if not exists pgcrypto;
-
 -- Ops roles only — drivers never register/replace compliance documents.
 create or replace function public.compliance_register_actor_ok(
   p_actor uuid,
@@ -61,10 +59,18 @@ as $$
 declare
   v_hash text;
 begin
-  delete from storage.objects
-  where bucket_id = 'vehicle-docs' and name = p_storage_path;
+  perform public.enqueue_compliance_storage_purge(
+    'vehicle-docs',
+    p_storage_path,
+    p_org,
+    p_document_id,
+    'superseded'
+  );
 
-  v_hash := encode(digest(convert_to(p_storage_path, 'UTF8'), 'sha256'), 'hex');
+  v_hash := encode(
+    extensions.digest(convert_to(p_storage_path, 'UTF8'), 'sha256'),
+    'hex'
+  );
 
   perform public.write_audit_log(
     p_org,
@@ -330,7 +336,9 @@ begin
     from public.compliance_scan_temp_objects t
     where t.deleted_at is null and t.expires_at < p_now
   loop
-    delete from storage.objects where bucket_id = 'vehicle-docs' and name = rec.storage_path;
+    perform public.enqueue_compliance_storage_purge(
+      'vehicle-docs', rec.storage_path, null, null, 'temp_expired'
+    );
     update public.compliance_scan_temp_objects
     set deleted_at = p_now
     where storage_path = rec.storage_path and deleted_at is null;
@@ -340,7 +348,9 @@ begin
   for rec in
     select o.storage_path from public.compliance_orphan_objects o where o.resolved_at is null
   loop
-    delete from storage.objects where bucket_id = 'vehicle-docs' and name = rec.storage_path;
+    perform public.enqueue_compliance_storage_purge(
+      'vehicle-docs', rec.storage_path, null, null, 'orphan_row'
+    );
     update public.compliance_orphan_objects set resolved_at = p_now
     where storage_path = rec.storage_path and resolved_at is null;
     v_orphan_resolved := v_orphan_resolved + 1;
@@ -361,7 +371,9 @@ begin
         where vd.storage_path = so.name and vd.deleted_at is null
       )
   loop
-    delete from storage.objects where bucket_id = 'vehicle-docs' and name = rec.storage_path;
+    perform public.enqueue_compliance_storage_purge(
+      'vehicle-docs', rec.storage_path, null, null, 'orphan_storage'
+    );
     v_orphan_storage := v_orphan_storage + 1;
   end loop;
 
@@ -369,6 +381,8 @@ begin
     'temp_purged', v_temp,
     'orphan_rows_resolved', v_orphan_resolved,
     'orphan_storage_purged', v_orphan_storage,
+    'orphan_storage_queued', v_orphan_storage,
+    'storage_purge_queued', v_temp + v_orphan_resolved + v_orphan_storage,
     'superseded_trimmed', v_trimmed
   );
 end;

@@ -4,6 +4,7 @@ import {
   isAuthorizedCronBearer,
   unauthorizedCronResponse,
 } from "@/lib/auth/cron-bearer";
+import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
@@ -33,5 +34,12 @@ async function runRetention(request: Request) {
     return NextResponse.json({ error: "retention_failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ result: data });
+  let purgeStats = { processed: 0, removed: 0, failed: 0 };
+  try {
+    purgeStats = await processComplianceStoragePurgeQueue(admin);
+  } catch {
+    return NextResponse.json({ error: "storage_purge_failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({ result: data, storage_purge: purgeStats });
 }

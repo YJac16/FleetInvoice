@@ -40,6 +40,9 @@ sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$ROOT/scripts/loca
 echo "Applying storage stub..."
 sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$ROOT/scripts/local-db/storage-stub.sql"
 
+sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -c \
+  "ALTER DATABASE workops_audit SET search_path TO public, extensions, storage, auth;"
+
 for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
   echo "Applying $(basename "$f")..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$f"
@@ -126,6 +129,7 @@ DO $$ BEGIN
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_temp_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_quota TO service_role;
+  GRANT SELECT, INSERT, UPDATE ON public.compliance_storage_purge_queue TO service_role;
 END $$;
 SQL
 
