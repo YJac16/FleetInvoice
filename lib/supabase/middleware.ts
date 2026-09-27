@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Relative import required for Edge middleware bundling on Vercel.
-import { isCronPublicApiPath } from "../auth/cron-public-paths";
+import { isPublicBearerApiPath } from "../auth/cron-public-paths";
 import { env, isSupabaseConfigured } from "../env";
 
 export async function updateSession(request: NextRequest) {
@@ -17,8 +17,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith("/auth") ||
       pathname.startsWith("/invite") ||
       pathname.startsWith("/api/webhooks/") ||
-      pathname.startsWith("/api/cron/") ||
-      pathname.startsWith("/api/notifications/process");
+      isPublicBearerApiPath(pathname);
     if (process.env.NODE_ENV === "production" && !isPublic) {
       return new NextResponse("Service unavailable", { status: 503 });
     }
@@ -57,8 +56,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/invite");
   const isPublicApiRoute =
-    pathname.startsWith("/api/notifications/process") ||
-    isCronPublicApiPath(pathname) ||
+    isPublicBearerApiPath(pathname) ||
     pathname.startsWith("/api/webhooks/stripe");
 
   if (!user && !isPublicAuthRoute && !isPublicApiRoute && pathname !== "/") {

@@ -87,18 +87,20 @@ describe("cron bearer auth", () => {
   });
 });
 
-describe("middleware cron passthrough", () => {
+describe("middleware bearer API passthrough", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
   });
 
-  it("does not redirect cron routes without a session", async () => {
+  it("does not redirect exact allowlisted bearer routes without a session", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const { updateSession } = await import("@/lib/supabase/middleware");
 
     for (const path of [
+      "/api/notifications/process",
       "/api/cron/compliance-alerts",
       "/api/cron/compliance-digest",
       "/api/cron/notifications",
@@ -107,6 +109,21 @@ describe("middleware cron passthrough", () => {
       const res = await updateSession(req);
       expect(res.status).toBe(200);
       expect(res.headers.get("location") ?? "").not.toMatch(/login/);
+    }
+  });
+
+  it("redirects subpaths that are not exactly allowlisted", async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const { updateSession } = await import("@/lib/supabase/middleware");
+
+    for (const path of [
+      "/api/notifications/process/extra",
+      "/api/cron/compliance-alerts/extra",
+    ]) {
+      const req = new NextRequest(new URL(`http://localhost${path}`));
+      const res = await updateSession(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toContain("/login");
     }
   });
 
