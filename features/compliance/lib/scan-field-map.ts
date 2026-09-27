@@ -44,6 +44,14 @@ export const SCAN_FIELD_MAP: Record<ScanSubjectKind, ScanFieldMapping[]> = {
   ],
   registration_certificate: [
     { scanKey: "registration_number", formKey: "registration_number", label: "Registration" },
+    { scanKey: "make", formKey: "make", label: "Make" },
+    { scanKey: "model", formKey: "model", label: "Model" },
+    { scanKey: "model_year", formKey: "model_year", label: "Year" },
+    {
+      scanKey: "license_disc_expires_on",
+      formKey: "license_disc_expires_on",
+      label: "Licence disc expiry",
+    },
   ],
 };
 

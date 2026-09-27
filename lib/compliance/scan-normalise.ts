@@ -1,4 +1,5 @@
 import { normaliseEvidence } from "@/lib/compliance/evidence";
+import { RC_ALLOWED_SCAN_FIELD_KEYS } from "@/lib/compliance/rc-policy";
 import type { ScanExtractResult } from "@/lib/compliance/scan/mock-provider";
 
 const ALLOWED_KEYS: Record<string, string[]> = {
@@ -11,7 +12,7 @@ const ALLOWED_KEYS: Record<string, string[]> = {
     "operating_permit_expires_on",
     "registration_number",
   ],
-  registration_certificate: ["registration_number"],
+  registration_certificate: [...RC_ALLOWED_SCAN_FIELD_KEYS],
 };
 
 const LICENSE_CODES = new Set([

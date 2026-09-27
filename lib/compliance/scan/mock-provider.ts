@@ -72,6 +72,13 @@ export async function mockExtractCompliance(
       return {
         fields: {
           registration_number: { value: "CA123456", ...base },
+          make: { value: "Toyota", ...base },
+          model: { value: "Quantum", ...base },
+          model_year: { value: "2019", ...base },
+          license_disc_expires_on: { value: "2030-03-31", ...base },
+          owner_name: { value: "Private Owner", ...base },
+          owner_id_number: { value: "8001015800085", ...base },
+          owner_address: { value: "1 Example Street", ...base },
         },
         warnings: [],
       };
