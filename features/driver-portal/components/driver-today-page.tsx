@@ -22,6 +22,7 @@ import {
   canStartStaffTrip,
   staffTripActionLabel,
 } from "@/features/driver-portal/lib/staff-transitions";
+import { DriverComplianceBanner } from "@/features/driver-portal/components/driver-documents-page";
 import { StaffTripStatusTimeline } from "@/features/trips/components/staff-trip-status-timeline";
 import {
   activeTrip,
@@ -179,6 +180,8 @@ export function DriverTodayPage() {
           {nowLabel}
         </span>
       </div>
+
+      <DriverComplianceBanner />
 
       <div className="relative pl-4">
         <div className="absolute bottom-0 left-[5px] top-0 w-px bg-zinc-800" />

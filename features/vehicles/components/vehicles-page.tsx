@@ -1,11 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Car, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
@@ -14,9 +15,12 @@ import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { vehicleImportSchema } from "@/features/import/schemas/import-schemas";
+import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
+import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import { VehicleDocumentsDialog } from "@/features/vehicles/components/vehicle-documents-dialog";
+import { listOpenDriverVehicleAssignments } from "@/services/driver-vehicle-assignment.service";
 import {
-  parseCapacity,
+  normalizeVehicleFields,
   vehicleSchema,
   type VehicleValues,
 } from "@/features/vehicles/schemas/vehicle";
@@ -74,6 +78,17 @@ function VehicleForm({
     defaultValues: {
       name: initial?.name ?? "",
       registration_number: initial?.registration_number ?? "",
+      make: initial?.make ?? "",
+      model: initial?.model ?? "",
+      model_year:
+        initial?.model_year === null || initial?.model_year === undefined
+          ? ""
+          : String(initial.model_year),
+      colour: initial?.colour ?? "",
+      classification: initial?.classification ?? "",
+      operating_permit_number: initial?.operating_permit_number ?? "",
+      operating_permit_expires_on: initial?.operating_permit_expires_on?.slice(0, 10) ?? "",
+      license_disc_expires_on: initial?.license_disc_expires_on?.slice(0, 10) ?? "",
       vehicle_type: initial?.vehicle_type ?? "other",
       capacity:
         initial?.capacity === null || initial?.capacity === undefined
@@ -87,22 +102,53 @@ function VehicleForm({
   return (
     <form
       className="space-y-4"
-      onSubmit={form.handleSubmit((values) =>
-        onSubmit({
-          name: values.name.trim(),
-          registration_number: emptyToNull(values.registration_number),
-          vehicle_type: values.vehicle_type,
-          capacity: parseCapacity(values.capacity),
-          company_id: emptyToNull(values.company_id),
-          status: values.status,
-        })
-      )}
+      onSubmit={form.handleSubmit((values) => {
+        const normalized = normalizeVehicleFields(values);
+        if (!normalized.ok) {
+          toast.error(normalized.message);
+          return;
+        }
+        onSubmit(normalized.data);
+      })}
     >
       <TextField control={form.control} name="name" label="Name" />
       <TextField
         control={form.control}
         name="registration_number"
         label="Registration number"
+      />
+      <TextField control={form.control} name="make" label="Make" />
+      <TextField control={form.control} name="model" label="Model" />
+      <TextField
+        control={form.control}
+        name="model_year"
+        label="Year"
+        type="number"
+        placeholder="e.g. 2022"
+      />
+      <TextField control={form.control} name="colour" label="Colour" />
+      <TextField
+        control={form.control}
+        name="classification"
+        label="Classification"
+        placeholder="Free text until confirmed"
+      />
+      <TextField
+        control={form.control}
+        name="operating_permit_number"
+        label="Operating permit (fleet record) number"
+      />
+      <TextField
+        control={form.control}
+        name="operating_permit_expires_on"
+        label="Operating permit expiry"
+        type="date"
+      />
+      <TextField
+        control={form.control}
+        name="license_disc_expires_on"
+        label="Licence disc expiry"
+        type="date"
       />
       <SelectField
         control={form.control}
@@ -144,10 +190,58 @@ export function VehiclesPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [docsVehicle, setDocsVehicle] = useState<Vehicle | null>(null);
 
+  const assignmentsQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.driverVehicleAssignments(organisationId)
+      : ["driver-vehicle-assignments", "none"],
+    queryFn: () => listOpenDriverVehicleAssignments(organisationId!),
+    enabled: Boolean(organisationId),
+  });
+
+  const assignmentByVehicle = useMemo(() => {
+    const map = new Map<
+      string,
+      NonNullable<typeof assignmentsQuery.data>[number]
+    >();
+    for (const row of assignmentsQuery.data ?? []) {
+      map.set(row.vehicle_id, row);
+    }
+    return map;
+  }, [assignmentsQuery.data]);
+
   const columns = useMemo<ColumnDef<Vehicle, unknown>[]>(
     () => [
-      { accessorKey: "name", header: "Name" },
       { accessorKey: "registration_number", header: "Registration" },
+      {
+        id: "make_model",
+        header: "Make / model",
+        cell: ({ row }) => formatVehicleLabel(row.original),
+      },
+      { accessorKey: "model_year", header: "Year" },
+      {
+        id: "assigned_driver",
+        header: "Assigned driver",
+        cell: ({ row }) =>
+          assignmentByVehicle.get(row.original.id)?.drivers?.full_name ?? "—",
+      },
+      {
+        accessorKey: "operating_permit_expires_on",
+        header: "Permit",
+        cell: ({ row }) => (
+          <ComplianceExpiryBadge
+            expiresOn={row.original.operating_permit_expires_on}
+          />
+        ),
+      },
+      {
+        accessorKey: "license_disc_expires_on",
+        header: "Disc",
+        cell: ({ row }) => (
+          <ComplianceExpiryBadge
+            expiresOn={row.original.license_disc_expires_on}
+          />
+        ),
+      },
       {
         accessorKey: "vehicle_type",
         header: "Type",
@@ -155,14 +249,13 @@ export function VehiclesPage() {
           VEHICLE_TYPE_LABELS[row.original.vehicle_type] ??
           row.original.vehicle_type,
       },
-      { accessorKey: "capacity", header: "Capacity" },
       {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
     ],
-    []
+    [assignmentByVehicle]
   );
 
   return (

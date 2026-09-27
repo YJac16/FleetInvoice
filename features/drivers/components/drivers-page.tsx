@@ -5,9 +5,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleUser, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { useOrg } from "@/components/layout/org-context";
+import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
+import { LICENSE_CODES } from "@/features/compliance/lib/compliance-status";
+import { PRDP_SHORT_LABEL } from "@/features/compliance/lib/prdp-label";
+import { DriverVehicleAssignDialog } from "@/features/drivers/components/driver-vehicle-assign-dialog";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextField } from "@/components/forms/form-fields";
@@ -28,7 +32,9 @@ import {
   restoreDriver,
   updateDriver,
 } from "@/services/drivers.service";
+import { listOpenDriverVehicleAssignments } from "@/services/driver-vehicle-assignment.service";
 import { listMembers } from "@/services/users.service";
+import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
 import type { Driver } from "@/types";
 import { queryKeys } from "@/utils/query";
 
@@ -36,6 +42,11 @@ const statusOptions = ENTITY_STATUSES.map((status) => ({
   label: STATUS_LABELS[status],
   value: status,
 }));
+
+const licenseCodeOptions = [
+  { label: "Not set", value: "" },
+  ...LICENSE_CODES.map((code) => ({ label: code, value: code })),
+];
 
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -86,6 +97,8 @@ function DriverForm({
       email: initial?.email ?? "",
       phone: initial?.phone ?? "",
       license_number: initial?.license_number ?? "",
+      license_code: (initial?.license_code as DriverValues["license_code"]) ?? "",
+      license_code_other: initial?.license_code_other ?? "",
       license_expires_on: toDateInput(initial?.license_expires_on),
       pdp_number: initial?.pdp_number ?? "",
       pdp_expires_on: toDateInput(initial?.pdp_expires_on),
@@ -93,6 +106,8 @@ function DriverForm({
       status: initial?.status ?? "active",
     },
   });
+
+  const licenseCode = useWatch({ control: form.control, name: "license_code" });
 
   return (
     <form
@@ -103,6 +118,11 @@ function DriverForm({
           email: emptyToNull(values.email),
           phone: emptyToNull(values.phone),
           license_number: emptyToNull(values.license_number),
+          license_code: emptyToNull(values.license_code),
+          license_code_other:
+            values.license_code === "Other"
+              ? emptyToNull(values.license_code_other)
+              : null,
           license_expires_on: emptyToNull(values.license_expires_on),
           pdp_number: emptyToNull(values.pdp_number),
           pdp_expires_on: emptyToNull(values.pdp_expires_on),
@@ -119,6 +139,20 @@ function DriverForm({
         name="license_number"
         label="License number"
       />
+      <SelectField
+        control={form.control}
+        name="license_code"
+        label="Licence code"
+        options={licenseCodeOptions}
+        placeholder="Optional"
+      />
+      {licenseCode === "Other" ? (
+        <TextField
+          control={form.control}
+          name="license_code_other"
+          label="Explain licence code"
+        />
+      ) : null}
       <TextField
         control={form.control}
         name="license_expires_on"
@@ -128,12 +162,12 @@ function DriverForm({
       <TextField
         control={form.control}
         name="pdp_number"
-        label="PDP number"
+        label={`${PRDP_SHORT_LABEL} number`}
       />
       <TextField
         control={form.control}
         name="pdp_expires_on"
-        label="PDP expires"
+        label={`${PRDP_SHORT_LABEL} expires`}
         type="date"
       />
       <SelectField
@@ -162,6 +196,26 @@ export function DriversPage() {
   const canManage = can("drivers:manage");
   const queryClient = useQueryClient();
   const [importOpen, setImportOpen] = useState(false);
+  const [assignDriver, setAssignDriver] = useState<Driver | null>(null);
+
+  const assignmentsQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.driverVehicleAssignments(organisationId)
+      : ["driver-vehicle-assignments", "none"],
+    queryFn: () => listOpenDriverVehicleAssignments(organisationId!),
+    enabled: Boolean(organisationId),
+  });
+
+  const assignmentByDriver = useMemo(() => {
+    const map = new Map<
+      string,
+      NonNullable<typeof assignmentsQuery.data>[number]
+    >();
+    for (const row of assignmentsQuery.data ?? []) {
+      map.set(row.driver_id, row);
+    }
+    return map;
+  }, [assignmentsQuery.data]);
 
   const columns = useMemo<ColumnDef<Driver, unknown>[]>(
     () => [
@@ -170,20 +224,35 @@ export function DriversPage() {
       { accessorKey: "phone", header: "Phone" },
       { accessorKey: "license_number", header: "License" },
       {
-        accessorKey: "license_expires_on",
-        header: "Licence expiry",
+        accessorKey: "license_code",
+        header: "Code",
         cell: ({ row }) =>
-          row.original.license_expires_on
-            ? row.original.license_expires_on.slice(0, 10)
-            : "—",
+          row.original.license_code === "Other"
+            ? `Other: ${row.original.license_code_other ?? ""}`
+            : row.original.license_code ?? "—",
+      },
+      {
+        accessorKey: "license_expires_on",
+        header: "Licence",
+        cell: ({ row }) => (
+          <ComplianceExpiryBadge expiresOn={row.original.license_expires_on} />
+        ),
       },
       {
         accessorKey: "pdp_expires_on",
-        header: "PDP expiry",
-        cell: ({ row }) =>
-          row.original.pdp_expires_on
-            ? row.original.pdp_expires_on.slice(0, 10)
-            : "—",
+        header: PRDP_SHORT_LABEL,
+        cell: ({ row }) => (
+          <ComplianceExpiryBadge expiresOn={row.original.pdp_expires_on} />
+        ),
+      },
+      {
+        id: "assigned_vehicle",
+        header: "Assigned vehicle",
+        cell: ({ row }) => {
+          const a = assignmentByDriver.get(row.original.id);
+          if (!a?.vehicles) return "—";
+          return formatVehicleLabel(a.vehicles);
+        },
       },
       {
         id: "linked_user",
@@ -199,7 +268,7 @@ export function DriversPage() {
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
     ],
-    []
+    [assignmentByDriver]
   );
 
   return (
@@ -254,6 +323,19 @@ export function DriversPage() {
             </Button>
           ) : null
         }
+        rowActions={
+          canManage
+            ? (row) => (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAssignDriver(row)}
+                >
+                  Vehicle
+                </Button>
+              )
+            : undefined
+        }
         renderForm={({ initial, onSubmit, submitting }) =>
           organisationId ? (
             <DriverForm
@@ -278,6 +360,11 @@ export function DriversPage() {
             { key: "email", label: "Email" },
             { key: "phone", label: "Phone" },
             { key: "license_number", label: "License number" },
+            { key: "license_code", label: "Licence code" },
+            { key: "license_code_other", label: "Licence code (other)" },
+            { key: "license_expires_on", label: "Licence expires (YYYY-MM-DD)" },
+            { key: "pdp_number", label: `${PRDP_SHORT_LABEL} number` },
+            { key: "pdp_expires_on", label: `${PRDP_SHORT_LABEL} expires` },
             { key: "status", label: "Status" },
           ]}
           schema={driverImportSchema}
@@ -289,6 +376,11 @@ export function DriversPage() {
                 email: row.email || null,
                 phone: row.phone || null,
                 license_number: row.license_number || null,
+                license_code: row.license_code || null,
+                license_code_other: row.license_code_other || null,
+                license_expires_on: row.license_expires_on || null,
+                pdp_number: row.pdp_number || null,
+                pdp_expires_on: row.pdp_expires_on || null,
                 status: row.status,
               }))
             );
@@ -296,6 +388,15 @@ export function DriversPage() {
               queryKey: queryKeys.drivers(organisationId),
             });
           }}
+        />
+      ) : null}
+
+      {organisationId ? (
+        <DriverVehicleAssignDialog
+          open={Boolean(assignDriver)}
+          onOpenChange={(open) => !open && setAssignDriver(null)}
+          organisationId={organisationId}
+          driver={assignDriver}
         />
       ) : null}
     </>
