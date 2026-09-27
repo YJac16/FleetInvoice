@@ -143,6 +143,7 @@ export type Driver = {
   license_code_other: string | null;
   license_expires_on: string | null;
   pdp_number: string | null;
+  pdp_categories: string | null;
   pdp_expires_on: string | null;
   status: EntityStatus;
   created_by: string | null;
@@ -273,6 +274,8 @@ export type Vehicle = {
   company_id: string | null;
   name: string;
   registration_number: string | null;
+  vin: string | null;
+  engine_number: string | null;
   make: string | null;
   model: string | null;
   model_year: number | null;

@@ -52,3 +52,4 @@ supabase/.temp/
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+tests/rls/compliance-pr36-results.json

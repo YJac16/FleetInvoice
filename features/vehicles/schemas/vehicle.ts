@@ -12,6 +12,8 @@ const optionalTrimmed = z.string().optional();
 export const vehicleSchema = z.object({
   name: z.string().min(2, "Name is required"),
   registration_number: z.string().optional(),
+  vin: optionalTrimmed,
+  engine_number: optionalTrimmed,
   vehicle_type: z.enum(VEHICLE_TYPES),
   make: optionalTrimmed,
   model: optionalTrimmed,
@@ -48,6 +50,15 @@ export function normalizeVehicleFields(values: VehicleValues): {
   const colour = trim(values.colour);
   const classification = trim(values.classification);
   const operating_permit_number = trim(values.operating_permit_number);
+  const vin = trim(values.vin);
+  const engine_number = trim(values.engine_number);
+
+  if (vin && (vin.length < 1 || vin.length > 40)) {
+    return { ok: false, message: "VIN must be 1–40 characters" };
+  }
+  if (engine_number && (engine_number.length < 1 || engine_number.length > 40)) {
+    return { ok: false, message: "Engine number must be 1–40 characters" };
+  }
 
   if (make && (make.length < 1 || make.length > 60)) {
     return { ok: false, message: "Make must be 1–60 characters" };
@@ -83,6 +94,8 @@ export function normalizeVehicleFields(values: VehicleValues): {
     data: {
       name: values.name.trim(),
       registration_number: trim(values.registration_number),
+      vin,
+      engine_number,
       make,
       model,
       model_year,

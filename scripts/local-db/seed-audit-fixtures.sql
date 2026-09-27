@@ -1,7 +1,7 @@
 -- Synthetic Org A / Org B + all roles for local RLS and journey tests.
 -- Password for all seeded auth users: TestPassword123!
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 -- Fixed IDs (deterministic)
 -- Orgs
@@ -11,7 +11,7 @@ create extension if not exists pgcrypto;
 do $$
 declare
   inst uuid := '00000000-0000-0000-0000-000000000000';
-  pwd text := crypt('TestPassword123!', gen_salt('bf'));
+  pwd text := extensions.crypt('TestPassword123!', extensions.gen_salt('bf'));
 begin
   insert into auth.users (
     instance_id, id, aud, role, email, encrypted_password,

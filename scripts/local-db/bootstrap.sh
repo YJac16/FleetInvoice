@@ -31,6 +31,9 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres -
 PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres \
   -f "$ROOT/scripts/local-db/storage-stub.sql" >/dev/null
 
+PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c \
+  "ALTER DATABASE postgres SET search_path TO public, extensions, storage, auth;" >/dev/null
+
 for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
   echo "Applying $(basename "$f")..."
   PGPASSWORD=postgres psql -h 127.0.0.1 -p "$PORT" -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -f "$f" >/dev/null

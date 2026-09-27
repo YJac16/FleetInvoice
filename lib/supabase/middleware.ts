@@ -16,6 +16,7 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith("/forgot-password") ||
       pathname.startsWith("/auth") ||
       pathname.startsWith("/invite") ||
+      pathname.startsWith("/compliance-specimen") ||
       pathname.startsWith("/api/webhooks/") ||
       isPublicBearerApiPath(pathname);
     if (process.env.NODE_ENV === "production" && !isPublic) {
@@ -54,7 +55,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/invite");
+    pathname.startsWith("/invite") ||
+    pathname.startsWith("/compliance-specimen");
   const isPublicApiRoute =
     isPublicBearerApiPath(pathname) ||
     pathname.startsWith("/api/webhooks/stripe");

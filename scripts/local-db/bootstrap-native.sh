@@ -40,6 +40,9 @@ sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$ROOT/scripts/loca
 echo "Applying storage stub..."
 sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$ROOT/scripts/local-db/storage-stub.sql"
 
+sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -c \
+  "ALTER DATABASE workops_audit SET search_path TO public, extensions, storage, auth;"
+
 for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
   echo "Applying $(basename "$f")..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$f"
@@ -91,6 +94,42 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.get_trip_driver_names(uuid[]) TO authenticated;
   REVOKE EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION public.mark_admin_notification_read(uuid) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.register_compliance_document(
+    uuid, uuid, text, uuid, text, text, text, text, text, integer, text, text, text
+  ) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.register_compliance_document(
+    uuid, uuid, text, uuid, text, text, text, text, text, integer, text, text, text
+  ) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_compliance_document(uuid, uuid, text, uuid)
+    FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_compliance_document(uuid, uuid, text, uuid)
+    TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer)
+    FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.consume_compliance_scan_quota(uuid, integer) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.write_audit_log(uuid, text, text, uuid, jsonb, uuid) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.save_driver_capture(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.save_vehicle_capture(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.save_driver_capture(uuid, uuid, uuid, jsonb) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.save_vehicle_capture(uuid, uuid, uuid, jsonb) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.import_drivers_capture(uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.import_vehicles_capture(uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.import_drivers_capture(uuid, uuid, jsonb) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.import_vehicles_capture(uuid, uuid, jsonb) TO service_role;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_driver(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_driver(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) TO service_role;
+  GRANT EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_temp_objects TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_quota TO service_role;
+  GRANT SELECT, INSERT, UPDATE ON public.compliance_storage_purge_queue TO service_role;
 END $$;
 SQL
 

@@ -175,6 +175,7 @@ export const demoDrivers = [
     license_code_other: null,
     license_expires_on: null,
     pdp_number: null,
+    pdp_categories: null,
     pdp_expires_on: null,
     status: "active",
     created_by: null,
@@ -222,6 +223,8 @@ export const demoVehicles = [
 ].map(
   (v): Vehicle => ({
     ...v,
+    vin: null,
+    engine_number: null,
     make: null,
     model: null,
     model_year: null,

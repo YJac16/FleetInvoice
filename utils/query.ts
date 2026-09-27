@@ -13,6 +13,12 @@ export const queryKeys = {
   pickupPoints: (orgId: string) => ["pickup-points", orgId] as const,
   vehicleDocuments: (orgId: string, vehicleId: string) =>
     ["vehicle-documents", orgId, vehicleId] as const,
+  complianceDocuments: (
+    subjectKind: string,
+    subjectId: string,
+    docType: string,
+    side: string
+  ) => ["compliance-documents", subjectKind, subjectId, docType, side] as const,
   routes: (orgId: string) => ["routes", orgId] as const,
   routeStops: (orgId: string, routeId: string) =>
     ["route-stops", orgId, routeId] as const,
