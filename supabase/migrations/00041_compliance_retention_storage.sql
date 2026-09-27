@@ -9,7 +9,8 @@ create table if not exists public.compliance_storage_purge_queue (
   reason text not null,
   queued_at timestamptz not null default timezone('utc', now()),
   purged_at timestamptz,
-  last_error text
+  last_error text,
+  attempt_count integer not null default 0
 );
 
 create unique index if not exists compliance_storage_purge_queue_pending_uniq

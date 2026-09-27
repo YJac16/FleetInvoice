@@ -55,7 +55,7 @@ for (const row of rows) {
     reset role;
     update public.compliance_storage_purge_queue
     set purged_at = timezone('utc', now()), last_error = null
-    where id = '${row.id}'::uuid;
+    where id = '${row.id}'::uuid and purged_at is null;
     commit;
   `);
 }

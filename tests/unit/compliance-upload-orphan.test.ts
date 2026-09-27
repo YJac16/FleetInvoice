@@ -24,6 +24,14 @@ vi.mock("@/services/compliance-documents.server", () => ({
   mimeToExt: vi.fn(() => "jpg"),
 }));
 
+vi.mock("@/lib/compliance/process-storage-purge-queue", () => ({
+  processComplianceStoragePurgeQueue: vi.fn().mockResolvedValue({
+    processed: 0,
+    removed: 0,
+    failed: 0,
+  }),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: vi.fn(() => ({
     storage: {
