@@ -1,6 +1,6 @@
 -- =============================================================================
--- Rollback for 00053_fuel_slips.sql (fuel slip spec v2).
--- 00051 enum values (fuel_slip_queried / fuel_slip_rejected) cannot be removed in
+-- Rollback for 00054_fuel_slips.sql (fuel slip spec v2).
+-- 00053 enum values (fuel_slip_queried / fuel_slip_rejected) cannot be removed in
 -- PostgreSQL and are left in place; nothing depends on them after this rollback.
 --
 -- Dropping review_status would let pending/rejected/voided slip rows enter new
@@ -25,7 +25,7 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- RPCs and helpers introduced by 00053
+-- RPCs and helpers introduced by 00054
 -- ---------------------------------------------------------------------------
 
 drop function if exists public.run_fuel_slip_retention(timestamptz);

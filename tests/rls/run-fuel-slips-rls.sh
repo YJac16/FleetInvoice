@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Rebuilds the hosted-mimic local database (00001–00052 security + 00053 fuel) and
-# runs the fuel slip database tests (spec v2 §13). Set SKIP_BOOTSTRAP=1 to reuse
+# Rebuilds the hosted-mimic local database (00001–00052 security + 00053 enums + 00054 fuel)
+# and runs the fuel slip database tests (spec v2 §13). Set SKIP_BOOTSTRAP=1 to reuse
 # an already-bootstrapped container.
 #
-# PR #45's 00052 is applied before 00053 for grant ordering. If the security
+# PR #45's 00052 is applied before 00053/00054 for grant ordering. If the security
 # migration is not yet on main, it is fetched from origin/cursor/security-hardening-00052-7dfe
 # for this test run only (never committed on the fuel PR branch).
 set -euo pipefail

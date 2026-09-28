@@ -1,8 +1,8 @@
 -- =============================================================================
 -- GoOps — Fuel slip capture (spec v2, 27 Sep 2026)
 -- Requires 00048 (service-role-only write_audit_log), 00041 (purge queue),
--- 00051_fuel_slip_enums.sql (driver_notification_type fuel_slip_queried/_rejected),
--- and 00052_security_hardening_anon_rpc_quota_rls.sql (default EXECUTE privileges).
+-- 00053_fuel_slip_enums.sql (driver_notification_type fuel_slip_queried/_rejected),
+-- and 00052_security_hardening_anon_rpc_quota_rls.sql (default EXECUTE privileges; on main via PR #45).
 --
 -- * fuel_fillups stays the single canonical fuel transaction (spec §6.1).
 -- * Every value list is TEXT + CHECK (no new enums in this migration).

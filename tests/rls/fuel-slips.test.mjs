@@ -467,7 +467,7 @@ function testStorage() {
                    and (policyname ilike '%fuel%' or coalesce(qual, '') ilike '%fuel-slips%' or coalesce(with_check, '') ilike '%fuel-slips%')`);
   record("STORAGE-no-fuel-policies", pol === 0);
 
-  const files = ["00051_fuel_slip_enums.sql", "00053_fuel_slips.sql"].map((f) => [
+  const files = ["00053_fuel_slip_enums.sql", "00054_fuel_slips.sql"].map((f) => [
     f,
     readFileSync(join(ROOT, "supabase/migrations", f), "utf8").replace(/--.*$/gm, ""),
   ]);
@@ -476,7 +476,7 @@ function testStorage() {
   record("GREP-no-delete-storage-objects", grep(/delete\s+from\s+storage\.objects/i).length === 0);
   record("GREP-no-bare-digest", grep(/(?<!extensions\.)\bdigest\s*\(/i).length === 0);
   record("GREP-no-storage-policy", grep(/create\s+policy[^;]*on\s+storage\.objects/i).length === 0);
-  record("GREP-no-create-type", grep(/create\s+type/i).length === 0, "no enums in 00053");
+  record("GREP-no-create-type", grep(/create\s+type/i).length === 0, "no enums in 00054");
 }
 
 // Filled in by testSubmit and reused by later sections.
