@@ -25,6 +25,8 @@ function tripLine(
     unit_price: 300,
     amount: 300,
     created_at: "2026-09-01T08:00:00.000Z",
+    trip_company_id: null,
+    rate_effective_on: null,
     trips: {
       id: overrides.id,
       planned_start: "2026-09-01T06:00:00.000Z",
@@ -141,6 +143,8 @@ describe("sortInvoiceLinesChronologically", () => {
         unit_price: 50,
         amount: 50,
         created_at: "2026-09-02T10:00:00.000Z",
+        trip_company_id: null,
+        rate_effective_on: null,
       },
       tripLine({
         id: "trip-first",
@@ -163,6 +167,8 @@ describe("sortInvoiceLinesChronologically", () => {
         unit_price: 25,
         amount: 25,
         created_at: "2026-09-02T08:00:00.000Z",
+        trip_company_id: null,
+        rate_effective_on: null,
       },
     ];
 

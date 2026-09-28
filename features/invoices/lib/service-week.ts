@@ -23,13 +23,10 @@ function formatShortDate(dateOnly: string): string {
   return `${WEEKDAY[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-/** Human label for Mon–Sun service week from period_start (exclusive end = +7 days). */
+/** Human label for Mon–Sun service week from period_start (inclusive period_end). */
 export function formatServiceWeekLabel(periodStart: string): string {
   const periodEnd = weekPeriodEnd(periodStart);
-  const serviceEnd = new Date(`${periodEnd}T00:00:00.000Z`);
-  serviceEnd.setUTCDate(serviceEnd.getUTCDate() - 1);
-  const serviceEndDate = serviceEnd.toISOString().slice(0, 10);
-  return `Week of ${formatShortDate(periodStart)} – ${formatShortDate(serviceEndDate)}`;
+  return `Week of ${formatShortDate(periodStart)} – ${formatShortDate(periodEnd)}`;
 }
 
 /** Invoice date shown on print = Monday after the service week. */

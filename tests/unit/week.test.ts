@@ -1,35 +1,60 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  INVOICE_TZ,
   isFilledAtInWeek,
   mondayOfWeek,
   weekPeriodEnd,
+  weekPeriodUpperBoundExclusive,
 } from "@/features/invoices/lib/week";
 
-describe("invoice week window", () => {
-  it("resolves Monday for mid-week dates (UTC)", () => {
-    // Wednesday 2026-07-22 → Monday 2026-07-20
-    expect(mondayOfWeek(new Date("2026-07-22T12:00:00Z"))).toBe("2026-07-20");
+describe("invoice week window (Africa/Johannesburg)", () => {
+  it("resolves Monday for mid-week dates in SAST", () => {
+    expect(mondayOfWeek(new Date("2026-09-23T10:00:00+02:00"))).toBe(
+      "2026-09-21"
+    );
   });
 
-  it("treats Sunday as end of prior Monday week", () => {
-    // Sunday 2026-07-26 → Monday 2026-07-20
-    expect(mondayOfWeek(new Date("2026-07-26T12:00:00Z"))).toBe("2026-07-20");
+  it("treats Sunday as end of the same Mon–Sun week in SAST", () => {
+    expect(mondayOfWeek(new Date("2026-09-27T20:00:00+02:00"))).toBe(
+      "2026-09-21"
+    );
   });
 
-  it("period end is week_start + 7 days exclusive", () => {
-    expect(weekPeriodEnd("2026-07-20")).toBe("2026-07-27");
+  it("uses Monday SAST when UTC calendar is still Sunday evening", () => {
+    // Mon 00:30 SAST = Sun 22:30 UTC → week starting 2026-09-28
+    expect(mondayOfWeek(new Date("2026-09-27T22:30:00Z"))).toBe("2026-09-28");
   });
 
-  it("includes filled_at at week start and excludes week end", () => {
+  it("period end is inclusive Sunday (week_start + 6 days)", () => {
+    expect(weekPeriodEnd("2026-09-21")).toBe("2026-09-27");
+    expect(weekPeriodEnd("2026-07-20")).toBe("2026-07-26");
+  });
+
+  it("exclusive upper bound is next Monday 00:00 SAST for inclusive Sunday end", () => {
+    const upper = weekPeriodUpperBoundExclusive("2026-09-21", "2026-09-27");
+    expect(upper.format("YYYY-MM-DD HH:mm Z")).toBe("2026-09-28 00:00 +02:00");
+  });
+
+  it("accepts legacy exclusive Monday period_end for upper bound", () => {
+    const upper = weekPeriodUpperBoundExclusive("2026-09-21", "2026-09-28");
+    expect(upper.format("YYYY-MM-DD HH:mm Z")).toBe("2026-09-28 00:00 +02:00");
+  });
+
+  it("includes filled_at on Sunday SAST and excludes next Monday", () => {
+    const weekStart = "2026-09-21";
     expect(
-      isFilledAtInWeek("2026-07-20T00:00:00.000Z", "2026-07-20")
+      isFilledAtInWeek("2026-09-21T06:00:00+02:00", weekStart)
     ).toBe(true);
     expect(
-      isFilledAtInWeek("2026-07-26T23:59:59.000Z", "2026-07-20")
+      isFilledAtInWeek("2026-09-27T23:30:00+02:00", weekStart)
     ).toBe(true);
     expect(
-      isFilledAtInWeek("2026-07-27T00:00:00.000Z", "2026-07-20")
+      isFilledAtInWeek("2026-09-28T00:00:00+02:00", weekStart)
     ).toBe(false);
+  });
+
+  it("uses SAST timezone constant", () => {
+    expect(INVOICE_TZ).toBe("Africa/Johannesburg");
   });
 });
