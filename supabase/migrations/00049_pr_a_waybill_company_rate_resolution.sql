@@ -59,6 +59,10 @@ begin
     return;
   end if;
 
+  -- Effective-date boundary (inclusive per card):
+  --   card matches when effective_from <= trip_date AND (effective_to IS NULL OR effective_to >= trip_date).
+  -- Adjacent cards: card1.effective_to = D and card2.effective_from = D + 1
+  --   → trip on D resolves card1; trip on D + 1 resolves card2 (no overlap on D).
   return query
   select rc.unit_amount, rc.id, rc.effective_from
   from public.rate_cards rc
@@ -769,6 +773,155 @@ $$;
 grant execute on function public.backfill_staff_waybill(
   uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric
 ) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- upsert_company_with_trip_rate — atomic company + optional trip rate card
+-- ---------------------------------------------------------------------------
+
+grant usage on schema auth to authenticated;
+
+create or replace function public.upsert_company_with_trip_rate(
+  p_organisation_id uuid,
+  p_name text,
+  p_company_id uuid default null,
+  p_code text default null,
+  p_contact_name text default null,
+  p_contact_email text default null,
+  p_contact_phone text default null,
+  p_address text default null,
+  p_status public.entity_status default 'active',
+  p_trip_rate_amount numeric default null,
+  p_trip_rate_effective_from date default null,
+  p_trip_rate_name text default null,
+  p_trip_rate_notes text default null
+)
+returns public.companies
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_company public.companies%rowtype;
+  v_rate_name text;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not (
+    public.is_platform_owner()
+    or public.has_org_role_names(
+      p_organisation_id,
+      array['organisation_admin', 'manager', 'dispatcher', 'supervisor']
+    )
+  ) then
+    raise exception 'Not authorised to manage companies';
+  end if;
+
+  if p_name is null or trim(p_name) = '' then
+    raise exception 'Company name is required';
+  end if;
+
+  if p_company_id is null then
+    insert into public.companies (
+      organisation_id,
+      name,
+      code,
+      contact_name,
+      contact_email,
+      contact_phone,
+      address,
+      status,
+      created_by
+    )
+    values (
+      p_organisation_id,
+      trim(p_name),
+      nullif(trim(p_code), ''),
+      nullif(trim(p_contact_name), ''),
+      nullif(trim(p_contact_email), ''),
+      nullif(trim(p_contact_phone), ''),
+      nullif(trim(p_address), ''),
+      coalesce(p_status, 'active'),
+      auth.uid()
+    )
+    returning * into v_company;
+  else
+    update public.companies
+    set
+      name = trim(p_name),
+      code = nullif(trim(p_code), ''),
+      contact_name = nullif(trim(p_contact_name), ''),
+      contact_email = nullif(trim(p_contact_email), ''),
+      contact_phone = nullif(trim(p_contact_phone), ''),
+      address = nullif(trim(p_address), ''),
+      status = coalesce(p_status, status),
+      updated_at = timezone('utc', now())
+    where id = p_company_id
+      and organisation_id = p_organisation_id
+      and deleted_at is null
+    returning * into v_company;
+
+    if not found then
+      raise exception 'Company not found';
+    end if;
+  end if;
+
+  if p_trip_rate_amount is not null then
+    if p_trip_rate_effective_from is null then
+      raise exception 'Trip rate effective from is required when setting a trip rate';
+    end if;
+
+    v_rate_name := coalesce(nullif(trim(p_trip_rate_name), ''), v_company.name || ' trip rate');
+
+    insert into public.rate_cards (
+      organisation_id,
+      company_id,
+      name,
+      line_type,
+      unit,
+      unit_amount,
+      currency,
+      effective_from,
+      notes,
+      created_by
+    )
+    values (
+      p_organisation_id,
+      v_company.id,
+      v_rate_name,
+      'trip',
+      'fixed',
+      p_trip_rate_amount,
+      'ZAR',
+      p_trip_rate_effective_from,
+      nullif(trim(p_trip_rate_notes), ''),
+      auth.uid()
+    );
+  end if;
+
+  return v_company;
+end;
+$$;
+
+grant execute on function public.upsert_company_with_trip_rate(
+  uuid,
+  text,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  public.entity_status,
+  numeric,
+  date,
+  text,
+  text
+) to authenticated;
+
+comment on function public.upsert_company_with_trip_rate is
+  'Create or update a company and optionally append a trip rate card in one transaction (RLS applies).';
 
 -- ---------------------------------------------------------------------------
 -- Placeholder rate seeds (conditional; skip when company or rate missing)

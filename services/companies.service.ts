@@ -7,7 +7,6 @@ import {
   updateTenantRow,
   type ListTenantOptions,
 } from "@/services/tenant-entity.service";
-import { createRateCard } from "@/services/rate-cards.service";
 import type { Company, RateCard } from "@/types";
 
 const TABLE = "companies";
@@ -86,49 +85,58 @@ export type CompanyTripRateInput = {
   notes?: string | null;
 };
 
-export async function createCompanyTripRateCard(
-  organisationId: string,
-  companyId: string,
-  input: CompanyTripRateInput
-): Promise<RateCard> {
-  const label = input.name?.trim() || "Default trip rate";
-  return createRateCard(organisationId, {
-    company_id: companyId,
-    name: label,
-    line_type: "trip",
-    unit: "fixed",
-    unit_amount: input.unitAmount,
-    effective_from: input.effectiveFrom,
-    notes: input.notes ?? null,
-  });
-}
-
 export type CompanyWritePayload = Omit<
   Partial<Company>,
   "id" | "organisation_id" | "created_at" | "updated_at" | "deleted_at" | "created_by"
 > & { name: string };
 
-export async function createCompanyWithOptionalTripRate(
+async function upsertCompanyWithOptionalTripRate(
   organisationId: string,
+  companyId: string | null,
   company: CompanyWritePayload,
   tripRate?: CompanyTripRateInput | null
 ): Promise<Company> {
-  const created = await createCompany(organisationId, company);
-  if (tripRate) {
-    await createCompanyTripRateCard(organisationId, created.id, tripRate);
-  }
-  return created;
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("upsert_company_with_trip_rate", {
+    p_organisation_id: organisationId,
+    p_company_id: companyId,
+    p_name: company.name,
+    p_code: company.code ?? null,
+    p_contact_name: company.contact_name ?? null,
+    p_contact_email: company.contact_email ?? null,
+    p_contact_phone: company.contact_phone ?? null,
+    p_address: company.address ?? null,
+    p_status: company.status ?? "active",
+    p_trip_rate_amount: tripRate?.unitAmount ?? null,
+    p_trip_rate_effective_from: tripRate?.effectiveFrom ?? null,
+    p_trip_rate_name: tripRate?.name ?? null,
+    p_trip_rate_notes: tripRate?.notes ?? null,
+  });
+  if (error) throw error;
+  return data as Company;
 }
 
-export async function updateCompanyWithOptionalTripRate(
+export function createCompanyWithOptionalTripRate(
+  organisationId: string,
+  company: CompanyWritePayload,
+  tripRate?: CompanyTripRateInput | null
+) {
+  return upsertCompanyWithOptionalTripRate(organisationId, null, company, tripRate);
+}
+
+export function updateCompanyWithOptionalTripRate(
   companyId: string,
   organisationId: string,
   company: Partial<CompanyWritePayload>,
   tripRate?: CompanyTripRateInput | null
-): Promise<Company> {
-  const updated = await updateCompany(companyId, company);
-  if (tripRate) {
-    await createCompanyTripRateCard(organisationId, companyId, tripRate);
+) {
+  if (!company.name) {
+    throw new Error("Company name is required");
   }
-  return updated;
+  return upsertCompanyWithOptionalTripRate(
+    organisationId,
+    companyId,
+    company as CompanyWritePayload,
+    tripRate
+  );
 }
