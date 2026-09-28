@@ -326,12 +326,15 @@ declare
   trip_rate numeric;
   trip_card_id uuid;
   trip_company_id uuid;
+  v_rate_effective_on date;
+  v_trip_date date;
   pax_count int;
-  default_trip_rate constant numeric := 300;
   week_start_ts timestamptz;
   week_end_ts timestamptz;
   trip_company_label text;
   v_period_end date;
+  rate_err constant text :=
+    'No trip rate configured for this company. Add a rate before saving this waybill.';
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -479,22 +482,20 @@ begin
         order by t.planned_start
       loop
         trip_company_id := trip_row.company_id;
-        trip_rate := null;
-        trip_card_id := null;
+        v_trip_date := (trip_row.planned_start at time zone 'Africa/Johannesburg')::date;
 
-        select rc.unit_amount, rc.id into trip_rate, trip_card_id
-        from public.rate_cards rc
-        where rc.organisation_id = p_organisation_id
-          and rc.deleted_at is null
-          and rc.line_type = 'trip'
-          and rc.unit = 'trip'
-          and (rc.company_id = trip_company_id or rc.company_id is null)
-          and rc.effective_from <= p_period_start
-          and (rc.effective_to is null or rc.effective_to >= p_period_start)
-        order by rc.company_id nulls last, rc.effective_from desc
-        limit 1;
+        select r.unit_amount, r.rate_card_id, r.rate_effective_on
+        into trip_rate, trip_card_id, v_rate_effective_on
+        from public.resolve_trip_line_rate(
+          p_organisation_id,
+          trip_company_id,
+          v_trip_date
+        ) r;
 
-        trip_rate := coalesce(trip_rate, default_trip_rate);
+        if trip_rate is null then
+          raise exception '%', rate_err;
+        end if;
+
         line_amount := round(trip_rate, 2);
         running_total := running_total + line_amount;
         pax_count := coalesce(trip_row.pax_count, 0);
@@ -505,6 +506,8 @@ begin
           line_type,
           rate_card_id,
           trip_id,
+          trip_company_id,
+          rate_effective_on,
           description,
           quantity,
           unit_price,
@@ -516,6 +519,8 @@ begin
           'trip',
           trip_card_id,
           trip_row.id,
+          trip_company_id,
+          v_rate_effective_on,
           format(
             '%s · %s · %s · %s pax',
             trip_row.company_name,
@@ -544,4 +549,4 @@ end;
 $$;
 
 comment on function public.generate_driver_weekly_invoice(uuid, uuid, date, date) is
-  'Idempotent draft invoices for one driver Mon–Sun (Africa/Johannesburg); period_end is inclusive Sunday.';
+  'Idempotent draft invoices for one driver Mon–Sun (Africa/Johannesburg); period_end is inclusive Sunday; trip lines priced via resolve_trip_line_rate per trip date.';

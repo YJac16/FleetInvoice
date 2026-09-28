@@ -31,6 +31,16 @@ describe("invoice week window (Africa/Johannesburg)", () => {
     expect(weekPeriodEnd("2026-07-20")).toBe("2026-07-26");
   });
 
+  it("Mon–Sun service week spans seven calendar dates", () => {
+    const start = "2026-09-21";
+    const end = weekPeriodEnd(start);
+    expect(end).toBe("2026-09-27");
+    const startMs = new Date(`${start}T00:00:00.000Z`).getTime();
+    const endMs = new Date(`${end}T00:00:00.000Z`).getTime();
+    const daySpan = Math.round((endMs - startMs) / (24 * 60 * 60 * 1000));
+    expect(daySpan + 1).toBe(7);
+  });
+
   it("exclusive upper bound is next Monday 00:00 SAST for inclusive Sunday end", () => {
     const upper = weekPeriodUpperBoundExclusive("2026-09-21", "2026-09-27");
     expect(upper.format("YYYY-MM-DD HH:mm Z")).toBe("2026-09-28 00:00 +02:00");
@@ -47,7 +57,7 @@ describe("invoice week window (Africa/Johannesburg)", () => {
       isFilledAtInWeek("2026-09-21T06:00:00+02:00", weekStart)
     ).toBe(true);
     expect(
-      isFilledAtInWeek("2026-09-27T23:30:00+02:00", weekStart)
+      isFilledAtInWeek("2026-09-27T23:59:59+02:00", weekStart)
     ).toBe(true);
     expect(
       isFilledAtInWeek("2026-09-28T00:00:00+02:00", weekStart)

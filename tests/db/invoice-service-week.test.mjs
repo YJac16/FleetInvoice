@@ -90,12 +90,12 @@ record(
 
 const includesSundayTrip = psql(
   `select (
-    '2026-09-27T20:00:00Z'::timestamptz >= public.invoice_period_lower_bound_sast('2026-09-21'::date)
-    and '2026-09-27T20:00:00Z'::timestamptz < public.invoice_period_upper_bound_sast('2026-09-21'::date, '2026-09-27'::date)
+    '2026-09-27T21:59:59Z'::timestamptz >= public.invoice_period_lower_bound_sast('2026-09-21'::date)
+    and '2026-09-27T21:59:59Z'::timestamptz < public.invoice_period_upper_bound_sast('2026-09-21'::date, '2026-09-27'::date)
   );`
 );
 record(
-  "trip_window_includes_sunday_sast",
+  "trip_window_includes_sunday_235959_sast",
   includesSundayTrip === "t",
   includesSundayTrip
 );
