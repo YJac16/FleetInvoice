@@ -21,15 +21,39 @@ const heading = Source_Serif_4({
   variable: "--font-heading",
 });
 
+const description =
+  "GoOps — operations platform for transport operators to manage jobs, trips, vehicles, invoices and payments.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://workops-mu.vercel.app"),
   title: {
     default: APP_NAME,
     template: `%s · ${APP_NAME}`,
   },
-  description:
-    "GoOps — operations platform for transport operators to manage jobs, trips, vehicles, invoices and payments.",
+  description,
   manifest: "/manifest.webmanifest",
   applicationName: APP_NAME,
+  openGraph: {
+    title: "GoOps",
+    siteName: "GoOps",
+    description,
+    url: "/",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "GoOps logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GoOps",
+    description,
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: [
       { url: "/brand/goops-favicon.png", type: "image/png", sizes: "32x32" },
@@ -56,20 +80,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/brand/goops-favicon.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon-180x180.png"
-        />
-        <link rel="apple-touch-icon" href="/brand/goops-apple-touch.png" />
-      </head>
       <body
         className={`${sans.variable} ${mono.variable} ${heading.variable} font-sans antialiased`}
       >
