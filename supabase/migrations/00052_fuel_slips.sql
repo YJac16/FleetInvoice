@@ -2551,7 +2551,8 @@ begin
   end loop;
 
   for r in
-    select so.name
+    select so.name,
+           (select o.id from public.organisations o where o.id::text = split_part(so.name, '/', 1)) as org_id
     from storage.objects so
     where so.bucket_id = 'fuel-slips'
       and so.created_at < p_now - interval '24 hours'
@@ -2561,7 +2562,7 @@ begin
         where q.bucket_id = 'fuel-slips' and q.storage_path = so.name and q.purged_at is null
       )
   loop
-    perform public.enqueue_compliance_storage_purge('fuel-slips', r.name, null, null, 'fuel_orphan');
+    perform public.enqueue_compliance_storage_purge('fuel-slips', r.name, r.org_id, null, 'fuel_orphan');
     v_orphans := v_orphans + 1;
   end loop;
 
@@ -2715,7 +2716,7 @@ security definer
 set search_path = public
 as $$
 declare
-  period_end date;
+  v_period_end date;
   existing public.invoices%rowtype;
   inv public.invoices%rowtype;
   can_generate boolean;
@@ -2727,7 +2728,7 @@ begin
     raise exception 'Not authenticated';
   end if;
 
-  period_end := p_week_start + 7;
+  v_period_end := p_week_start + 7;
 
   can_generate := public.is_platform_owner()
     or public.has_org_role_names(
@@ -2757,7 +2758,7 @@ begin
   where i.organisation_id = p_organisation_id
     and i.company_id = p_company_id
     and i.period_start = p_week_start
-    and i.period_end = period_end
+    and i.period_end = v_period_end
     and i.deleted_at is null
     and i.status <> 'void'
   limit 1;
@@ -2778,7 +2779,7 @@ begin
     p_organisation_id,
     p_company_id,
     p_week_start,
-    period_end,
+    v_period_end,
     'draft',
     auth.uid()
   )
@@ -2792,7 +2793,7 @@ begin
       and f.deleted_at is null
       and f.review_status = 'approved'
       and f.filled_at >= p_week_start::timestamptz
-      and f.filled_at < period_end::timestamptz
+      and f.filled_at < v_period_end::timestamptz
     order by f.filled_at
   loop
     line_amount := coalesce(
