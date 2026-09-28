@@ -15,14 +15,25 @@ const PG_DB = process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit";
 
 const ORG_A = "a0000000-0000-4000-8000-000000000001";
 const ORG_A_ADMIN = "a0000000-0000-4000-8000-000000000011";
+const ORG_A_COMPANY = "a0000000-0000-4000-8000-000000000101";
 const INVITEE_ID = "d0000000-0000-4000-8000-000000000099";
+const TRIP_A = "a0000000-0000-4000-8000-000000000601";
+const ROUTE_A = "a0000000-0000-4000-8000-000000000602";
 
-const ANON_RPC_OK = ["get_invitation_by_token", "lookup_white_label"];
-const ANON_RLS_HELPERS = [
-  "is_platform_owner",
-  "has_org_role",
-  "user_organisation_ids",
-];
+/** Documented anon SECURITY DEFINER exception (2 public RPCs + 8 RLS helpers). */
+const ANON_DEFINER_ALLOWLIST = new Set([
+  "public.current_driver_id(uuid)",
+  "public.current_employee_id(uuid)",
+  "public.get_invitation_by_token(text)",
+  "public.has_company_scope(uuid,uuid)",
+  "public.has_org_role(uuid,app_role[])",
+  "public.has_org_role_names(uuid,text[])",
+  "public.is_org_member(uuid)",
+  "public.is_platform_owner()",
+  "public.lookup_white_label(text)",
+  "public.user_organisation_ids()",
+]);
+
 const ANON_RPC_DENIED = [
   "create_invitation",
   "generate_period_invoice",
@@ -90,14 +101,16 @@ function psqlAs(userId, sql, { allowError = false } = {}) {
   if (res.status !== 0 && !allowError) {
     throw new Error(res.stderr || res.stdout || "psqlAs failed");
   }
-  return {
-    ok: res.status === 0,
-    text: `${res.stderr ?? ""}${res.stdout ?? ""}`.trim(),
-  };
+  return { ok: res.status === 0, text: `${res.stderr ?? ""}${res.stdout ?? ""}`.trim() };
 }
 
 function psqlAsAnon(sql, { allowError = false } = {}) {
-  const body = `BEGIN;\nSET LOCAL ROLE anon;\n${sql}\nCOMMIT;`;
+  const body = `BEGIN;
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claim.role', 'anon', true);
+${sql}
+COMMIT;`;
   return psql(body, { allowError });
 }
 
@@ -121,6 +134,17 @@ function apply00052() {
   }
 }
 
+function seedTripFixture() {
+  psql(`
+INSERT INTO public.routes (id, organisation_id, company_id, name, status)
+VALUES ('${ROUTE_A}', '${ORG_A}', '${ORG_A_COMPANY}', 'RLS Test Route', 'active')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.trips (id, organisation_id, route_id, company_id, planned_start, status)
+VALUES ('${TRIP_A}', '${ORG_A}', '${ROUTE_A}', '${ORG_A_COMPANY}', now(), 'planned')
+ON CONFLICT (id) DO NOTHING;
+`);
+}
+
 function main() {
   record(
     "pre-00052-anon-had-privileged-rpc",
@@ -129,13 +153,8 @@ function main() {
   );
 
   apply00052();
+  seedTripFixture();
 
-  for (const name of ANON_RPC_OK) {
-    record(`anon-rpc-ok-${name}`, isTrue(fnExec("anon", name)), fnExec("anon", name));
-  }
-  for (const name of ANON_RLS_HELPERS) {
-    record(`anon-rls-helper-${name}`, isTrue(fnExec("anon", name)), fnExec("anon", name));
-  }
   for (const name of ANON_RPC_DENIED) {
     record(`anon-rpc-deny-${name}`, isFalse(fnExec("anon", name)), fnExec("anon", name));
   }
@@ -150,6 +169,27 @@ function main() {
     `auth=${fnExec("authenticated", "enqueue_compliance_renewals_digests")} svc=${fnExec("service_role", "enqueue_compliance_renewals_digests")}`
   );
 
+  const anonDefinerSigs = psql(
+    `SELECT coalesce(string_agg(p.oid::regprocedure::text, '|' ORDER BY p.oid::regprocedure::text), '')
+     FROM pg_proc p
+     JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.prosecdef
+       AND has_function_privilege('anon', p.oid, 'EXECUTE');`
+  ).text
+    .split("|")
+    .filter(Boolean)
+    .map((s) => (s.startsWith("public.") ? s : `public.${s}`));
+
+  record("anon-definer-exact-count-10", anonDefinerSigs.length === 10, String(anonDefinerSigs.length));
+  const unexpected = anonDefinerSigs.filter((s) => !ANON_DEFINER_ALLOWLIST.has(s));
+  const missing = [...ANON_DEFINER_ALLOWLIST].filter((s) => !anonDefinerSigs.includes(s));
+  record(
+    "anon-definer-signature-allowlist",
+    unexpected.length === 0 && missing.length === 0,
+    `unexpected=${unexpected.join(",") || "none"} missing=${missing.join(",") || "none"}`
+  );
+
   const rlsHelperSmoke = psqlAsAnon(
     "SELECT (NOT public.is_platform_owner() AND NOT EXISTS (SELECT 1 FROM public.user_organisation_ids()))::text;"
   );
@@ -157,6 +197,120 @@ function main() {
     "anon-rls-helper-smoke",
     rlsHelperSmoke.ok && isTrue(rlsHelperSmoke.text.split("\n").filter(Boolean).at(-1) ?? ""),
     rlsHelperSmoke.text.slice(0, 120)
+  );
+
+  // --- Anon real-table RLS (production-shaped SELECT grant on public tables) ---
+  const anonCompanies = psqlAsAnon(
+    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}';`
+  );
+  record("anon-rls-companies-zero", anonCompanies.ok && anonCompanies.text.endsWith("0"), anonCompanies.text);
+
+  const anonTrips = psqlAsAnon(
+    `SELECT count(*)::text FROM public.trips WHERE organisation_id = '${ORG_A}';`
+  );
+  record("anon-rls-trips-zero", anonTrips.ok && anonTrips.text.endsWith("0"), anonTrips.text);
+
+  const anonInvoices = psqlAsAnon(
+    `SELECT count(*)::text FROM public.invoices WHERE organisation_id = '${ORG_A}';`
+  );
+  record("anon-rls-invoices-zero", anonInvoices.ok && anonInvoices.text.endsWith("0"), anonInvoices.text);
+
+  const anonSubs = psqlAsAnon(`SELECT count(*)::text FROM public.subscriptions;`);
+  record("anon-rls-subscriptions-zero", anonSubs.ok && anonSubs.text.endsWith("0"), anonSubs.text);
+
+  const anonWl = psqlAsAnon(`SELECT count(*)::text FROM public.white_label_configs;`);
+  record("anon-rls-white_label-zero", anonWl.ok && anonWl.text.endsWith("0"), anonWl.text);
+
+  const anonPlans = psqlAsAnon(
+    `SELECT count(*)::text AS total,
+            count(*) FILTER (WHERE NOT is_active)::text AS inactive
+     FROM public.plans;`
+  );
+  const planLines = anonPlans.text.split("\n").filter(Boolean).pop()?.split("|") ?? [];
+  record(
+    "anon-rls-plans-active-catalog-only",
+    anonPlans.ok && (planLines[1] ?? "0") === "0",
+    "public catalog: active plans only (plans_select allows is_active OR platform_owner)"
+  );
+
+  const anonEnt = psqlAsAnon(
+    `SELECT count(*)::text AS total,
+            count(*) FILTER (WHERE NOT EXISTS (
+              SELECT 1 FROM public.plans p WHERE p.id = plan_id AND p.is_active
+            ) AND NOT EXISTS (
+              SELECT 1 FROM public.subscriptions s WHERE s.plan_id = plan_id
+            ))::text AS disallowed
+     FROM public.module_entitlements;`
+  );
+  const entLines = anonEnt.text.split("\n").filter(Boolean).pop()?.split("|") ?? [];
+  record(
+    "anon-rls-module_entitlements-policy",
+    anonEnt.ok && (entLines[1] ?? "0") === "0",
+    "allowed: entitlements on active plans (module_entitlements_select)"
+  );
+
+  const authCompanies = psqlAs(
+    ORG_A_ADMIN,
+    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}' AND deleted_at IS NULL;`
+  );
+  record(
+    "auth-rls-companies-org-rows",
+    authCompanies.ok && Number.parseInt(authCompanies.text.split("\n").pop() ?? "0", 10) >= 1,
+    authCompanies.text
+  );
+
+  const authInvoices = psqlAs(
+    ORG_A_ADMIN,
+    `SELECT count(*)::text FROM public.invoices WHERE organisation_id = '${ORG_A}' AND deleted_at IS NULL;`
+  );
+  record(
+    "auth-rls-invoices-org-rows",
+    authInvoices.ok && Number.parseInt(authInvoices.text.split("\n").pop() ?? "0", 10) >= 1,
+    authInvoices.text
+  );
+
+  const authTrips = psqlAs(
+    ORG_A_ADMIN,
+    `SELECT count(*)::text FROM public.trips WHERE organisation_id = '${ORG_A}' AND deleted_at IS NULL;`
+  );
+  record(
+    "auth-rls-trips-org-rows",
+    authTrips.ok && Number.parseInt(authTrips.text.split("\n").pop() ?? "0", 10) >= 1,
+    authTrips.text
+  );
+
+  // --- Default privileges (postgres creates a new function) ---
+  const defaultAcl = psql(
+    `SELECT count(*)::text FROM pg_default_acl d
+     JOIN pg_namespace n ON n.oid = d.defaclnamespace
+     WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+       AND d.defaclacl::text LIKE '%authenticated=X%'
+       AND d.defaclacl::text LIKE '%service_role=X%';`
+  );
+  record(
+    "default-privileges-acl-catalog",
+    defaultAcl.text.endsWith("1") || defaultAcl.text.endsWith("2"),
+    `postgres/supabase_admin function default ACL rows=${defaultAcl.text}`
+  );
+
+  const defaultPriv = psql(`
+CREATE OR REPLACE FUNCTION public._00052_default_priv_probe()
+RETURNS integer LANGUAGE sql AS $probe$ SELECT 1 $probe$;
+REVOKE ALL ON FUNCTION public._00052_default_priv_probe() FROM PUBLIC, anon;
+SELECT (
+  NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+  AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+  AND has_function_privilege('service_role', p.oid, 'EXECUTE')
+)::text
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = '_00052_default_priv_probe';
+DROP FUNCTION public._00052_default_priv_probe();
+`);
+  record(
+    "default-privileges-new-function",
+    defaultPriv.ok && isTrue(defaultPriv.text.split("\n").filter(Boolean).at(-1) ?? ""),
+    "after CREATE + REVOKE PUBLIC/anon (Postgres still grants PUBLIC on CREATE)"
   );
 
   const rlsOn = psql(
@@ -188,18 +342,6 @@ function main() {
     );
   }
 
-  const anonDefinerExtra = psql(
-    `SELECT count(*)::text FROM pg_proc p
-     JOIN pg_namespace n ON n.oid = p.pronamespace
-     WHERE n.nspname = 'public' AND p.prosecdef
-       AND has_function_privilege('anon', p.oid, 'EXECUTE')
-       AND p.proname <> ALL(
-         '{get_invitation_by_token,lookup_white_label,is_platform_owner,is_org_member,has_org_role,has_org_role_names,has_company_scope,user_organisation_ids,current_driver_id,current_employee_id}'::text[]
-       );`
-  ).text;
-  record("anon-definer-rpc-surface-clean", anonDefinerExtra === "0", anonDefinerExtra);
-
-  // handle_new_user trigger path (not via PostgREST)
   psql(
     `INSERT INTO auth.users (id, aud, role, email, encrypted_password, confirmed_at, created_at, updated_at, raw_user_meta_data)
      VALUES ('${INVITEE_ID}', 'authenticated', 'authenticated', 'invite-new@audit.test', 'x', now(), now(), now(), '{"full_name":"Invite New"}')
@@ -210,7 +352,6 @@ function main() {
   ).text;
   record("handle-new-user-profile", profileCount === "1", `profiles=${profileCount}`);
 
-  // Full invite flow
   const createInv = psqlAs(
     ORG_A_ADMIN,
     `SELECT (public.create_invitation('${ORG_A}'::uuid, 'invite-new@audit.test', 'manager'::public.app_role, now() + interval '7 days')).token;`
@@ -218,19 +359,14 @@ function main() {
   const token = createInv.text.split("\n").filter(Boolean).at(-1) ?? "";
   record("invite-create_invitation", createInv.ok && token.length > 8, token.slice(0, 12));
 
-  const preview = psqlAsAnon(
-    `SELECT email FROM public.get_invitation_by_token('${token}');`
-  );
+  const preview = psqlAsAnon(`SELECT email FROM public.get_invitation_by_token('${token}');`);
   record(
     "invite-anon-preview",
     preview.ok && preview.text.includes("invite-new@audit.test"),
     preview.text.slice(0, 80)
   );
 
-  const accept = psqlAs(
-    INVITEE_ID,
-    `SELECT public.accept_invitation('${token}')::text;`
-  );
+  const accept = psqlAs(INVITEE_ID, `SELECT public.accept_invitation('${token}')::text;`);
   const membership = psql(
     `SELECT count(*)::text FROM public.organisation_members
      WHERE organisation_id = '${ORG_A}' AND user_id = '${INVITEE_ID}' AND status = 'active';`

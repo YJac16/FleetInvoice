@@ -79,6 +79,11 @@ begin
 end;
 $$;
 
+-- Documented anon SECURITY DEFINER exception (10 signatures):
+--   get_invitation_by_token(text), lookup_white_label(text),
+--   is_platform_owner(), is_org_member(uuid), has_org_role(uuid, app_role[]),
+--   has_org_role_names(uuid, text[]), has_company_scope(uuid, uuid),
+--   user_organisation_ids(), current_driver_id(uuid), current_employee_id(uuid)
 -- RLS policy helpers (read-only; auth.uid() is null for anon).
 do $$
 declare
