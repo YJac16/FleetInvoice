@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:pr-a-waybill": "bash tests/db/run-pr-a-waybill-rate.sh",
     "test:rls": "node scripts/local-db/rls-isolation.test.mjs",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",

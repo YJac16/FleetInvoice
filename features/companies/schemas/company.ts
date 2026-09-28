@@ -10,6 +10,8 @@ export const companySchema = z.object({
   contact_phone: z.string().optional(),
   address: z.string().optional(),
   status: z.enum(ENTITY_STATUSES),
+  default_trip_rate_zar: z.string().optional(),
+  trip_rate_effective_from: z.string().optional(),
 });
 
 export type CompanyValues = z.infer<typeof companySchema>;

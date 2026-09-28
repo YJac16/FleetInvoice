@@ -87,7 +87,7 @@ export async function assignStaffTrip(
   organisationId: string,
   driverId: string,
   plannedStart: string,
-  staffCompany: StaffTransportCompany,
+  companyId: string,
   areaText: string,
   paxCount: number
 ): Promise<string> {
@@ -96,9 +96,10 @@ export async function assignStaffTrip(
     p_organisation_id: organisationId,
     p_driver_id: driverId,
     p_planned_start: plannedStart,
-    p_staff_company: staffCompany,
     p_area_text: areaText,
     p_pax_count: paxCount,
+    p_company_id: companyId,
+    p_staff_company: null,
   });
   if (error) throw error;
   return data as string;
@@ -108,7 +109,7 @@ export async function backfillStaffWaybill(
   organisationId: string,
   driverId: string,
   plannedStart: string,
-  staffCompany: StaffTransportCompany,
+  companyId: string,
   areaText: string,
   paxCount: number,
   openingKm?: number | null,
@@ -119,9 +120,10 @@ export async function backfillStaffWaybill(
     p_organisation_id: organisationId,
     p_driver_id: driverId,
     p_planned_start: plannedStart,
-    p_staff_company: staffCompany,
     p_area_text: areaText,
     p_pax_count: paxCount,
+    p_company_id: companyId,
+    p_staff_company: null,
     p_opening_km: openingKm ?? null,
     p_closing_km: closingKm ?? null,
   });
@@ -133,7 +135,8 @@ export async function updateStaffTrip(
   tripId: string,
   fields: {
     plannedStart?: string;
-    staffCompany?: StaffTransportCompany;
+    companyId?: string;
+    staffCompany?: StaffTransportCompany | null;
     areaText?: string;
     paxCount?: number;
   }
@@ -142,6 +145,7 @@ export async function updateStaffTrip(
   const { data, error } = await supabase.rpc("update_staff_trip", {
     p_trip_id: tripId,
     p_planned_start: fields.plannedStart ?? null,
+    p_company_id: fields.companyId ?? null,
     p_staff_company: fields.staffCompany ?? null,
     p_area_text: fields.areaText ?? null,
     p_pax_count: fields.paxCount ?? null,
