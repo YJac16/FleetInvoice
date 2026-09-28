@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Snapshot → apply 00052 → rollback → re-snapshot must match pre-image.
+ * Post-00051 baseline → snapshot → apply 00052 → rollback → re-snapshot identical.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,6 +62,7 @@ function normalizeSnap(snap) {
 
 function main() {
   const dir = mkdtempSync(join(tmpdir(), "00052-snap-"));
+  chmodSync(dir, 0o755);
   const beforePath = join(dir, "before.json");
   const afterPath = join(dir, "after.json");
   const rollbackPath = join(dir, "rollback.sql");

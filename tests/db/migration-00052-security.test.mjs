@@ -280,27 +280,29 @@ function main() {
   );
 
   // --- Default privileges (postgres creates a new function) ---
-  const defaultAcl = psql(
+  const defaultAclAnon = psql(
     `SELECT count(*)::text FROM pg_default_acl d
      JOIN pg_namespace n ON n.oid = d.defaclnamespace
      WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
-       AND d.defaclacl::text LIKE '%authenticated=X%'
-       AND d.defaclacl::text LIKE '%service_role=X%';`
+       AND d.defaclacl::text LIKE '%anon=X%';`
   );
   record(
-    "default-privileges-acl-catalog",
-    defaultAcl.text.endsWith("1") || defaultAcl.text.endsWith("2"),
-    `postgres/supabase_admin function default ACL rows=${defaultAcl.text}`
+    "default-privileges-no-anon-in-public-acl",
+    defaultAclAnon.text === "0",
+    `public function default ACL rows with anon=X: ${defaultAclAnon.text}`
   );
 
   const defaultPriv = psql(`
 CREATE OR REPLACE FUNCTION public._00052_default_priv_probe()
 RETURNS integer LANGUAGE sql AS $probe$ SELECT 1 $probe$;
-REVOKE ALL ON FUNCTION public._00052_default_priv_probe() FROM PUBLIC, anon;
 SELECT (
   NOT has_function_privilege('anon', p.oid, 'EXECUTE')
   AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
   AND has_function_privilege('service_role', p.oid, 'EXECUTE')
+  AND NOT EXISTS (
+    SELECT 1 FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+    WHERE acl.grantee = 0
+  )
 )::text
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -308,9 +310,9 @@ WHERE n.nspname = 'public' AND p.proname = '_00052_default_priv_probe';
 DROP FUNCTION public._00052_default_priv_probe();
 `);
   record(
-    "default-privileges-new-function",
+    "default-privileges-new-function-no-manual-revoke",
     defaultPriv.ok && isTrue(defaultPriv.text.split("\n").filter(Boolean).at(-1) ?? ""),
-    "after CREATE + REVOKE PUBLIC/anon (Postgres still grants PUBLIC on CREATE)"
+    defaultPriv.text.split("\n").filter(Boolean).at(-1) ?? defaultPriv.text
   );
 
   const rlsOn = psql(

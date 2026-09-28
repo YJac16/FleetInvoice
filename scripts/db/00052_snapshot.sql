@@ -12,7 +12,11 @@ SELECT json_build_object(
         p.oid::regprocedure::text AS regprocedure,
         pg_get_userbyid(p.proowner)::text AS owner,
         coalesce(p.proconfig, ARRAY[]::text[]) AS proconfig,
-        has_function_privilege('PUBLIC', p.oid, 'EXECUTE') AS public_execute,
+        EXISTS (
+          SELECT 1
+          FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+          WHERE acl.grantee = 0
+        ) AS public_execute,
         has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_execute,
         has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_execute,
         has_function_privilege('service_role', p.oid, 'EXECUTE') AS service_role_execute
