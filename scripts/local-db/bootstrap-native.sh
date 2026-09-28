@@ -68,9 +68,9 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'audit_rls') THEN
     CREATE ROLE audit_rls LOGIN PASSWORD 'audit_rls_test' NOBYPASSRLS;
     GRANT USAGE ON SCHEMA public TO audit_rls;
-    GRANT authenticated TO audit_rls;
   END IF;
   ALTER ROLE audit_rls WITH PASSWORD 'audit_rls_test';
+  GRANT authenticated TO audit_rls;
   GRANT USAGE ON SCHEMA public TO authenticated, anon, service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
@@ -163,5 +163,11 @@ DO $$ BEGIN
   GRANT SELECT, INSERT, UPDATE ON public.compliance_storage_purge_queue TO service_role;
 END $$;
 SQL
+
+if [[ -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql" ]]; then
+  echo "Re-applying 00052 after bootstrap broad grants..."
+  sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
+    -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
+fi
 
 echo "Native audit DB ready: db=workops_audit host=127.0.0.1 port=${PORT}"
