@@ -1,5 +1,7 @@
 import type { RateCard } from "@/types";
 
+/** Trip rate effective dates are resolved in Postgres (`resolve_trip_line_rate`): inclusive per card; adjacent cards use effective_to = D and effective_from = D + 1. */
+
 export function formatTripRateZar(amount: number): string {
   return amount.toFixed(2);
 }
