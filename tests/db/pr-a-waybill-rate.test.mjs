@@ -106,6 +106,36 @@ COMMIT;
   };
 }
 
+function psqlAsService(sql, { allowError = false } = {}) {
+  const body = `
+BEGIN;
+SET LOCAL ROLE service_role;
+${sql}
+COMMIT;
+`;
+  const res = spawnSync(
+    "sudo",
+    [
+      "-u",
+      "postgres",
+      "psql",
+      "-q",
+      "-d",
+      PG.database,
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-tA",
+      "-c",
+      body,
+    ],
+    { encoding: "utf8" }
+  );
+  if (res.status !== 0 && !allowError) {
+    throw new Error(res.stderr || res.stdout || "psqlAsService failed");
+  }
+  return (res.stdout ?? "").trim().split("\n").filter(Boolean).at(-1) ?? "";
+}
+
 function psqlAs(userId, sql, { allowError = false } = {}) {
   const body = `
 BEGIN;
@@ -296,7 +326,7 @@ record(
 );
 
 const dupTrip = backfill(adminA, LEWIS_C, "2026-09-25 08:00:00+02", "Idempotent");
-psqlAs(adminA, `select public.sync_staff_trip_invoice_line('${dupTrip.out}'::uuid, false)::text;`);
+psqlAsService(`select public.sync_staff_trip_invoice_line('${dupTrip.out}'::uuid, false)::text;`);
 const lineCount = psqlAdmin(
   `select count(*)::text from public.invoice_lines where trip_id = '${dupTrip.out}'::uuid;`
 );
@@ -421,7 +451,7 @@ psqlAdmin(`
   insert into public.rate_cards (organisation_id, company_id, name, line_type, unit, unit_amount, effective_from)
   values ('${ORG_A}', '${HIST_CO}', 'Historical Co future rate', 'trip', 'fixed', 450, date '2026-10-01');
 `);
-psqlAs(adminA, `select public.sync_staff_trip_invoice_line('${histTrip.out}'::uuid, false)::text;`);
+psqlAsService(`select public.sync_staff_trip_invoice_line('${histTrip.out}'::uuid, false)::text;`);
 const histAmount = psqlAdmin(
   `select unit_price::text from public.invoice_lines where trip_id = '${histTrip.out}'::uuid;`
 );

@@ -11,8 +11,11 @@ const PG = {
   port: PORT,
   user: process.env.WORKOPS_AUDIT_PG_USER ?? "audit_rls",
   password: process.env.WORKOPS_AUDIT_PG_PASSWORD ?? "audit_rls_test",
-  database: "postgres",
+  database: process.env.WORKOPS_AUDIT_PG_DATABASE ?? "postgres",
 };
+const ADMIN_DB_USER =
+  process.env.WORKOPS_AUDIT_PG_ADMIN_USER ??
+  (process.env.WORKOPS_AUDIT_PG_NATIVE === "1" ? "supabase_admin" : "supabase_admin");
 
 function psql(sql, { asRole = "authenticated", userId, commit = false } = {}) {
   const jwt = userId
@@ -85,8 +88,8 @@ const signupA = "c0000000-0000-4000-8000-000000000011";
 const signupB = "c0000000-0000-4000-8000-000000000012";
 const platform = "f0000000-0000-4000-8000-000000000001";
 
-try {
-  spawnSync(
+{
+  const probe = spawnSync(
     "psql",
     [
       "-q",
@@ -95,7 +98,7 @@ try {
       "-p",
       PG.port,
       "-U",
-      "supabase_admin",
+      ADMIN_DB_USER,
       "-d",
       PG.database,
       "-tA",
@@ -103,12 +106,13 @@ try {
       "select 1;",
     ],
     { env: { ...process.env, PGPASSWORD: "postgres" }, encoding: "utf8" }
-  ).status;
-} catch {
-  console.error(
-    `Local Postgres not reachable on ${PG.host}:${PORT}. Run: bash scripts/local-db/bootstrap.sh`
   );
-  process.exit(1);
+  if (probe.status !== 0) {
+    console.error(
+      `Local Postgres not reachable on ${PG.host}:${PORT} db=${PG.database}. Run: bash scripts/local-db/bootstrap-for-rls.sh`
+    );
+    process.exit(1);
+  }
 }
 
 // Org A admin sees own invoices only
@@ -277,7 +281,7 @@ function adminPsql(sql) {
       "-p",
       PG.port,
       "-U",
-      "supabase_admin",
+      ADMIN_DB_USER,
       "-d",
       PG.database,
       "-v",
