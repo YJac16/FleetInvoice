@@ -112,10 +112,11 @@ begin
   end loop;
 end $$;
 
--- Large amount fuel line in same week
+-- Large amount fuel line in same week (legacy approved row: pre-dates fuel slip capture)
 insert into public.fuel_fillups (
   id, organisation_id, company_id, driver_id, vehicle_id,
-  filled_at, litres, unit_price, total_amount, odometer_km
+  filled_at, litres, unit_price, total_amount, odometer_km,
+  entry_method, review_status, slip_vrn_status, calculated_total
 )
 values (
   'a0000000-0000-4000-8000-000000000951',
@@ -124,9 +125,13 @@ values (
   'a0000000-0000-4000-8000-000000000201',
   'a0000000-0000-4000-8000-000000000701',
   '2026-09-24 12:00:00+00',
-  80,
-  999.99,
+  800,
+  99.999,
   79999.20,
-  150000
+  150000,
+  'legacy_manual',
+  'approved',
+  'legacy',
+  79999.20
 )
 on conflict (id) do nothing;
