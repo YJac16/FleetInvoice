@@ -219,6 +219,18 @@ for (const [label, companyId, expected] of [
     `select il.unit_price::text from public.invoice_lines il where il.trip_id = '${trip.out}'::uuid;`
   );
   record(`RATE-${label}`, moneyEq(amount, expected), `unit_price=${amount}`);
+  if (label === "springbok-440") {
+    const periodEnd = psqlAdmin(
+      `select i.period_end::text from public.invoices i
+       join public.invoice_lines il on il.invoice_id = i.id
+       where il.trip_id = '${trip.out}'::uuid;`
+    );
+    record(
+      "BACKFILL-period_end_inclusive_sunday",
+      periodEnd === "2026-09-27",
+      `period_end=${periodEnd}`
+    );
+  }
 }
 
 const blocked = psqlAs(
