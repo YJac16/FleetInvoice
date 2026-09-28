@@ -161,7 +161,7 @@ DO $$ BEGIN
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_temp_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_quota TO service_role;
   GRANT SELECT, INSERT, UPDATE ON public.compliance_storage_purge_queue TO service_role;
-  -- 00052 fuel slips: all writes via service-role RPCs (bootstrap broad grant must not reopen)
+  -- 00053 fuel slips: all writes via service-role RPCs (bootstrap broad grant must not reopen)
   IF to_regclass('public.fuel_slip_photos') IS NOT NULL THEN
     REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fuel_fillups, public.fuel_slip_photos,
       public.fuel_entry_flags, public.fuel_settings FROM PUBLIC, anon, authenticated;

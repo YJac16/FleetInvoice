@@ -1,7 +1,8 @@
 -- =============================================================================
 -- GoOps — Fuel slip capture (spec v2, 27 Sep 2026)
--- Requires 00048 (service-role-only write_audit_log), 00041 (purge queue) and
--- 00051_fuel_slip_enums.sql (driver_notification_type fuel_slip_queried/_rejected).
+-- Requires 00048 (service-role-only write_audit_log), 00041 (purge queue),
+-- 00051_fuel_slip_enums.sql (driver_notification_type fuel_slip_queried/_rejected),
+-- and 00052_security_hardening_anon_rpc_quota_rls.sql (default EXECUTE privileges).
 --
 -- * fuel_fillups stays the single canonical fuel transaction (spec §6.1).
 -- * Every value list is TEXT + CHECK (no new enums in this migration).
@@ -3228,7 +3229,6 @@ revoke all on function public.fuel_slip_normalise_fields(jsonb, text) from publi
 revoke all on function public.fuel_slip_photo_input(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.fuel_refresh_flag_counts(uuid) from public, anon, authenticated;
 revoke all on function public.fuel_slip_result(uuid) from public, anon, authenticated;
-revoke all on function public.save_vehicle_capture(uuid, uuid, uuid, jsonb) from public, anon, authenticated;
 
 grant execute on function public.submit_fuel_slip(uuid, uuid, uuid, uuid, jsonb, jsonb) to service_role;
 grant execute on function public.update_fuel_slip(uuid, uuid, uuid, jsonb, timestamptz) to service_role;
@@ -3253,7 +3253,34 @@ grant execute on function public.fuel_slip_normalise_fields(jsonb, text) to serv
 grant execute on function public.fuel_slip_photo_input(uuid, jsonb) to service_role;
 grant execute on function public.fuel_refresh_flag_counts(uuid) to service_role;
 grant execute on function public.fuel_slip_result(uuid) to service_role;
-grant execute on function public.save_vehicle_capture(uuid, uuid, uuid, jsonb) to service_role;
+
+-- 00052 sets ALTER DEFAULT PRIVILEGES (authenticated + service_role on new functions).
+-- Re-assert: fuel SECURITY DEFINER surface is service_role only (no anon/authenticated).
+do $$
+declare
+  r record;
+begin
+  for r in
+    select p.oid::regprocedure as fn
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prosecdef
+      and (
+        p.proname like 'fuel\_%'
+        or p.proname in (
+          'submit_fuel_slip', 'update_fuel_slip', 'replace_fuel_slip_photo', 'review_fuel_slip',
+          'void_fuel_slip', 'privacy_purge_fuel_slip_photo', 'audit_fuel_slip_photo_view',
+          'audit_fuel_report_export', 'save_fuel_settings', 'run_fuel_slip_retention',
+          'evaluate_fuel_entry_flags', 'log_fuel_fillup'
+        )
+      )
+  loop
+    execute format('revoke all on function %s from public, anon, authenticated', r.fn);
+    execute format('grant execute on function %s to service_role', r.fn);
+  end loop;
+end;
+$$;
 
 comment on function public.log_fuel_fillup(uuid, uuid, numeric, numeric, uuid, uuid, timestamptz, numeric, text, text) is
   'RETIRED (fuel slip spec v2). No client EXECUTE; kept for rollback only, drop in a later clean-up.';
