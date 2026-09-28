@@ -778,8 +778,6 @@ grant execute on function public.backfill_staff_waybill(
 -- upsert_company_with_trip_rate — atomic company + optional trip rate card
 -- ---------------------------------------------------------------------------
 
-grant usage on schema auth to authenticated;
-
 create or replace function public.upsert_company_with_trip_rate(
   p_organisation_id uuid,
   p_name text,
