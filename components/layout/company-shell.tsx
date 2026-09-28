@@ -9,6 +9,7 @@ import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { isFuelSlipCaptureUiEnabled } from "@/lib/fuel/feature";
 import type { Permission } from "@/lib/permissions";
 import { signOut } from "@/services/auth.service";
 import type { MembershipWithOrg, Profile } from "@/types";
@@ -64,7 +65,11 @@ function CompanyHeader() {
         </div>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-4 pb-2 md:px-6">
-        {COMPANY_NAV.filter((item) => can(item.permission)).map((item) => {
+        {COMPANY_NAV.filter(
+          (item) =>
+            (item.href !== "/company/fuel" || isFuelSlipCaptureUiEnabled()) &&
+            can(item.permission)
+        ).map((item) => {
           const active =
             item.href === "/company"
               ? pathname === "/company"
