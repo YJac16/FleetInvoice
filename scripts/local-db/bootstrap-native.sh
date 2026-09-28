@@ -126,6 +126,35 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) TO service_role;
+  -- 00050 PR A function hardening (bootstrap broad grant must not reopen anon/public)
+  REVOKE EXECUTE ON FUNCTION public.resolve_trip_line_rate(uuid, uuid, date)
+    FROM PUBLIC, anon, authenticated;
+  REVOKE EXECUTE ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.update_staff_trip(
+    uuid, timestamptz, uuid, public.staff_transport_company, text, int
+  ) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.update_staff_trip(
+    uuid, timestamptz, uuid, public.staff_transport_company, text, int
+  ) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.assign_staff_trip(
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company
+  ) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.assign_staff_trip(
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company
+  ) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.backfill_staff_waybill(
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric
+  ) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.backfill_staff_waybill(
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric
+  ) TO authenticated;
+  REVOKE EXECUTE ON FUNCTION public.upsert_company_with_trip_rate(
+    uuid, text, uuid, text, text, text, text, text, public.entity_status, numeric, date, text, text
+  ) FROM PUBLIC, anon;
+  GRANT EXECUTE ON FUNCTION public.upsert_company_with_trip_rate(
+    uuid, text, uuid, text, text, text, text, text, public.entity_status, numeric, date, text, text
+  ) TO authenticated;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;

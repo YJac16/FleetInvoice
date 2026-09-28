@@ -73,6 +73,39 @@ function psqlAdmin(sql) {
   return (res.stdout ?? "").trim().split("\n").filter(Boolean).at(-1) ?? "";
 }
 
+function psqlAsAnon(sql, { allowError = false } = {}) {
+  const body = `
+BEGIN;
+SET LOCAL ROLE anon;
+${sql}
+COMMIT;
+`;
+  const res = spawnSync(
+    "sudo",
+    [
+      "-u",
+      "postgres",
+      "psql",
+      "-q",
+      "-d",
+      PG.database,
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-tA",
+      "-c",
+      body,
+    ],
+    { encoding: "utf8" }
+  );
+  if (res.status !== 0 && !allowError) {
+    throw new Error(res.stderr || res.stdout || "psqlAsAnon failed");
+  }
+  return {
+    ok: res.status === 0,
+    text: `${res.stderr ?? ""}${res.stdout ?? ""}`,
+  };
+}
+
 function psqlAs(userId, sql, { allowError = false } = {}) {
   const body = `
 BEGIN;
@@ -400,6 +433,52 @@ record(
   "BOUNDARY-effective-to",
   moneyEq(boundaryD, "100.00") && moneyEq(boundaryD1, "200.00"),
   `D=${boundaryD} D+1=${boundaryD1}`
+);
+
+const updateStaffTripOverloads = psqlAdmin(`
+  select count(*)::text
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname = 'update_staff_trip';
+`);
+record(
+  "HARDENING-update-staff-trip-single-overload",
+  updateStaffTripOverloads === "1",
+  `overload_count=${updateStaffTripOverloads}`
+);
+
+const anonResolve = psqlAsAnon(
+  `select unit_amount::text from public.resolve_trip_line_rate('${ORG_A}'::uuid, '${WCL}'::uuid, current_date) limit 1;`,
+  { allowError: true }
+);
+record(
+  "SECURITY-anon-resolve-trip-line-rate",
+  !anonResolve.ok && /permission denied|42501/i.test(anonResolve.text),
+  anonResolve.text.slice(0, 120)
+);
+
+const anonBackfill = psqlAsAnon(
+  `select public.backfill_staff_waybill('${ORG_A}', '${driverA}', timezone('utc', now()), 'Anon area', 1, '${WCL}'::uuid)::text;`,
+  { allowError: true }
+);
+record(
+  "SECURITY-anon-backfill-staff-waybill",
+  !anonBackfill.ok && /permission denied|42501/i.test(anonBackfill.text),
+  anonBackfill.text.slice(0, 120)
+);
+
+const crossOrgResolve = psqlAs(
+  adminB,
+  `select unit_amount::text from public.resolve_trip_line_rate('${ORG_A}'::uuid, '${WCL}'::uuid, current_date) limit 1;`,
+  { allowError: true }
+);
+record(
+  "SECURITY-cross-org-resolve-trip-line-rate",
+  !crossOrgResolve.ok &&
+    (/permission denied|42501|Not authorised/i.test(crossOrgResolve.text) ||
+      crossOrgResolve.text.includes("ERROR")),
+  crossOrgResolve.text.slice(0, 160)
 );
 
 const passed = results.filter((r) => r.pass).length;
