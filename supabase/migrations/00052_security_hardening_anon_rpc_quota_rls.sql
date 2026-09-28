@@ -3,9 +3,10 @@
 --          invoker search_path pins, default function privileges
 -- =============================================================================
 -- Idempotent on production shape (tggxnvombexvxblsntsm). Revokes EXECUTE from
--- PUBLIC and anon on SECURITY DEFINER public functions; re-grants authenticated
--- and service_role per intended surface. Keeps anon EXECUTE only on token-based
--- invite preview and white-label hostname lookup.
+-- PUBLIC and anon on SECURITY DEFINER public RPCs; re-grants authenticated and
+-- service_role per intended surface. Keeps anon EXECUTE on public RPCs
+-- (get_invitation_by_token, lookup_white_label) and read-only RLS helpers used
+-- when anon evaluates policies on Supabase-SELECTable public tables.
 
 -- ---------------------------------------------------------------------------
 -- 1) SECURITY DEFINER RPC grants — revoke PUBLIC/anon; restore role grants
@@ -78,7 +79,37 @@ begin
 end;
 $$;
 
--- Auth signup trigger (SECURITY DEFINER); keep off API roles.
+-- RLS policy helpers (read-only; auth.uid() is null for anon).
+do $$
+declare
+  r record;
+  v_anon_rls_helpers text[] := array[
+    'is_platform_owner',
+    'is_org_member',
+    'has_org_role',
+    'has_org_role_names',
+    'has_company_scope',
+    'user_organisation_ids',
+    'current_driver_id',
+    'current_employee_id'
+  ];
+begin
+  for r in
+    select
+      p.proname,
+      pg_get_function_identity_arguments(p.oid) as args
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prosecdef
+      and p.proname = any (v_anon_rls_helpers)
+  loop
+    execute format('grant execute on function public.%I(%s) to anon', r.proname, r.args);
+  end loop;
+end;
+$$;
+
+-- Auth signup trigger (SECURITY DEFINER); not a PostgREST RPC.
 do $$
 begin
   if exists (
@@ -90,6 +121,10 @@ begin
       and p.prosecdef
   ) then
     revoke all on function public.handle_new_user() from public, anon, authenticated;
+    grant execute on function public.handle_new_user() to postgres;
+    if exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+      grant execute on function public.handle_new_user() to supabase_auth_admin;
+    end if;
   end if;
 end;
 $$;

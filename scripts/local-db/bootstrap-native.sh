@@ -44,7 +44,12 @@ sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -c \
   "ALTER DATABASE workops_audit SET search_path TO public, extensions, storage, auth;"
 
 for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
-  echo "Applying $(basename "$f")..."
+  base=$(basename "$f")
+  if [[ -n "${WORKOPS_SKIP_MIGRATION_PREFIX:-}" && "$base" == "${WORKOPS_SKIP_MIGRATION_PREFIX}"* ]]; then
+    echo "Skipping $base (WORKOPS_SKIP_MIGRATION_PREFIX)..."
+    continue
+  fi
+  echo "Applying $base..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$f"
 done
 
@@ -164,7 +169,7 @@ DO $$ BEGIN
 END $$;
 SQL
 
-if [[ -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql" ]]; then
+if [[ -z "${WORKOPS_SKIP_MIGRATION_PREFIX:-}" && -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql" ]]; then
   echo "Re-applying 00052 after bootstrap broad grants..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
     -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
