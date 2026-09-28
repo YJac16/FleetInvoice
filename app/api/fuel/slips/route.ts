@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { fuelSlipFieldsSchema } from "@/features/fuel/schemas/fuel-slip";
-import { filledAtFromSastParts } from "@/features/fuel/lib/sast";
 import { validateFuelSlipFile } from "@/lib/fuel/file-validation";
 import { FUEL_SLIPS_BUCKET } from "@/lib/fuel/constants";
 import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
@@ -68,11 +67,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "service_unavailable" }, { status: 503 });
   }
 
-  const filledAt = filledAtFromSastParts(
-    parsed.data.filled_at_local_date,
-    parsed.data.filled_at_local_time
-  );
-
   const fillupId = crypto.randomUUID();
   const photoId = crypto.randomUUID();
   const ext = mimeToFuelExt(validated.mime);
@@ -92,7 +86,8 @@ export async function POST(request: Request) {
   }
 
   const fields = {
-    filled_at: filledAt,
+    filled_date: parsed.data.filled_at_local_date,
+    filled_time: parsed.data.filled_at_local_time,
     litres: parsed.data.litres,
     unit_price: parsed.data.unit_price,
     total_amount: parsed.data.total_amount,

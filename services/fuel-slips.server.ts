@@ -96,8 +96,12 @@ export function buildFuelSlipStoragePath(input: {
   fillupId: string;
   photoId: string;
   ext: string;
+  now?: Date;
 }): string {
-  return `${input.organisationId}/fuel-slips/${input.fillupId}/${input.photoId}.${input.ext}`;
+  const now = input.now ?? new Date();
+  const yyyy = String(now.getUTCFullYear());
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${input.organisationId}/fillups/${yyyy}/${mm}/${input.fillupId}/${input.photoId}.${input.ext}`;
 }
 
 export function mimeToFuelExt(mime: string): string {
