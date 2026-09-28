@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
 import { Building2 } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -12,17 +13,23 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextAreaField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import {
+  defaultEffectiveFromDate,
+  latestTripRateCard,
+} from "@/features/companies/lib/company-trip-rate";
+import {
   companySchema,
   type CompanyValues,
 } from "@/features/companies/schemas/company";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import {
-  createCompany,
+  createCompanyWithOptionalTripRate,
   deleteCompany,
   listCompanies,
+  listCompanyTripRateCards,
   restoreCompany,
-  updateCompany,
+  updateCompanyWithOptionalTripRate,
+  type CompanyTripRateInput,
 } from "@/services/companies.service";
 import type { Company } from "@/types";
 import { queryKeys } from "@/utils/query";
@@ -37,15 +44,39 @@ function emptyToNull(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function parseTripRate(values: CompanyValues): CompanyTripRateInput | null {
+  const raw = values.default_trip_rate_zar?.trim();
+  if (!raw) return null;
+  const amount = Number.parseFloat(raw);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return {
+    unitAmount: amount,
+    effectiveFrom: values.trip_rate_effective_from?.trim() || defaultEffectiveFromDate(),
+  };
+}
+
 function CompanyForm({
+  organisationId,
   initial,
   onSubmit,
   submitting,
 }: {
+  organisationId: string;
   initial?: Company;
   onSubmit: (values: Record<string, unknown>) => void;
   submitting: boolean;
 }) {
+  const ratesQuery = useQuery({
+    queryKey: ["company-trip-rates", organisationId, initial?.id],
+    queryFn: () => listCompanyTripRateCards(organisationId, initial!.id),
+    enabled: Boolean(initial?.id),
+  });
+
+  const latestRate = useMemo(
+    () => latestTripRateCard(ratesQuery.data ?? []),
+    [ratesQuery.data]
+  );
+
   const form = useForm<CompanyValues>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -56,23 +87,29 @@ function CompanyForm({
       contact_phone: initial?.contact_phone ?? "",
       address: initial?.address ?? "",
       status: initial?.status ?? "active",
+      default_trip_rate_zar: "",
+      trip_rate_effective_from: defaultEffectiveFromDate(),
     },
   });
 
   return (
     <form
       className="space-y-4"
-      onSubmit={form.handleSubmit((values) =>
+      onSubmit={form.handleSubmit((values) => {
+        const tripRate = parseTripRate(values);
         onSubmit({
-          name: values.name.trim(),
-          code: emptyToNull(values.code),
-          contact_name: emptyToNull(values.contact_name),
-          contact_email: emptyToNull(values.contact_email),
-          contact_phone: emptyToNull(values.contact_phone),
-          address: emptyToNull(values.address),
-          status: values.status,
-        })
-      )}
+          company: {
+            name: values.name.trim(),
+            code: emptyToNull(values.code),
+            contact_name: emptyToNull(values.contact_name),
+            contact_email: emptyToNull(values.contact_email),
+            contact_phone: emptyToNull(values.contact_phone),
+            address: emptyToNull(values.address),
+            status: values.status,
+          },
+          tripRate,
+        });
+      })}
     >
       <TextField control={form.control} name="name" label="Name" />
       <TextField control={form.control} name="code" label="Code" />
@@ -95,6 +132,36 @@ function CompanyForm({
         label="Status"
         options={statusOptions}
       />
+
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+        <div>
+          <p className="text-sm font-medium">Default trip rate (ZAR)</p>
+          <p className="text-xs text-muted-foreground">
+            Saved as a rate card (effective-dated). Changing the rate here creates a new
+            rate card row; older invoice lines keep their original amounts.
+          </p>
+          {initial && latestRate ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Current trip rate: ZAR {Number(latestRate.unit_amount).toFixed(2)} effective{" "}
+              {latestRate.effective_from}
+            </p>
+          ) : null}
+        </div>
+        <TextField
+          control={form.control}
+          name="default_trip_rate_zar"
+          label="Trip rate (ZAR)"
+          type="number"
+          placeholder={initial ? "Leave blank to keep current rate" : "e.g. 300"}
+        />
+        <TextField
+          control={form.control}
+          name="trip_rate_effective_from"
+          label="Rate effective from"
+          type="date"
+        />
+      </div>
+
       <Button type="submit" disabled={submitting} className="w-full">
         {submitting ? "Saving…" : "Save"}
       </Button>
@@ -135,15 +202,34 @@ export function CompaniesPage() {
       columns={columns}
       list={listCompanies}
       create={
-        canManage
-          ? (orgId, values) =>
-              createCompany(orgId, values as Parameters<typeof createCompany>[1])
+        canManage && organisationId
+          ? async (_orgId, values) => {
+              const payload = values as {
+                company: Parameters<typeof createCompanyWithOptionalTripRate>[1];
+                tripRate: CompanyTripRateInput | null;
+              };
+              return createCompanyWithOptionalTripRate(
+                organisationId,
+                payload.company,
+                payload.tripRate
+              );
+            }
           : undefined
       }
       update={
-        canManage
-          ? (id, values) =>
-              updateCompany(id, values as Parameters<typeof updateCompany>[1])
+        canManage && organisationId
+          ? async (id, values) => {
+              const payload = values as {
+                company: Partial<Parameters<typeof createCompanyWithOptionalTripRate>[1]>;
+                tripRate: CompanyTripRateInput | null;
+              };
+              return updateCompanyWithOptionalTripRate(
+                id,
+                organisationId,
+                payload.company,
+                payload.tripRate
+              );
+            }
           : undefined
       }
       remove={canManage ? deleteCompany : undefined}
@@ -158,14 +244,17 @@ export function CompaniesPage() {
       }
       emptyIcon={Building2}
       createLabel="Add company"
-      renderForm={({ initial, onSubmit, submitting }) => (
-        <CompanyForm
-          key={initial?.id ?? "create"}
-          initial={initial}
-          onSubmit={onSubmit}
-          submitting={submitting}
-        />
-      )}
+      renderForm={({ initial, onSubmit, submitting }) =>
+        organisationId ? (
+          <CompanyForm
+            key={initial?.id ?? "create"}
+            organisationId={organisationId}
+            initial={initial}
+            onSubmit={onSubmit}
+            submitting={submitting}
+          />
+        ) : null
+      }
     />
   );
 }

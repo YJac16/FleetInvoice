@@ -85,6 +85,8 @@ describe("buildTripPrintRow pipe descriptions", () => {
     fuel_fillup_id: null,
     rate_card_id: null,
     trip_id: "trip-1",
+    trip_company_id: null,
+    rate_effective_on: null,
     description:
       "31/08/2026 18:00 | Lewis Head Office | 1 pax | Central / WEX William St",
     quantity: 1,

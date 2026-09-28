@@ -133,6 +133,8 @@ describe("buildTripPrintRow", () => {
     fuel_fillup_id: null,
     rate_card_id: null,
     trip_id: "trip-1",
+    trip_company_id: null,
+    rate_effective_on: null,
     description: "Completed trip",
     quantity: 1,
     unit_price: 300,

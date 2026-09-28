@@ -348,6 +348,8 @@ export type InvoiceLine = {
   fuel_fillup_id: string | null;
   rate_card_id: string | null;
   trip_id: string | null;
+  trip_company_id: string | null;
+  rate_effective_on: string | null;
   description: string;
   quantity: number;
   unit_price: number;

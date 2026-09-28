@@ -16,9 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { staffCompanyOptions } from "@/features/driver-portal/lib/trip-labels";
-import { STAFF_TRANSPORT_COMPANIES } from "@/lib/constants";
 import { listDrivers } from "@/services/drivers.service";
+import { listActiveCompanies } from "@/services/companies.service";
 import {
   assignStaffTrip,
   backfillStaffWaybill,
@@ -34,7 +33,7 @@ const schema = z.object({
   driverId: z.string().min(1, "Select a driver"),
   date: z.string().min(1, "Date required"),
   time: z.string().min(1, "Time required"),
-  staffCompany: z.enum(STAFF_TRANSPORT_COMPANIES),
+  companyId: z.string().uuid("Select a company"),
   areaText: z.string().min(1, "Area required"),
   paxCount: z.number().int().min(0),
   openingKm: z.string().optional(),
@@ -67,7 +66,7 @@ export function AssignStaffTripDialog({
       driverId: "",
       date: today,
       time: "08:00",
-      staffCompany: "lewis_compliance",
+      companyId: "",
       areaText: "",
       paxCount: 1,
       openingKm: "",
@@ -88,8 +87,21 @@ export function AssignStaffTripDialog({
     enabled: open,
   });
 
+  const companiesQuery = useQuery({
+    queryKey: queryKeys.companies(organisationId),
+    queryFn: () => listActiveCompanies(organisationId),
+    enabled: open,
+  });
+
   const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data]);
-  const companyOptions = staffCompanyOptions();
+  const companyOptions = useMemo(
+    () =>
+      (companiesQuery.data ?? []).map((c) => ({
+        value: c.id,
+        label: c.name,
+      })),
+    [companiesQuery.data]
+  );
 
   const submitMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -99,7 +111,7 @@ export function AssignStaffTripDialog({
           organisationId,
           values.driverId,
           plannedStart,
-          values.staffCompany,
+          values.companyId,
           values.areaText,
           values.paxCount
         );
@@ -112,7 +124,7 @@ export function AssignStaffTripDialog({
         organisationId,
         values.driverId,
         plannedStart,
-        values.staffCompany,
+        values.companyId,
         values.areaText,
         values.paxCount,
         opening,
@@ -228,9 +240,10 @@ export function AssignStaffTripDialog({
 
         <SelectField
           control={form.control}
-          name="staffCompany"
+          name="companyId"
           label="Company"
           options={companyOptions}
+          placeholder="Select company"
         />
 
         <div className="space-y-1.5">

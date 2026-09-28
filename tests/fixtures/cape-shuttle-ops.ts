@@ -416,6 +416,8 @@ export const demoInvoiceLines = [
     line_type: "fuel",
     rate_card_id: null,
     trip_id: null,
+    trip_company_id: null,
+    rate_effective_on: null,
     created_at: TS,
   }),
 );

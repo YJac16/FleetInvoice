@@ -474,6 +474,7 @@ export function StaffTripsMonitorPage() {
         onOpenChange={(open) => {
           if (!open) setEditingTrip(null);
         }}
+        organisationId={organisationId}
         trip={editingTrip}
         onSaved={() => void invalidateStaffTrips()}
       />

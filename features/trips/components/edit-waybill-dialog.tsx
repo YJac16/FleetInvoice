@@ -1,9 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -13,19 +13,16 @@ import { SelectField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { staffCompanyOptions } from "@/features/driver-portal/lib/trip-labels";
-import {
-  STAFF_TRANSPORT_COMPANIES,
-  type StaffTransportCompany,
-} from "@/lib/constants";
+import { listActiveCompanies } from "@/services/companies.service";
 import { updateStaffTrip } from "@/services/staff-trips.service";
 import type { StaffTrip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
+import { queryKeys } from "@/utils/query";
 
 const schema = z.object({
   date: z.string().min(1, "Date required"),
   time: z.string().min(1, "Time required"),
-  staffCompany: z.enum(STAFF_TRANSPORT_COMPANIES),
+  companyId: z.string().uuid("Select a company"),
   areaText: z.string().min(1, "Area required"),
   paxCount: z.number().int().min(0),
 });
@@ -35,6 +32,7 @@ type FormValues = z.infer<typeof schema>;
 type EditWaybillDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  organisationId: string;
   trip: StaffTrip | null;
   onSaved: () => void;
 };
@@ -42,6 +40,7 @@ type EditWaybillDialogProps = {
 export function EditWaybillDialog({
   open,
   onOpenChange,
+  organisationId,
   trip,
   onSaved,
 }: EditWaybillDialogProps) {
@@ -50,11 +49,26 @@ export function EditWaybillDialog({
     defaultValues: {
       date: "",
       time: "08:00",
-      staffCompany: "lewis_compliance",
+      companyId: "",
       areaText: "",
       paxCount: 1,
     },
   });
+
+  const companiesQuery = useQuery({
+    queryKey: queryKeys.companies(organisationId),
+    queryFn: () => listActiveCompanies(organisationId),
+    enabled: open,
+  });
+
+  const companyOptions = useMemo(
+    () =>
+      (companiesQuery.data ?? []).map((c) => ({
+        value: c.id,
+        label: c.name,
+      })),
+    [companiesQuery.data]
+  );
 
   useEffect(() => {
     if (!open || !trip) return;
@@ -62,8 +76,7 @@ export function EditWaybillDialog({
     form.reset({
       date: local.format("YYYY-MM-DD"),
       time: local.format("HH:mm"),
-      staffCompany: (trip.staff_company ??
-        "lewis_compliance") as StaffTransportCompany,
+      companyId: trip.company_id ?? "",
       areaText: trip.area_text ?? "",
       paxCount: trip.pax_count ?? 0,
     });
@@ -75,7 +88,8 @@ export function EditWaybillDialog({
       const plannedStart = `${values.date}T${values.time}:00+02:00`;
       return updateStaffTrip(trip.id, {
         plannedStart,
-        staffCompany: values.staffCompany,
+        companyId: values.companyId,
+        staffCompany: null,
         areaText: values.areaText,
         paxCount: values.paxCount,
       });
@@ -125,9 +139,10 @@ export function EditWaybillDialog({
 
         <SelectField
           control={form.control}
-          name="staffCompany"
+          name="companyId"
           label="Company"
-          options={staffCompanyOptions()}
+          options={companyOptions}
+          placeholder="Select company"
         />
 
         <div className="space-y-1.5">
