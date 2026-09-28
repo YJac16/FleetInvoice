@@ -6,6 +6,7 @@ import { FUEL_SLIPS_BUCKET } from "@/lib/fuel/constants";
 import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { isFuelSlipCaptureEnabled } from "@/lib/fuel/feature";
 import {
   buildFuelSlipStoragePath,
   mimeToFuelExt,
@@ -14,6 +15,10 @@ import {
 } from "@/services/fuel-slips.server";
 
 export async function POST(request: Request) {
+  if (!isFuelSlipCaptureEnabled()) {
+    return NextResponse.json({ error: "feature_disabled" }, { status: 404 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -133,8 +138,8 @@ export async function POST(request: Request) {
 
   try {
     await processComplianceStoragePurgeQueue(admin);
-  } catch {
-    return NextResponse.json({ error: "storage_purge_failed" }, { status: 500 });
+  } catch (purgeErr) {
+    console.error("fuel_slip: storage purge queue processing failed after admin submit", purgeErr);
   }
 
   return NextResponse.json({ ok: true, fillup: data });

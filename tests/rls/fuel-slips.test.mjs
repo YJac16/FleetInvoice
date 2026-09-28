@@ -924,6 +924,109 @@ function testVisibility() {
   );
 }
 
+function testF1PhotoAndStorageDenial() {
+  const countAs = (sub, table, where = "true") => {
+    const r = asUser(sub, `select count(*) from public.${table} where ${where}`);
+    return r.ok ? Number(r.out) : -1;
+  };
+  const path = su(`select storage_path from public.fuel_slip_photos where fillup_id = ${q(E.sample)} and is_current`);
+  const photoId = su(`select id from public.fuel_slip_photos where storage_path = ${q(path)}`);
+  for (const [who, sub] of [
+    ["manager", U.mgr],
+    ["dispatcher", U.dsp],
+    ["supervisor", U.sup],
+  ]) {
+    record(`RLS-F1-${who}-fuel_slip_photos-zero`, countAs(sub, "fuel_slip_photos") === 0);
+    const storageSel = asUser(
+      sub,
+      `select count(*) from storage.objects where bucket_id = 'fuel-slips' and name = ${q(path)}`
+    );
+    record(
+      `STORAGE-F1-${who}-select-denied`,
+      !storageSel.ok || /permission denied/i.test(storageSel.err) || storageSel.out === "0",
+      storageSel.err.split("\n")[0] || `count=${storageSel.out}`
+    );
+    const rpcView = runSql(
+      `select public.audit_fuel_slip_photo_view(${q(sub)}, ${q(ORG)}, ${q(photoId)})::text`,
+      { role: "service_role" }
+    );
+    record(`PHOTO-RPC-F1-${who}-denied`, !rpcView.ok && /not_authorised/.test(rpcView.err));
+  }
+}
+
+function testPhotoViewMatrix() {
+  const photoId = su(`select id from public.fuel_slip_photos where fillup_id = ${q(E.sample)} and is_current`);
+  const view = (actor, org = ORG) =>
+    runSql(
+      `select public.audit_fuel_slip_photo_view(${q(actor)}, ${q(org)}, ${q(photoId)})::text`,
+      { role: "service_role" }
+    );
+  const deny = (r) =>
+    !r.ok && (/not_authorised/.test(r.err) || /not_found/.test(r.err) || /photo_purged/.test(r.err));
+  const matrix = [
+    ["driver-own", U.drv1, ORG, true],
+    ["driver-other", U.drv2, ORG, false],
+    ["manager", U.mgr, ORG, false],
+    ["dispatcher", U.dsp, ORG, false],
+    ["supervisor", U.sup, ORG, false],
+    ["company_manager", U.cm, ORG, false],
+    ["employee", U.emp, ORG, false],
+    ["org_admin", U.admin, ORG, true],
+    ["platform_owner", U.po, ORG, true],
+    ["cross-org-admin", U.admin2, ORG, false],
+  ];
+  for (const [label, actor, org, allow] of matrix) {
+    const r = view(actor, org);
+    record(`PHOTO-matrix-${label}`, allow ? r.ok : deny(r), allow ? "ok" : r.err.split("\n")[0]);
+  }
+}
+
+function testDriverFlagTamper() {
+  let err = submitErr({
+    actor: U.drv1,
+    vehicle: V1,
+    f: { ...fields(), open_flag_count: 0 },
+    photo: photoFor(ORG),
+  });
+  record("FLAG-submit-open_flag_count-rejected", hasErr(err, "field_not_allowed:open_flag_count"));
+  err = submitErr({
+    actor: U.drv1,
+    vehicle: V1,
+    f: { ...fields(), max_open_severity: "high" },
+    photo: photoFor(ORG),
+  });
+  record("FLAG-submit-max_open_severity-rejected", hasErr(err, "field_not_allowed:max_open_severity"));
+
+  const flagId = su(`select id from public.fuel_entry_flags where fillup_id = ${q(E.vrnMismatch)} limit 1`);
+  const beforeFlags = num(`select count(*) from public.fuel_entry_flags where fillup_id = ${q(E.vrnMismatch)}`);
+  const ins = asUser(
+    U.drv1,
+    `insert into public.fuel_entry_flags (organisation_id, fillup_id, code, severity, status, message, details)
+     values (${q(ORG)}, ${q(E.vrnMismatch)}, 'DUP_SLIP', 'high', 'open', 'x', '{"x":1}'::jsonb)`
+  );
+  record("FLAG-direct-insert-denied-driver", !ins.ok && /permission denied/.test(ins.err));
+  const del = asUser(U.drv1, `delete from public.fuel_entry_flags where id = ${q(flagId)}`);
+  record("FLAG-direct-delete-denied-driver", !del.ok && /permission denied/.test(del.err));
+  const updFlag = asUser(
+    U.drv1,
+    `update public.fuel_entry_flags set status = 'dismissed' where id = ${q(flagId)}`
+  );
+  record("FLAG-direct-update-denied-driver", !updFlag.ok && /permission denied/.test(updFlag.err));
+  const updCount = asUser(U.drv1, `update public.fuel_fillups set open_flag_count = 0 where id = ${q(E.vrnMismatch)}`);
+  record("FLAG-direct-fillup-count-denied-driver", !updCount.ok && /permission denied/.test(updCount.err));
+  record(
+    "FLAG-count-unchanged-after-tamper-attempts",
+    num(`select count(*) from public.fuel_entry_flags where fillup_id = ${q(E.vrnMismatch)}`) === beforeFlags
+  );
+
+  err = svcErr(
+    `select public.review_fuel_slip(${q(U.drv1)}, ${q(ORG)}, ${q(E.vrnMismatch)}, 'resolve_flags', null, null, '[]'::jsonb, ${q(row(E.vrnMismatch).updated_at)}::timestamptz)::text`
+  );
+  record("FLAG-review-resolve-denied-driver", hasErr(err, "not_authorised"));
+  err = updateErr(U.drv1, E.vrnMismatch, { open_flag_count: 0 });
+  record("FLAG-update-open_flag_count-rejected", hasErr(err, "field_not_allowed:open_flag_count"));
+}
+
 function testPhotoViewAndPurge() {
   const photoId = su(`select id from public.fuel_slip_photos where fillup_id = ${q(E.sample)} and is_current`);
   const view = (actor, opts) => runSql(`select public.audit_fuel_slip_photo_view(${q(actor)}, ${q(ORG)}, ${q(photoId)})::text`, { role: "service_role", ...opts });
@@ -941,6 +1044,9 @@ function testPhotoViewAndPurge() {
   record("PHOTO-view-company_manager-denied", hasErr(view(U.cm).err, "not_authorised"));
   record("PHOTO-view-employee-denied", hasErr(view(U.emp).err, "not_authorised"));
   record("PHOTO-view-manager-denied", hasErr(view(U.mgr).err, "not_authorised"));
+  record("PHOTO-view-dispatcher-denied", hasErr(view(U.dsp).err, "not_authorised"));
+  record("PHOTO-view-supervisor-denied", hasErr(view(U.sup).err, "not_authorised"));
+  record("PHOTO-view-cross-org-admin-denied", hasErr(view(U.admin2).err, "not_authorised"));
   record("PHOTO-view-org_admin", view(U.admin).ok && view(U.po).ok);
   const before = num(`select count(*) from public.audit_logs where entity_id = ${q(photoId)} and action = 'fuel_slip.photo_viewed'`);
   const forced = view(U.admin, { settings: { "app.force_audit_failure": "true" } });
@@ -1152,7 +1258,8 @@ if (!ping.ok) {
 setupFixtures();
 for (const t of [
   testSchema, testSettingsDefaults, testPrivileges, testStorage, testSubmit, testFlagCoverage, testUpdateReview,
-  testVisibility, testPhotoViewAndPurge, testExportAndSettings, testInvoiceGuard, testRetention, testVehicleProfile, testGlobal,
+  testVisibility, testF1PhotoAndStorageDenial, testPhotoViewAndPurge, testPhotoViewMatrix, testDriverFlagTamper,
+  testExportAndSettings, testInvoiceGuard, testRetention, testVehicleProfile, testGlobal,
 ]) {
   try {
     t();

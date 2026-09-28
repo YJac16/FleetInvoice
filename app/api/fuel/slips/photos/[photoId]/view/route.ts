@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 
 import { FUEL_SLIP_VIEW_URL_SECONDS, FUEL_SLIPS_BUCKET } from "@/lib/fuel/constants";
+import { isFuelSlipCaptureEnabled } from "@/lib/fuel/feature";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 type RouteContext = { params: Promise<{ photoId: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
+  if (!isFuelSlipCaptureEnabled()) {
+    return NextResponse.json({ error: "feature_disabled" }, { status: 404 });
+  }
+
   const { photoId } = await context.params;
   const supabase = await createClient();
   const {

@@ -17,6 +17,7 @@ import {
   type NavGroupId,
   type NavItem,
 } from "@/lib/navigation";
+import { isFuelSlipCaptureUiEnabled } from "@/lib/fuel/feature";
 import { canAccessFuelHub } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +64,11 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
     () =>
       MAIN_NAV.filter((item) => {
         if (item.href === "/fuel") {
-          return canAccessFuelHub(activeRole, isPlatformOwner) && canModule(item.module);
+          return (
+            isFuelSlipCaptureUiEnabled() &&
+            canAccessFuelHub(activeRole, isPlatformOwner) &&
+            canModule(item.module)
+          );
         }
         return can(item.permission) && canModule(item.module);
       }),

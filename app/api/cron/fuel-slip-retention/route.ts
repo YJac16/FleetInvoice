@@ -5,6 +5,7 @@ import {
   unauthorizedCronResponse,
 } from "@/lib/auth/cron-bearer";
 import { processComplianceStoragePurgeQueue } from "@/lib/compliance/process-storage-purge-queue";
+import { isFuelSlipCaptureEnabled } from "@/lib/fuel/feature";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 /** Daily fuel slip retention + orphan sweep (cron entry not added to vercel.json until Founder approval). */
@@ -19,6 +20,10 @@ export async function POST(request: Request) {
 async function runRetention(request: Request) {
   if (!isAuthorizedCronBearer(request)) {
     return unauthorizedCronResponse();
+  }
+
+  if (!isFuelSlipCaptureEnabled()) {
+    return NextResponse.json({ ok: true, skipped: true, reason: "feature_disabled" });
   }
 
   const admin = createServiceClient();
