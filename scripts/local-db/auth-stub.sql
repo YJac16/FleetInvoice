@@ -17,6 +17,11 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+do $$ begin
+  create role supabase_auth_admin nologin noinherit;
+exception when duplicate_object then null;
+end $$;
+
 grant usage on schema public to anon, authenticated, service_role;
 grant usage on schema auth to postgres;
 

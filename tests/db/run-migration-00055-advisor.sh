@@ -9,4 +9,5 @@ sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -c \
   "GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;"
 
 node "$ROOT/tests/db/00055-snapshot-rollback.test.mjs"
+node "$ROOT/tests/db/00055-index-rollback.test.mjs"
 node "$ROOT/tests/db/migration-00055-advisor.test.mjs"
