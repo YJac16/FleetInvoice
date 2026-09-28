@@ -304,6 +304,24 @@ $$;
 -- ---------------------------------------------------------------------------
 -- generate_driver_weekly_invoice — store inclusive Sunday; SAST trip window
 -- ---------------------------------------------------------------------------
+-- Production already has RETURNS public.invoices (00022). Repo 00023 used SETOF;
+-- CREATE OR REPLACE cannot change return type — drop only when SETOF is present.
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'generate_driver_weekly_invoice'
+      and p.proargtypes = '2950 2950 1082 1082'::oidvector
+      and pg_get_function_result(p.oid) like 'SETOF%'
+  ) then
+    drop function public.generate_driver_weekly_invoice(uuid, uuid, date, date);
+  end if;
+end;
+$$;
 
 create or replace function public.generate_driver_weekly_invoice(
   p_organisation_id uuid,
@@ -311,7 +329,7 @@ create or replace function public.generate_driver_weekly_invoice(
   p_period_start date,
   p_period_end date
 )
-returns setof public.invoices
+returns public.invoices
 language plpgsql
 security definer
 set search_path = public
@@ -319,10 +337,11 @@ as $$
 declare
   can_generate boolean;
   bill_to_company_id uuid;
+  existing public.invoices%rowtype;
   inv public.invoices%rowtype;
   trip_row record;
   line_amount numeric;
-  running_total numeric;
+  running_total numeric := 0;
   trip_rate numeric;
   trip_card_id uuid;
   trip_company_id uuid;
@@ -331,7 +350,6 @@ declare
   pax_count int;
   week_start_ts timestamptz;
   week_end_ts timestamptz;
-  trip_company_label text;
   v_period_end date;
   rate_err constant text :=
     'No trip rate configured for this company. Add a rate before saving this waybill.';
@@ -376,8 +394,64 @@ begin
     raise exception 'Bill-to company not configured (set organisations.settings.invoice_bill_to_company_id or add WCL Trading CC)';
   end if;
 
-  for trip_company_label in
-    select distinct coalesce(tc.name, 'Unknown company') as company_name
+  select * into existing
+  from public.invoices i
+  where i.organisation_id = p_organisation_id
+    and i.driver_id = p_driver_id
+    and i.period_start = p_period_start
+    and (
+      i.period_end = v_period_end
+      or i.period_end = v_period_end + 1
+    )
+    and coalesce(i.trip_company, '') = ''
+    and i.deleted_at is null
+    and i.status <> 'void'
+  limit 1;
+
+  if found then
+    return existing;
+  end if;
+
+  insert into public.invoices (
+    organisation_id,
+    company_id,
+    driver_id,
+    period_start,
+    period_end,
+    status,
+    generated_by,
+    notes
+  )
+  values (
+    p_organisation_id,
+    bill_to_company_id,
+    p_driver_id,
+    p_period_start,
+    v_period_end,
+    'draft',
+    auth.uid(),
+    format(
+      'Invoice date %s (Monday after Sunday %s)',
+      to_char(v_period_end + 1, 'DD/MM/YYYY'),
+      to_char(v_period_end, 'DD/MM/YYYY')
+    )
+  )
+  returning * into inv;
+
+  for trip_row in
+    select
+      t.id,
+      t.planned_start,
+      coalesce(t.company_id, r.company_id) as company_id,
+      coalesce(tc.name, 'Unknown company') as company_name,
+      coalesce(a.name, 'Unknown area') as area_name,
+      (
+        select count(*)::int
+        from public.trip_passengers tp
+        where tp.trip_id = t.id
+          and tp.organisation_id = t.organisation_id
+          and tp.status <> 'cancelled'
+      ) as pax_count
     from public.trips t
     join public.trip_assignments ta
       on ta.trip_id = t.id
@@ -391,162 +465,80 @@ begin
     left join public.companies tc
       on tc.id = coalesce(t.company_id, r.company_id)
      and tc.deleted_at is null
+    left join public.areas a
+      on a.id = r.area_id
+     and a.deleted_at is null
     where t.organisation_id = p_organisation_id
       and t.deleted_at is null
       and t.status = 'completed'
       and t.planned_start >= week_start_ts
       and t.planned_start < week_end_ts
-    order by 1
+    order by t.planned_start
   loop
-    select * into inv
-    from public.invoices i
-    where i.organisation_id = p_organisation_id
-      and i.driver_id = p_driver_id
-      and i.period_start = p_period_start
-      and (
-        i.period_end = v_period_end
-        or i.period_end = v_period_end + 1
-      )
-      and coalesce(i.trip_company, '') = trip_company_label
-      and i.deleted_at is null
-      and i.status <> 'void'
-    limit 1;
+    trip_company_id := trip_row.company_id;
+    v_trip_date := (trip_row.planned_start at time zone 'Africa/Johannesburg')::date;
 
-    if not found then
-      insert into public.invoices (
-        organisation_id,
-        company_id,
-        driver_id,
-        trip_company,
-        period_start,
-        period_end,
-        status,
-        generated_by,
-        notes
-      )
-      values (
-        p_organisation_id,
-        bill_to_company_id,
-        p_driver_id,
-        trip_company_label,
-        p_period_start,
-        v_period_end,
-        'draft',
-        auth.uid(),
-        format(
-          'Invoice date %s (Monday after Sunday %s)',
-          to_char(v_period_end + 1, 'DD/MM/YYYY'),
-          to_char(v_period_end, 'DD/MM/YYYY')
-        )
-      )
-      returning * into inv;
+    select r.unit_amount, r.rate_card_id, r.rate_effective_on
+    into trip_rate, trip_card_id, v_rate_effective_on
+    from public.resolve_trip_line_rate(
+      p_organisation_id,
+      trip_company_id,
+      v_trip_date
+    ) r;
 
-      running_total := 0;
-
-      for trip_row in
-        select
-          t.id,
-          t.planned_start,
-          coalesce(t.company_id, r.company_id) as company_id,
-          coalesce(tc.name, 'Unknown company') as company_name,
-          coalesce(a.name, 'Unknown area') as area_name,
-          (
-            select count(*)::int
-            from public.trip_passengers tp
-            where tp.trip_id = t.id
-              and tp.organisation_id = t.organisation_id
-              and tp.status <> 'cancelled'
-          ) as pax_count
-        from public.trips t
-        join public.trip_assignments ta
-          on ta.trip_id = t.id
-         and ta.organisation_id = t.organisation_id
-         and ta.deleted_at is null
-         and ta.released_at is null
-         and ta.driver_id = p_driver_id
-        join public.routes r
-          on r.id = t.route_id
-         and r.deleted_at is null
-        left join public.companies tc
-          on tc.id = coalesce(t.company_id, r.company_id)
-         and tc.deleted_at is null
-        left join public.areas a
-          on a.id = r.area_id
-         and a.deleted_at is null
-        where t.organisation_id = p_organisation_id
-          and t.deleted_at is null
-          and t.status = 'completed'
-          and t.planned_start >= week_start_ts
-          and t.planned_start < week_end_ts
-          and coalesce(tc.name, 'Unknown company') = trip_company_label
-        order by t.planned_start
-      loop
-        trip_company_id := trip_row.company_id;
-        v_trip_date := (trip_row.planned_start at time zone 'Africa/Johannesburg')::date;
-
-        select r.unit_amount, r.rate_card_id, r.rate_effective_on
-        into trip_rate, trip_card_id, v_rate_effective_on
-        from public.resolve_trip_line_rate(
-          p_organisation_id,
-          trip_company_id,
-          v_trip_date
-        ) r;
-
-        if trip_rate is null then
-          raise exception '%', rate_err;
-        end if;
-
-        line_amount := round(trip_rate, 2);
-        running_total := running_total + line_amount;
-        pax_count := coalesce(trip_row.pax_count, 0);
-
-        insert into public.invoice_lines (
-          organisation_id,
-          invoice_id,
-          line_type,
-          rate_card_id,
-          trip_id,
-          trip_company_id,
-          rate_effective_on,
-          description,
-          quantity,
-          unit_price,
-          amount
-        )
-        values (
-          p_organisation_id,
-          inv.id,
-          'trip',
-          trip_card_id,
-          trip_row.id,
-          trip_company_id,
-          v_rate_effective_on,
-          format(
-            '%s · %s · %s · %s pax',
-            trip_row.company_name,
-            to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
-            trip_row.area_name,
-            pax_count::text
-          ),
-          1,
-          trip_rate,
-          line_amount
-        );
-      end loop;
-
-      update public.invoices
-      set subtotal = running_total,
-          total = running_total
-      where id = inv.id
-      returning * into inv;
+    if trip_rate is null then
+      raise exception '%', rate_err;
     end if;
 
-    return next inv;
+    line_amount := round(trip_rate, 2);
+    running_total := running_total + line_amount;
+    pax_count := coalesce(trip_row.pax_count, 0);
+
+    insert into public.invoice_lines (
+      organisation_id,
+      invoice_id,
+      line_type,
+      rate_card_id,
+      trip_id,
+      trip_company_id,
+      rate_effective_on,
+      description,
+      quantity,
+      unit_price,
+      amount
+    )
+    values (
+      p_organisation_id,
+      inv.id,
+      'trip',
+      trip_card_id,
+      trip_row.id,
+      trip_company_id,
+      v_rate_effective_on,
+      format(
+        '%s · %s · %s · %s pax',
+        trip_row.company_name,
+        to_char(trip_row.planned_start at time zone 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI'),
+        trip_row.area_name,
+        pax_count::text
+      ),
+      1,
+      trip_rate,
+      line_amount
+    );
   end loop;
 
-  return;
+  update public.invoices
+  set subtotal = running_total,
+      total = running_total
+  where id = inv.id
+  returning * into inv;
+
+  return inv;
 end;
 $$;
 
 comment on function public.generate_driver_weekly_invoice(uuid, uuid, date, date) is
-  'Idempotent draft invoices for one driver Mon–Sun (Africa/Johannesburg); period_end is inclusive Sunday; trip lines priced via resolve_trip_line_rate per trip date.';
+  'Idempotent draft invoice for one driver Mon–Sun (Africa/Johannesburg); period_end is inclusive Sunday; one bill with trip lines priced via resolve_trip_line_rate per trip date.';
+
+grant execute on function public.generate_driver_weekly_invoice(uuid, uuid, date, date) to authenticated;

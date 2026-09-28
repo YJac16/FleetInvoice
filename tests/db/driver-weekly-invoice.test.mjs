@@ -128,12 +128,12 @@ function insertRouteTrip(plannedStart, companyId = RATE_CHANGE) {
 function generateWeekly(periodEnd) {
   return psqlAs(
     adminA,
-    `select count(*)::text from public.generate_driver_weekly_invoice(
+    `select (public.generate_driver_weekly_invoice(
       '${ORG_A}'::uuid,
       '${driverA}'::uuid,
       date '${WEEK_START}',
       date '${periodEnd}'
-    );`
+    )).period_end::text;`
   );
 }
 
@@ -141,11 +141,11 @@ seedRouteWeekFixtures();
 
 const legacyInvoiceId = psqlAdmin(`
   insert into public.invoices (
-    organisation_id, company_id, driver_id, trip_company,
+    organisation_id, company_id, driver_id,
     period_start, period_end, status, subtotal, total, currency
   )
   values (
-    '${ORG_A}', '${WCL}', '${driverA}', 'Rate Change Co',
+    '${ORG_A}', '${WCL}', '${driverA}',
     date '${WEEK_START}', date '${WEEK_END_MON_LEGACY}', 'draft', 0, 0, 'ZAR'
   )
   returning id::text;
@@ -157,38 +157,45 @@ const legacyCount = psqlAdmin(`
   where organisation_id = '${ORG_A}'
     and driver_id = '${driverA}'
     and period_start = date '${WEEK_START}'
-    and coalesce(trip_company, '') = 'Rate Change Co'
+    and coalesce(trip_company, '') = ''
     and deleted_at is null
     and status <> 'void';
 `);
 record(
   "GEN-legacy-monday-period_end-lookup",
-  legacyLookup.ok && legacyCount === "1",
-  `invoices=${legacyCount} legacy_id=${legacyInvoiceId}`
+  legacyLookup.ok && legacyCount === "1" && legacyLookup.out === WEEK_END_MON_LEGACY,
+  `invoices=${legacyCount} returned_period_end=${legacyLookup.out}`
 );
 
 psqlAdmin(`delete from public.invoices where id = '${legacyInvoiceId}'::uuid;`);
+
+const badTrip = insertRouteTrip("2026-09-22 09:00:00+02", NO_RATE);
+const blocked = psqlAs(
+  adminA,
+  `select public.generate_driver_weekly_invoice(
+    '${ORG_A}'::uuid,
+    '${driverA}'::uuid,
+    date '${WEEK_START}',
+    date '${WEEK_END_SUN}'
+  );`,
+  { allowError: true }
+);
+record(
+  "GEN-blocks-missing-company-rate",
+  !blocked.ok && blocked.text.includes(RATE_ERR),
+  blocked.ok ? "unexpected success" : "error matched"
+);
+psqlAdmin(`delete from public.trip_assignments where trip_id = '${badTrip}'::uuid;`);
+psqlAdmin(`delete from public.trips where id = '${badTrip}'::uuid;`);
 
 const tripEarly = insertRouteTrip("2026-09-21 08:00:00+02");
 const tripLate = insertRouteTrip("2026-09-24 08:00:00+02");
 
 const gen = generateWeekly(WEEK_END_SUN);
-record("GEN-rpc-succeeds", gen.ok, `count=${gen.out}`);
-
-const storedEnd = psqlAdmin(`
-  select i.period_end::text
-  from public.invoices i
-  where i.organisation_id = '${ORG_A}'
-    and i.driver_id = '${driverA}'
-    and i.period_start = date '${WEEK_START}'
-    and i.deleted_at is null
-  order by i.created_at desc
-  limit 1;
-`);
 record(
-  "GEN-stores-inclusive-sunday",
-  storedEnd === WEEK_END_SUN,
-  `period_end=${storedEnd}`
+  "GEN-rpc-succeeds",
+  gen.ok && gen.out === WEEK_END_SUN,
+  `period_end=${gen.out}`
 );
 
 const priceRows = psqlAdmin(`
@@ -223,23 +230,3 @@ const provenance = psqlAdmin(`
     and il.amount is not null;
 `);
 record("GEN-line-provenance", provenance === "2", `lines=${provenance}`);
-
-const badTrip = insertRouteTrip("2026-09-22 09:00:00+02", NO_RATE);
-const blocked = psqlAs(
-  adminA,
-  `select public.generate_driver_weekly_invoice(
-    '${ORG_A}'::uuid,
-    '${driverA}'::uuid,
-    date '${WEEK_START}',
-    date '${WEEK_END_SUN}'
-  );`,
-  { allowError: true }
-);
-record(
-  "GEN-blocks-missing-company-rate",
-  !blocked.ok && blocked.text.includes(RATE_ERR),
-  blocked.ok ? "unexpected success" : "error matched"
-);
-
-psqlAdmin(`delete from public.trip_assignments where trip_id = '${badTrip}'::uuid;`);
-psqlAdmin(`delete from public.trips where id = '${badTrip}'::uuid;`);
