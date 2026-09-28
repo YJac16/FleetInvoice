@@ -13,6 +13,17 @@ export type FuelSlipAuthContext = {
 const REVIEW_ROLES: AppRole[] = ["organisation_admin"];
 const BACKCAPTURE_ROLES: AppRole[] = ["organisation_admin"];
 
+export async function resolveFuelIsPlatformOwner(userId: string): Promise<boolean> {
+  const admin = createServiceClient();
+  if (!admin) return false;
+  const { data } = await admin
+    .from("profiles")
+    .select("is_platform_owner")
+    .eq("id", userId)
+    .maybeSingle();
+  return Boolean(data?.is_platform_owner);
+}
+
 export async function resolveFuelSlipAuth(input: {
   userId: string;
   organisationId: string;

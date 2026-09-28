@@ -9,6 +9,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import {
   buildFuelSlipStoragePath,
   mimeToFuelExt,
+  resolveFuelIsPlatformOwner,
   resolveFuelSlipAuth,
 } from "@/services/fuel-slips.server";
 
@@ -27,10 +28,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  const isPlatformOwner = await resolveFuelIsPlatformOwner(user.id);
   const auth = await resolveFuelSlipAuth({
     userId: user.id,
     organisationId,
-    isPlatformOwner: false,
+    isPlatformOwner,
     required: "fuel:self",
   });
   if (!auth.ok) {
