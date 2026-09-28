@@ -5,7 +5,18 @@ import {
   createClient,
   resetBrowserClientCache,
 } from "@/lib/supabase/client";
+import { normalizeSingleRpcRow } from "@/lib/supabase/normalize-single-rpc-row";
 import { env } from "@/lib/env";
+
+export type InvitationByToken = {
+  id: string;
+  organisation_id: string;
+  email: string;
+  role: string;
+  token: string;
+  status: string;
+  expires_at: string;
+};
 
 export async function signInWithPassword(
   email: string,
@@ -70,21 +81,13 @@ export async function acceptInvitationToken(token: string) {
   return data;
 }
 
-export async function getInvitationByToken(token: string) {
+export async function getInvitationByToken(
+  token: string
+): Promise<InvitationByToken | null> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_invitation_by_token", {
     p_token: token,
   });
   if (error) throw error;
-  return data as
-    | {
-        id: string;
-        organisation_id: string;
-        email: string;
-        role: string;
-        token: string;
-        status: string;
-        expires_at: string;
-      }[]
-    | null;
+  return normalizeSingleRpcRow<InvitationByToken>(data);
 }

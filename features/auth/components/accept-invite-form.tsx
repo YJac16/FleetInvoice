@@ -49,8 +49,7 @@ export function AcceptInviteForm({ token }: { token: string }) {
         return;
       }
       try {
-        const rows = await getInvitationByToken(token);
-        const row = Array.isArray(rows) ? rows[0] : null;
+        const row = await getInvitationByToken(token);
         if (!row) {
           setInvite(null);
         } else {
