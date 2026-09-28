@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:pr-a-waybill": "bash tests/db/run-pr-a-waybill-rate.sh",
+    "test:migration-00052": "bash tests/db/run-migration-00052-security.sh",
     "test:rls": "node scripts/local-db/rls-isolation.test.mjs",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",

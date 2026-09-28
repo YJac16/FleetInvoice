@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+export WORKOPS_SKIP_MIGRATION_PREFIX=00052
+bash "$ROOT/scripts/local-db/bootstrap-native.sh" >/dev/null
+
+# Mirror hosted PostgREST: anon may SELECT public tables (RLS filters rows).
+sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -c \
+  "GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;"
+
+# Post-00051 baseline (00052 skipped above): snapshot → apply 00052 → rollback → diff
+node "$ROOT/tests/db/00052-snapshot-rollback.test.mjs"
+node "$ROOT/tests/db/migration-00052-security.test.mjs"
