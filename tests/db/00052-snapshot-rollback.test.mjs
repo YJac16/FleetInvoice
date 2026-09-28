@@ -8,6 +8,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { apply00052HostedFidelity } from "./00052-hosted-apply.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const PG_DB = process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit";
 const SNAPSHOT_SQL = join(ROOT, "scripts/db/00052_snapshot.sql");
@@ -68,7 +70,7 @@ function main() {
   const rollbackPath = join(dir, "rollback.sql");
 
   const before = normalizeSnap(captureSnapshot(beforePath));
-  psqlFile(MIG_00052);
+  apply00052HostedFidelity(MIG_00052);
 
   spawnSync("node", [ROLLBACK_GEN, beforePath, rollbackPath], { stdio: "inherit" });
   psqlFile(rollbackPath);

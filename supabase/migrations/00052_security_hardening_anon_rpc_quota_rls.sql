@@ -185,42 +185,18 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4) Default privileges — new functions not executable via PUBLIC/anon
+-- 4) Default privileges — postgres-created app functions only
 -- ---------------------------------------------------------------------------
--- Postgres grants EXECUTE to PUBLIC on every new function; per-schema
--- ALTER DEFAULT PRIVILEGES can only add privileges, not remove PUBLIC. Use a
--- global (no IN SCHEMA) REVOKE FROM PUBLIC. Supabase also sets per-schema
--- defaults on public (anon=X on functions) — revoke those explicitly.
+-- Scope: Supabase app migrations connect as role postgres (not superuser).
+-- Do not alter supabase_admin defaults (internal/extension objects).
+-- Postgres grants EXECUTE to PUBLIC on every new function; per-schema ALTER
+-- DEFAULT PRIVILEGES cannot remove PUBLIC — use global REVOKE (no IN SCHEMA).
+-- Hosted postgres also has per-schema public defaults with anon=X — revoke those.
 
-do $$
-declare
-  v_role name;
-begin
-  foreach v_role in array array['postgres', 'supabase_admin'] loop
-    if not exists (select 1 from pg_roles where rolname = v_role) then
-      continue;
-    end if;
+alter default privileges for role postgres revoke execute on functions from public;
+alter default privileges for role postgres revoke execute on functions from anon;
 
-    -- Global: strip built-in PUBLIC execute on objects created by v_role.
-    execute format(
-      'alter default privileges for role %I revoke execute on functions from public',
-      v_role
-    );
-    execute format(
-      'alter default privileges for role %I revoke execute on functions from anon',
-      v_role
-    );
-
-    -- Supabase per-schema public defaults (see pg_default_acl); drop anon/PUBLIC
-    -- execute and grant only app roles for new public functions.
-    execute format(
-      'alter default privileges for role %I in schema public revoke execute on functions from public, anon',
-      v_role
-    );
-    execute format(
-      'alter default privileges for role %I in schema public grant execute on functions to authenticated, service_role',
-      v_role
-    );
-  end loop;
-end;
-$$;
+alter default privileges for role postgres in schema public
+  revoke execute on functions from public, anon;
+alter default privileges for role postgres in schema public
+  grant execute on functions to authenticated, service_role;

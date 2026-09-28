@@ -2,9 +2,16 @@
 /**
  * Migration 00052 — post-00051 DB, apply 00052, assert security + invite/signup.
  */
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import {
+  apply00052HostedFidelity,
+  defaultPrivilegesPostgresScopeOnly,
+  migrationSqlTargetsSupabaseAdmin,
+} from "./00052-hosted-apply.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const MIG_00052 = join(
@@ -122,18 +129,6 @@ function fnExec(role, proname) {
   ).text;
 }
 
-function apply00052() {
-  console.log("Applying 00052 on post-00051 database...");
-  const res = spawnSync(
-    "sudo",
-    ["-u", "postgres", "psql", "-q", "-d", PG_DB, "-v", "ON_ERROR_STOP=1", "-f", MIG_00052],
-    { encoding: "utf8" }
-  );
-  if (res.status !== 0) {
-    throw new Error(res.stderr || res.stdout || "00052 apply failed");
-  }
-}
-
 function seedTripFixture() {
   psql(`
 INSERT INTO public.routes (id, organisation_id, company_id, name, status)
@@ -146,13 +141,32 @@ ON CONFLICT (id) DO NOTHING;
 }
 
 function main() {
+  const migrationSql = readFileSync(MIG_00052, "utf8");
+  record(
+    "migration-no-supabase_admin-sql",
+    !migrationSqlTargetsSupabaseAdmin(migrationSql),
+    "executable SQL must not target supabase_admin"
+  );
+  record(
+    "default-privileges-postgres-scope-only",
+    defaultPrivilegesPostgresScopeOnly(migrationSql),
+    "section 4 alters postgres defaults only"
+  );
+
   record(
     "pre-00052-anon-had-privileged-rpc",
     isTrue(fnExec("anon", "create_invitation")),
     fnExec("anon", "create_invitation")
   );
 
-  apply00052();
+  const applyMode = apply00052HostedFidelity(MIG_00052);
+  record(
+    "hosted-apply-mode",
+    applyMode.mode === "nosuperuser-postgres" || applyMode.mode === "superuser-fallback",
+    applyMode.mode === "superuser-fallback"
+      ? `fallback: ${applyMode.reason}`
+      : applyMode.mode
+  );
   seedTripFixture();
 
   for (const name of ANON_RPC_DENIED) {
@@ -283,7 +297,8 @@ function main() {
   const defaultAclAnon = psql(
     `SELECT count(*)::text FROM pg_default_acl d
      JOIN pg_namespace n ON n.oid = d.defaclnamespace
-     WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+     WHERE pg_get_userbyid(d.defaclrole) = 'postgres'
+       AND n.nspname = 'public' AND d.defaclobjtype = 'f'
        AND d.defaclacl::text LIKE '%anon=X%';`
   );
   record(
