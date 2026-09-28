@@ -34,22 +34,9 @@ export type LogFuelFillupInput = {
   notes?: string | null;
 };
 
-export async function logFuelFillup(
-  input: LogFuelFillupInput
-): Promise<FuelFillup> {
-  const supabase = createClient();
-  const { data, error } = await supabase.rpc("log_fuel_fillup", {
-    p_organisation_id: input.organisationId,
-    p_vehicle_id: input.vehicleId,
-    p_odometer_km: input.odometerKm,
-    p_litres: input.litres,
-    p_company_id: input.companyId ?? null,
-    p_driver_id: input.driverId ?? null,
-    p_filled_at: input.filledAt ?? null,
-    p_unit_price: input.unitPrice ?? null,
-    p_station_name: input.stationName ?? null,
-    p_notes: input.notes ?? null,
-  });
-  if (error) throw error;
-  return data as FuelFillup;
+/** Retired: fuel slips are submitted via `/api/fuel/slips` (driver) or admin back-capture. */
+export async function logFuelFillup(): Promise<FuelFillup> {
+  throw new Error(
+    "Direct fuel logging is retired. Use fuel slip capture (driver) or admin back-capture."
+  );
 }

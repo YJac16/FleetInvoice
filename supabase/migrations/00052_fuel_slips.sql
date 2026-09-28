@@ -166,7 +166,20 @@ alter table public.fuel_fillups
   add column if not exists voided_by uuid references auth.users (id) on delete set null,
   add column if not exists voided_at timestamptz,
   add column if not exists void_reason text,
-  add column if not exists submitted_at timestamptz;
+  add column if not exists submitted_at timestamptz,
+  add column if not exists client_entry_id uuid,
+  add column if not exists field_sources jsonb not null default '{}'::jsonb,
+  add column if not exists is_full_tank boolean not null default true,
+  add column if not exists order_no text,
+  add column if not exists pump_no smallint,
+  add column if not exists station_vat_no text,
+  add column if not exists slip_number text,
+  add column if not exists open_flag_count smallint not null default 0,
+  add column if not exists max_open_severity text,
+  add column if not exists retain_until date,
+  add column if not exists legal_hold boolean not null default false,
+  add column if not exists photo_purged_at timestamptz,
+  add column if not exists retention_processed_at timestamptz;
 
 update public.fuel_fillups f
 set
@@ -188,6 +201,10 @@ create index if not exists fuel_fillups_org_review_idx
 create index if not exists fuel_fillups_authorisation_idx
   on public.fuel_fillups (organisation_id, authorisation_no)
   where deleted_at is null and authorisation_no is not null;
+
+create unique index if not exists fuel_fillups_client_entry_uidx
+  on public.fuel_fillups (organisation_id, client_entry_id)
+  where client_entry_id is not null and deleted_at is null;
 
 -- ---------------------------------------------------------------------------
 -- fuel_slip_photos
@@ -897,7 +914,9 @@ declare
   v_norm_vrn text;
   v_slip_vrn text;
   v_photo_id uuid;
+  v_fillup_id uuid;
 begin
+  v_fillup_id := coalesce(nullif(p_photo->>'fillup_id', '')::uuid, gen_random_uuid());
   driver := p_driver_id;
   if driver is null then
     select d.id into driver
@@ -936,10 +955,6 @@ begin
   order by f.filled_at desc, f.created_at desc
   limit 1;
 
-  if last_km is not null and p_odometer_km < last_km then
-    raise exception 'odometer_regression';
-  end if;
-
   company := coalesce(p_company_id, v.company_id);
   calc := case
     when p_unit_price is not null then round(p_litres * p_unit_price, 2)
@@ -947,10 +962,7 @@ begin
   end;
   total := coalesce(p_total_amount, calc);
 
-  v_review := case
-    when p_entry_method = 'admin_manual' then 'approved'::public.fuel_review_status
-    else 'pending_review'::public.fuel_review_status
-  end;
+  v_review := 'pending_review'::public.fuel_review_status;
 
   v_norm_vrn := upper(regexp_replace(coalesce(v.registration_number, ''), '[^A-Z0-9]', '', 'g'));
   v_slip_vrn := upper(regexp_replace(coalesce(p_slip_vrn, ''), '[^A-Z0-9]', '', 'g'));
@@ -962,6 +974,7 @@ begin
   end;
 
   insert into public.fuel_fillups (
+    id,
     organisation_id, vehicle_id, driver_id, company_id,
     filled_at, odometer_km, litres, unit_price, total_amount,
     station_name, notes, created_by,
@@ -972,6 +985,7 @@ begin
     reviewed_by, reviewed_at
   )
   values (
+    v_fillup_id,
     p_org, p_vehicle_id, driver, company,
     coalesce(p_filled_at, timezone('utc', now())), p_odometer_km, p_litres,
     p_unit_price, total,
@@ -1011,7 +1025,7 @@ begin
 
   perform public.write_audit_log(
     p_org,
-    'fuel.slip.submitted',
+    'fuel_slip.submitted',
     'fuel_fillup',
     row.id,
     jsonb_build_object(
@@ -1022,6 +1036,101 @@ begin
     p_actor
   );
 
+  return row;
+end;
+$$;
+
+create or replace function public.submit_fuel_slip(
+  p_actor uuid,
+  p_org uuid,
+  p_client_entry_id uuid,
+  p_vehicle_id uuid,
+  p_fields jsonb,
+  p_photo jsonb
+)
+returns public.fuel_fillups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing public.fuel_fillups%rowtype;
+  mapped_fuel public.fuel_product_type;
+  mapped_vrn public.fuel_slip_vrn_status;
+  entry public.fuel_entry_method;
+  is_admin boolean;
+  row public.fuel_fillups%rowtype;
+begin
+  if p_client_entry_id is not null then
+    select * into existing
+    from public.fuel_fillups f
+    where f.organisation_id = p_org
+      and f.client_entry_id = p_client_entry_id
+      and f.deleted_at is null
+    limit 1;
+    if found then
+      return existing;
+    end if;
+  end if;
+
+  is_admin := public.is_platform_owner()
+    or public.has_org_role_names(p_org, array['organisation_admin']);
+
+  entry := case when is_admin then 'admin_manual'::public.fuel_entry_method else 'driver_photo'::public.fuel_entry_method end;
+
+  mapped_fuel := case coalesce(p_fields->>'fuel_type', 'other')
+    when 'diesel50' then 'diesel'::public.fuel_product_type
+    when 'diesel500' then 'diesel'::public.fuel_product_type
+    when 'ulp93' then 'petrol'::public.fuel_product_type
+    when 'ulp95' then 'petrol'::public.fuel_product_type
+    else 'other'::public.fuel_product_type
+  end;
+
+  mapped_vrn := case coalesce(p_fields->>'slip_vrn_status', '')
+    when 'confirmed_prefill' then 'match'::public.fuel_slip_vrn_status
+    when 'edited' then 'mismatch'::public.fuel_slip_vrn_status
+    when 'not_shown' then 'missing'::public.fuel_slip_vrn_status
+    else 'not_checked'::public.fuel_slip_vrn_status
+  end;
+
+  row := public.submit_fuel_slip(
+    p_actor,
+    p_org,
+    p_vehicle_id,
+    (p_fields->>'odometer_km')::numeric,
+    (p_fields->>'litres')::numeric,
+    entry,
+    (p_fields->>'filled_at')::timestamptz,
+    null,
+    null,
+    (p_fields->>'unit_price')::numeric,
+    (p_fields->>'total_amount')::numeric,
+    p_fields->>'station_name',
+    p_fields->>'notes',
+    p_fields->>'authorisation_no',
+    p_fields->>'slip_vrn',
+    mapped_fuel,
+    mapped_fuel,
+    p_fields->>'station_name',
+    (p_fields->>'litres')::numeric,
+    (p_fields->>'unit_price')::numeric,
+    (p_fields->>'total_amount')::numeric,
+    p_photo
+  );
+
+  update public.fuel_fillups
+  set
+    client_entry_id = p_client_entry_id,
+    is_full_tank = coalesce((p_fields->>'is_full_tank')::boolean, true),
+    order_no = nullif(btrim(p_fields->>'order_no'), ''),
+    pump_no = nullif(p_fields->>'pump_no', '')::smallint,
+    station_vat_no = nullif(btrim(p_fields->>'station_vat_no'), ''),
+    slip_number = nullif(btrim(p_fields->>'slip_number'), ''),
+    slip_vrn_status = mapped_vrn
+  where id = row.id
+  returning * into row;
+
+  perform public.evaluate_fuel_entry_flags(row.id);
   return row;
 end;
 $$;
@@ -2192,6 +2301,11 @@ grant execute on function public.submit_fuel_slip(
   numeric, numeric, text, text, text, text, public.fuel_product_type, public.fuel_product_type,
   text, numeric, numeric, numeric, jsonb
 ) to service_role;
+
+revoke all on function public.submit_fuel_slip(uuid, uuid, uuid, uuid, jsonb, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.submit_fuel_slip(uuid, uuid, uuid, uuid, jsonb, jsonb)
+  to service_role;
 
 revoke all on function public.update_fuel_slip(uuid, uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.update_fuel_slip(uuid, uuid, uuid, jsonb) to service_role;

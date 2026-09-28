@@ -17,6 +17,7 @@ import {
   type NavGroupId,
   type NavItem,
 } from "@/lib/navigation";
+import { canAccessFuelHub } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type AppSidebarProps = {
@@ -52,7 +53,7 @@ function NavLink({
 
 export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
-  const { can, canModule } = useOrg();
+  const { can, canModule, activeRole, isPlatformOwner } = useOrg();
   const [collapsed, setCollapsed] = useState<Partial<Record<NavGroupId, boolean>>>(
     {}
   );
@@ -60,10 +61,13 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
 
   const primary = useMemo(
     () =>
-      MAIN_NAV.filter(
-        (item) => can(item.permission) && canModule(item.module)
-      ),
-    [can, canModule]
+      MAIN_NAV.filter((item) => {
+        if (item.href === "/fuel") {
+          return canAccessFuelHub(activeRole, isPlatformOwner) && canModule(item.module);
+        }
+        return can(item.permission) && canModule(item.module);
+      }),
+    [can, canModule, activeRole, isPlatformOwner]
   );
   const secondary = useMemo(
     () =>
