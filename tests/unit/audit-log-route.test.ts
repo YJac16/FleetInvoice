@@ -29,7 +29,9 @@ function memberLookupForUser(userId: string, orgId: string) {
     eq: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({
       data:
-        userId === ADMIN_A && orgId === ORG_A ? { id: "mem-1" } : null,
+        userId === ADMIN_A && orgId === ORG_A
+          ? { role: "organisation_admin" }
+          : null,
       error: null,
     }),
   });
@@ -137,6 +139,75 @@ describe("/api/audit/log", () => {
         p_actor: ADMIN_A,
         p_action: "invitation.created",
       })
+    );
+  });
+
+  it("returns 403 when a driver forges a privileged audit event", async () => {
+    const driverId = "a0000000-0000-4000-8000-000000000012";
+    getUser.mockResolvedValue({ data: { user: { id: driverId } }, error: null });
+    fromChain.mockImplementation((table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data:
+          table === "organisation_members"
+            ? { role: "driver" }
+            : table === "profiles"
+              ? { is_platform_owner: false }
+              : null,
+        error: null,
+      }),
+    }));
+
+    const { POST } = await import("@/app/api/audit/log/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/audit/log", {
+        method: "POST",
+        body: JSON.stringify({
+          organisationId: ORG_A,
+          action: "organisation.deleted",
+          entityType: "organisation",
+          entityId: ORG_A,
+        }),
+      })
+    );
+    expect(res.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("allows a platform owner whose membership role is not an ops role", async () => {
+    const ownerId = "f0000000-0000-4000-8000-000000000001";
+    getUser.mockResolvedValue({ data: { user: { id: ownerId } }, error: null });
+    fromChain.mockImplementation((table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data:
+          table === "organisation_members"
+            ? { role: "driver" }
+            : table === "profiles"
+              ? { is_platform_owner: true }
+              : null,
+        error: null,
+      }),
+    }));
+
+    const { POST } = await import("@/app/api/audit/log/route");
+    const res = await POST(
+      new NextRequest("http://localhost/api/audit/log", {
+        method: "POST",
+        body: JSON.stringify({
+          organisationId: ORG_A,
+          action: "organisation.updated",
+          entityType: "organisation",
+          entityId: ORG_A,
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith(
+      "write_audit_log",
+      expect.objectContaining({ p_actor: ownerId })
     );
   });
 });
