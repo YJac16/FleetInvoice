@@ -8,7 +8,7 @@ export async function sendResendEmail(input: {
   html: string;
 }): Promise<void> {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.RESEND_FROM_EMAIL ?? "WorkOps <onboarding@resend.dev>";
+  const from = env.RESEND_FROM_EMAIL ?? "GoOps <hello@goops.co.za>";
   if (!apiKey) {
     throw new Error(
       "Email delivery is not configured. Set RESEND_API_KEY to send invoices."

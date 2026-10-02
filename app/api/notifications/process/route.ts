@@ -17,7 +17,7 @@ type OutboxRow = {
 
 async function sendViaResend(row: OutboxRow): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "WorkOps <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL ?? "GoOps <hello@goops.co.za>";
   if (!apiKey) {
     throw new Error("RESEND_API_KEY is not configured");
   }
