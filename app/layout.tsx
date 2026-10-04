@@ -32,13 +32,13 @@ export const metadata: Metadata = {
   applicationName: APP_NAME,
   icons: {
     icon: [
-      { url: "/brand/goops-favicon.png", type: "image/png", sizes: "32x32" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-48x48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
-    apple: [
-      { url: "/apple-touch-icon-180x180.png", sizes: "180x180", type: "image/png" },
-      { url: "/brand/goops-apple-touch.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -56,20 +56,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/brand/goops-favicon.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon-180x180.png"
-        />
-        <link rel="apple-touch-icon" href="/brand/goops-apple-touch.png" />
-      </head>
       <body
         className={`${sans.variable} ${mono.variable} ${heading.variable} font-sans antialiased`}
       >
