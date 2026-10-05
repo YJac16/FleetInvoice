@@ -163,9 +163,19 @@
     print-color-adjust: exact !important;
   }
 
+  /*
+    Trip rows must be allowed to start on page 1. A full-page min-height on the
+    sheet, or break-inside: avoid on the whole table, pushes the table to page 2
+    and leaves a blank gap under INVOICE TO.
+  */
+  .invoice-print-root,
+  .invoice-print-sheet {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
   .invoice-print-root {
     max-width: none !important;
-    min-height: 100vh;
     margin: 0 !important;
     padding: 0 !important;
     background: var(--invoice-print-bg) !important;
@@ -180,16 +190,43 @@
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    min-height: 100vh;
     padding: 12mm !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   .invoice-print-sheet header,
-  .invoice-print-sheet table,
+  .invoice-print-sheet tr,
   .invoice-print-sheet footer {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .invoice-print-sheet table,
+  .invoice-print-sheet thead,
+  .invoice-print-sheet tbody {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .invoice-print-sheet table {
+    display: table !important;
+    width: 100%;
+  }
+
+  .invoice-print-sheet thead {
+    display: table-header-group;
+  }
+
+  body:has(.invoice-print-sheet) .print\:hidden {
+    display: none !important;
+  }
+
+  body:has(.invoice-print-sheet) .invoice-print-flow {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 }
 

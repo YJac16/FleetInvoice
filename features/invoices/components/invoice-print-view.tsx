@@ -8,6 +8,7 @@ import {
 } from "@/features/invoices/lib/invoice-print-settings";
 import { InvoiceDeliveryPanel } from "@/features/invoices/components/invoice-delivery-panel";
 import {
+  buildInvoiceCoverMetaLines,
   formatInvoicePeriod,
   formatZarAmount,
   resolveInvoicePrintDate,
@@ -94,6 +95,7 @@ export function InvoicePrintView({
   const contact = printSettings.contact;
   const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
   const vehicleReg = resolveVehicleReg(printSettings.vehicle_reg, tripEmbeds);
+  const coverMeta = buildInvoiceCoverMetaLines(driverLabel, vehicleReg);
   const invoiceDate = resolveInvoicePrintDate({
     issued_at: invoice.issued_at,
     period_end: invoice.period_end,
@@ -107,7 +109,7 @@ export function InvoicePrintView({
   const companyPhone = company?.contact_phone?.trim();
 
   return (
-    <div className="invoice-print-root mx-auto max-w-3xl px-4 py-6 print:max-w-none print:min-h-screen print:p-0">
+    <div className="invoice-print-root invoice-print-flow mx-auto max-w-3xl px-4 py-6 print:max-w-none print:p-0">
       <InvoiceDeliveryPanel
         organisationId={organisation.id}
         invoiceId={invoice.id}
@@ -117,7 +119,7 @@ export function InvoicePrintView({
         canSendEmail={canSendEmail}
       />
 
-      <article className="invoice-print-sheet rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:min-h-screen print:rounded-none print:border-0 print:shadow-none">
+      <article className="invoice-print-sheet invoice-print-flow rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:rounded-none print:border-0 print:shadow-none">
         <header className="grid gap-6 border-b border-black/20 pb-4 sm:grid-cols-2">
           <div className="space-y-0.5 leading-snug">
             {organisation.logo_url ? (
@@ -155,10 +157,15 @@ export function InvoicePrintView({
             companyAddress.split(/\n+/).map((line) => <p key={line}>{line}</p>)
           ) : null}
           {companyPhone ? <p>{companyPhone}</p> : null}
-          <p className="pt-1 text-xs uppercase tracking-wide">
-            {vehicleReg ? <>REG NO: {vehicleReg} </> : null}
-            {driverLabel !== "—" ? <>DRIVER: {driverLabel}</> : null}
-          </p>
+          {coverMeta.length > 0 ? (
+            <div className="space-y-0.5 pt-1 text-xs uppercase tracking-wide">
+              {coverMeta.map((line) => (
+                <p key={line.label}>
+                  {line.label}: {line.value}
+                </p>
+              ))}
+            </div>
+          ) : null}
           <p>{servicePeriod}</p>
         </section>
 

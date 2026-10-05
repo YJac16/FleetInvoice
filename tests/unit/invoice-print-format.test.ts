@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildInvoiceCoverMetaLines,
   computeInvoiceDateFromPeriodEnd,
   formatInvoiceDate,
   formatInvoicePeriod,
@@ -171,5 +172,34 @@ describe("buildTripPrintRow", () => {
     expect(row.pax).toBe("4");
     expect(row.area).toBe("Woodstock and Town");
     expect(row.amount).toBe("R300.00");
+  });
+});
+
+describe("buildInvoiceCoverMetaLines", () => {
+  it("stacks DRIVER then REG NO as separate labels", () => {
+    expect(buildInvoiceCoverMetaLines("YASEEN", "GR 11 WP")).toEqual([
+      { label: "DRIVER", value: "YASEEN" },
+      { label: "REG NO", value: "GR 11 WP" },
+    ]);
+  });
+
+  it("never joins the driver name and plate on one line", () => {
+    const lines = buildInvoiceCoverMetaLines("YASEEN", "GR 11 WP");
+    const rendered = lines.map((line) => `${line.label}: ${line.value}`);
+    expect(rendered).toEqual(["DRIVER: YASEEN", "REG NO: GR 11 WP"]);
+    expect(rendered.join("\n")).not.toMatch(/·/);
+    expect(rendered.some((line) => line.includes("DRIVER") && line.includes("REG NO"))).toBe(
+      false
+    );
+  });
+
+  it("omits a missing plate and a missing driver independently", () => {
+    expect(buildInvoiceCoverMetaLines("YASEEN", null)).toEqual([
+      { label: "DRIVER", value: "YASEEN" },
+    ]);
+    expect(buildInvoiceCoverMetaLines("—", "GR 11 WP")).toEqual([
+      { label: "REG NO", value: "GR 11 WP" },
+    ]);
+    expect(buildInvoiceCoverMetaLines("—", null)).toEqual([]);
   });
 });
