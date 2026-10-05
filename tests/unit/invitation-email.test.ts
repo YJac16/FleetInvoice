@@ -10,7 +10,7 @@ describe("buildInvitationEmail", () => {
       inviteUrl: "http://localhost:3000/invite/abc",
     });
 
-    expect(email.subject).toContain("Acme Transport");
+    expect(email.subject).toBe("You're invited to Acme Transport on GoOps");
     expect(email.body).toContain("Dispatcher");
     expect(email.body).toContain("http://localhost:3000/invite/abc");
   });
