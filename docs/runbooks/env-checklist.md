@@ -17,7 +17,7 @@ Use this before deploying WorkOps Foundation / Phase 0.
 | `SUPABASE_SERVICE_ROLE_KEY` | Drain `notification_outbox` (server only) | **Yes** |
 | `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Authorize `POST /api/notifications/process` | **Yes** |
 | `RESEND_API_KEY` | Send email via Resend | **Yes** |
-| `RESEND_FROM_EMAIL` | From address (verified domain) | No |
+| `RESEND_FROM_EMAIL` | From address. Unset or blank falls back to `GoOps <hello@goops.co.za>` | No |
 
 Without Resend, invites still work: the app shows/copies the invite URL and outbox rows are marked `skipped`.
 

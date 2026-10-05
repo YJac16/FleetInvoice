@@ -4,7 +4,11 @@ import {
   isAuthorizedCronBearer,
   unauthorizedCronResponse,
 } from "@/lib/auth/cron-bearer";
+import { isEmailDeliveryConfigured } from "@/lib/env";
+import { sendResendEmail } from "@/lib/notifications/resend-server";
 import { createServiceClient } from "@/lib/supabase/admin";
+
+const DEFAULT_NOTIFICATION_SUBJECT = "GoOps notification";
 
 type OutboxRow = {
   id: string;
@@ -15,31 +19,23 @@ type OutboxRow = {
   attempts: number;
 };
 
+function notificationHtml(text: string): string {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  return `<pre style="font-family:sans-serif;white-space:pre-wrap">${escaped}</pre>`;
+}
+
 async function sendViaResend(row: OutboxRow): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "WorkOps <onboarding@resend.dev>";
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [row.recipient],
-      subject: row.subject ?? "WorkOps notification",
-      text: row.body ?? "",
-    }),
+  const text = row.body ?? "";
+  await sendResendEmail({
+    to: [row.recipient],
+    subject: row.subject?.trim() || DEFAULT_NOTIFICATION_SUBJECT,
+    text,
+    html: notificationHtml(text),
   });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Resend failed: ${response.status} ${text}`);
-  }
 }
 
 /**
@@ -73,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   const results: Array<{ id: string; status: string; error?: string }> = [];
-  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const hasResend = isEmailDeliveryConfigured();
 
   for (const row of (rows ?? []) as OutboxRow[]) {
     await admin

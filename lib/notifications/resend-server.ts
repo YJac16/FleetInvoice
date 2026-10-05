@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { resolveResendFromEmail } from "@/lib/notifications/resend-from";
 
 export async function sendResendEmail(input: {
   to: string[];
@@ -8,7 +9,7 @@ export async function sendResendEmail(input: {
   html: string;
 }): Promise<void> {
   const apiKey = env.RESEND_API_KEY;
-  const from = env.RESEND_FROM_EMAIL ?? "WorkOps <onboarding@resend.dev>";
+  const from = resolveResendFromEmail(env.RESEND_FROM_EMAIL);
   if (!apiKey) {
     throw new Error(
       "Email delivery is not configured. Set RESEND_API_KEY to send invoices."

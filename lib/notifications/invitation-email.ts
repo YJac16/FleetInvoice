@@ -5,7 +5,7 @@ export function buildInvitationEmail(input: {
   inviteUrl: string;
   roleLabel: string;
 }): { subject: string; body: string } {
-  const subject = `You're invited to ${input.organisationName} on WorkOps`;
+  const subject = `You're invited to ${input.organisationName} on GoOps`;
   const body = [
     `You have been invited to join ${input.organisationName} as ${input.roleLabel}.`,
     "",
