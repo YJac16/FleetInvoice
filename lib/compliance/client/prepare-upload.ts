@@ -1,4 +1,5 @@
 const MAX_EDGE = 2000;
+const FUEL_MAX_EDGE = 2400;
 
 export class HeicConversionError extends Error {
   code = "heic_conversion_failed" as const;
@@ -30,7 +31,15 @@ export async function convertHeicToJpeg(
   }
 }
 
-export async function prepareComplianceUploadFile(file: File): Promise<File> {
+export async function prepareFuelSlipPhotoFile(file: File): Promise<File> {
+  return prepareImageUploadFile(file, FUEL_MAX_EDGE, 0.85);
+}
+
+async function prepareImageUploadFile(
+  file: File,
+  maxEdge: number,
+  quality: number
+): Promise<File> {
   const lower = file.name.toLowerCase();
   const isHeic =
     file.type === "image/heic" ||
@@ -43,16 +52,12 @@ export async function prepareComplianceUploadFile(file: File): Promise<File> {
     working = await convertHeicToJpeg(file);
   }
 
-  if (working.type === "application/pdf") {
-    return working;
-  }
-
   if (!working.type.startsWith("image/")) {
     return working;
   }
 
   const bitmap = await createImageBitmap(working);
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
   const canvas = document.createElement("canvas");
@@ -64,12 +69,27 @@ export async function prepareComplianceUploadFile(file: File): Promise<File> {
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), "image/jpeg", 0.88)
+    canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
   );
   if (!blob) return working;
   return new File([blob], working.name.replace(/\.\w+$/, ".jpg"), {
     type: "image/jpeg",
   });
+}
+
+export async function prepareComplianceUploadFile(file: File): Promise<File> {
+  const lower = file.name.toLowerCase();
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    lower.endsWith(".heic") ||
+    lower.endsWith(".heif");
+
+  if (file.type === "application/pdf") {
+    return file;
+  }
+
+  return prepareImageUploadFile(file, MAX_EDGE, 0.88);
 }
 
 export function stripExifGpsFromJpeg(bytes: Uint8Array): boolean {

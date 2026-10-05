@@ -36,8 +36,14 @@ export type Permission =
   | "attendance:self"
   | "audit:view"
   | "fuel:view"
+  | "fuel:view_approved_scoped"
+  | "fuel:view_rows"
   | "fuel:manage"
   | "fuel:self"
+  | "fuel:review"
+  | "fuel:photo_view"
+  | "fuel:backcapture"
+  | "fuel:settings"
   | "invoices:view"
   | "invoices:manage"
   | "rate_cards:view"
@@ -68,6 +74,7 @@ const VIEW_OPS: Permission[] = [
   "settings:view",
   "profile:view",
   "fuel:view",
+  "fuel:view_rows",
   "invoices:view",
   "rate_cards:view",
   "payroll:view",
@@ -87,7 +94,6 @@ const MANAGE_OPS: Permission[] = [
   "routes:manage",
   "schedules:manage",
   "trips:manage",
-  "fuel:manage",
   "invoices:manage",
   "rate_cards:manage",
   "payroll:manage",
@@ -98,6 +104,11 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   platform_owner: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "fuel:manage",
+    "fuel:review",
+    "fuel:photo_view",
+    "fuel:backcapture",
+    "fuel:settings",
     "organisations:view",
     "organisations:manage",
     "subscriptions:view",
@@ -112,6 +123,11 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   organisation_admin: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "fuel:manage",
+    "fuel:review",
+    "fuel:photo_view",
+    "fuel:backcapture",
+    "fuel:settings",
     "users:view",
     "users:manage",
     "settings:manage",
@@ -123,6 +139,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   manager: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "fuel:view_rows",
     "users:view",
     "attendance:view",
     "attendance:manage",
@@ -131,6 +148,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   dispatcher: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "fuel:view_rows",
     "attendance:view",
     "attendance:manage",
   ],
@@ -141,7 +159,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     "vehicles:manage",
     "sites:manage",
     "pickup_points:manage",
-    "fuel:manage",
+    "fuel:view_rows",
     "attendance:view",
     "attendance:manage",
     "gps:view",
@@ -161,7 +179,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
     "profile:view",
     "attendance:view",
     "attendance:manage",
-    "fuel:view",
+    "fuel:view_approved_scoped",
     "invoices:view",
     "invoices:manage",
     "rate_cards:view",
@@ -208,4 +226,20 @@ export function hasAnyPermission(
   return permissions.some((p) =>
     hasPermission(role, p, isPlatformOwner)
   );
+}
+
+export const FUEL_HUB_PERMISSIONS: Permission[] = [
+  "fuel:view",
+  "fuel:view_rows",
+  "fuel:view_approved_scoped",
+  "fuel:self",
+  "fuel:review",
+  "fuel:manage",
+];
+
+export function canAccessFuelHub(
+  role: AppRole | null | undefined,
+  isPlatformOwner = false
+): boolean {
+  return hasAnyPermission(role, FUEL_HUB_PERMISSIONS, isPlatformOwner);
 }

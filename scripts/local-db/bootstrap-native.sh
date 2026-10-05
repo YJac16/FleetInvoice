@@ -166,6 +166,31 @@ DO $$ BEGIN
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_temp_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_quota TO service_role;
   GRANT SELECT, INSERT, UPDATE ON public.compliance_storage_purge_queue TO service_role;
+  -- 00054 fuel slips: all writes via service-role RPCs (bootstrap broad grant must not reopen)
+  IF to_regclass('public.fuel_slip_photos') IS NOT NULL THEN
+    REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.fuel_fillups, public.fuel_slip_photos,
+      public.fuel_entry_flags, public.fuel_settings FROM PUBLIC, anon, authenticated;
+    GRANT SELECT ON public.fuel_fillups, public.fuel_slip_photos,
+      public.fuel_entry_flags, public.fuel_settings TO authenticated;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON public.fuel_fillups, public.fuel_slip_photos,
+      public.fuel_entry_flags, public.fuel_settings TO service_role;
+    DECLARE
+      fn regprocedure;
+    BEGIN
+      FOR fn IN
+        SELECT p.oid::regprocedure FROM pg_proc p
+        WHERE p.pronamespace = 'public'::regnamespace
+          AND (p.proname LIKE 'fuel\_%' OR p.proname IN (
+            'submit_fuel_slip', 'update_fuel_slip', 'replace_fuel_slip_photo', 'review_fuel_slip',
+            'void_fuel_slip', 'privacy_purge_fuel_slip_photo', 'audit_fuel_slip_photo_view',
+            'audit_fuel_report_export', 'save_fuel_settings', 'run_fuel_slip_retention',
+            'evaluate_fuel_entry_flags', 'log_fuel_fillup'))
+      LOOP
+        EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, authenticated', fn);
+        EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', fn);
+      END LOOP;
+    END;
+  END IF;
 END $$;
 SQL
 
