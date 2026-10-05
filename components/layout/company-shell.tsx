@@ -111,11 +111,13 @@ export function CompanyShell({
       initialOrganisationId={activeOrganisationId}
       isPlatformOwner={isPlatformOwner}
     >
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="invoice-print-flow flex min-h-screen flex-col bg-background">
         <div className="print:hidden">
           <CompanyHeader />
         </div>
-        <main className="flex-1 px-4 py-6 md:px-6 print:p-0">{children}</main>
+        <main className="invoice-print-flow flex-1 px-4 py-6 md:px-6 print:p-0">
+          {children}
+        </main>
       </div>
     </OrgProvider>
   );

@@ -81,3 +81,28 @@ export function formatInvoicePeriod(
 ): string {
   return `${formatInvoiceDate(start)} - ${formatInvoiceDate(end)}`;
 }
+
+export type InvoiceCoverMetaLine = {
+  label: "DRIVER" | "REG NO";
+  value: string;
+};
+
+/**
+ * Left cover block under INVOICE TO.
+ * DRIVER is one line; REG NO is the next line. Never combine them.
+ */
+export function buildInvoiceCoverMetaLines(
+  driverLabel: string | null | undefined,
+  vehicleReg: string | null | undefined
+): InvoiceCoverMetaLine[] {
+  const lines: InvoiceCoverMetaLine[] = [];
+  const driver = driverLabel?.trim() ?? "";
+  if (driver && driver !== "—") {
+    lines.push({ label: "DRIVER", value: driver });
+  }
+  const reg = vehicleReg?.trim() ?? "";
+  if (reg && reg !== "—") {
+    lines.push({ label: "REG NO", value: reg });
+  }
+  return lines;
+}

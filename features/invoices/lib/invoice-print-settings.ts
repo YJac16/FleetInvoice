@@ -25,9 +25,9 @@ export type InvoicePrintSettings = {
   supplier?: InvoiceSupplierSettings;
   banking?: InvoiceBankingSettings;
   contact?: InvoiceContactSettings;
-  /** Shown as REG NO: {value} — vehicle registration, not company code */
+  /** Own line under DRIVER: `REG NO: {value}` — vehicle registration, not company code */
   vehicle_reg?: string;
-  /** Shown as DRIVER: {label} when set; otherwise derived from trip assignments */
+  /** Own line above REG NO: `DRIVER: {label}` when set; otherwise derived from trip assignments */
   driver_label?: string;
 };
 

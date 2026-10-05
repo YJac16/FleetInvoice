@@ -29,15 +29,17 @@ export function AppShell({
       initialOrganisationId={activeOrganisationId}
       isPlatformOwner={isPlatformOwner}
     >
-      <div className="flex min-h-screen bg-background">
+      <div className="invoice-print-flow flex min-h-screen bg-background">
         <div className="hidden min-h-screen shrink-0 self-stretch bg-sidebar md:flex md:flex-col print:hidden">
           <AppSidebar />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="invoice-print-flow flex min-w-0 flex-1 flex-col">
           <div className="print:hidden">
             <AppHeader />
           </div>
-          <main className="flex-1 px-4 py-8 md:px-8 print:p-0">{children}</main>
+          <main className="invoice-print-flow flex-1 px-4 py-8 md:px-8 print:p-0">
+            {children}
+          </main>
         </div>
       </div>
     </OrgProvider>
