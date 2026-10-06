@@ -22,12 +22,8 @@ import { staffTripStatusLabel } from "@/features/driver-portal/lib/staff-transit
 import { StaffTripGpsMap } from "@/features/trips/components/staff-trip-gps-map";
 import { StaffTripStatusTimeline } from "@/features/trips/components/staff-trip-status-timeline";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import {
-  STAFF_TRIP_STATUSES,
-  STAFF_TRANSPORT_COMPANY_LABELS,
-  type StaffTripStatus,
-  type StaffTransportCompany,
-} from "@/lib/constants";
+import { tripCompanyLabel } from "@/features/trips/lib/trip-display";
+import { STAFF_TRIP_STATUSES, type StaffTripStatus } from "@/lib/constants";
 import {
   listGpsLastPositions,
   listGpsPointsForTrip,
@@ -350,11 +346,7 @@ export function StaffTripsMonitorPage() {
                         : undefined;
                       const online = isDriverOnline(presence);
                       const isPlayback = playbackTripId === trip.id;
-                      const companyLabel = trip.staff_company
-                        ? STAFF_TRANSPORT_COMPANY_LABELS[
-                            trip.staff_company as StaffTransportCompany
-                          ]
-                        : "—";
+                      const companyLabel = tripCompanyLabel(trip) ?? "—";
 
                       return (
                         <li
