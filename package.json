@@ -11,6 +11,7 @@
     "test:migration-00052": "bash tests/db/run-migration-00052-security.sh",
     "test:migration-00055": "bash tests/db/run-migration-00055-advisor.sh",
     "test:pr-a-waybill": "bash tests/db/run-pr-a-waybill-rate.sh",
+    "test:staff-waybill-billing": "bash tests/db/run-staff-waybill-creation-billing.sh",
     "test:rls": "bash scripts/local-db/bootstrap-for-rls.sh",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",

@@ -13,7 +13,7 @@ import type { Trip } from "@/types";
 const TABLE = "trips";
 
 const TRIP_SELECT =
-  "*, routes:route_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
+  "*, routes:route_id (name), companies:company_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
 
 export async function listTrips(
   organisationId: string,

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField } from "@/components/forms/form-fields";
+import { resolveSelectLabel } from "@/components/forms/select-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +22,12 @@ import { listActiveCompanies } from "@/services/companies.service";
 import {
   assignStaffTrip,
   backfillStaffWaybill,
+  getStaffWaybillBillingReadiness,
 } from "@/services/staff-trips.service";
+import {
+  waybillBillingProblems,
+  type WaybillMode,
+} from "@/features/trips/lib/waybill-billing-readiness";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { useForm } from "react-hook-form";
@@ -42,7 +48,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-type WaybillMode = "send" | "backfill";
+function plannedStartFor(date: string, time: string): string {
+  return `${date}T${time}:00+02:00`;
+}
 
 type AssignStaffTripDialogProps = {
   open: boolean;
@@ -94,6 +102,10 @@ export function AssignStaffTripDialog({
   });
 
   const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data]);
+  const driverOptions = useMemo(
+    () => drivers.map((d) => ({ value: d.id, label: d.full_name })),
+    [drivers]
+  );
   const companyOptions = useMemo(
     () =>
       (companiesQuery.data ?? []).map((c) => ({
@@ -103,9 +115,51 @@ export function AssignStaffTripDialog({
     [companiesQuery.data]
   );
 
+  const watchedCompanyId = form.watch("companyId");
+  const watchedDate = form.watch("date");
+  const companyName =
+    companyOptions.find((c) => c.value === watchedCompanyId)?.label ?? null;
+
+  // Block unratable / un-invoiceable waybills up front (same server lookups as completion).
+  const readinessQuery = useQuery({
+    queryKey: [
+      "staff-waybill-billing-readiness",
+      organisationId,
+      watchedCompanyId,
+      watchedDate,
+    ],
+    queryFn: () =>
+      getStaffWaybillBillingReadiness(
+        organisationId,
+        watchedCompanyId,
+        // Rate lookup is per SAST trip date; time of day does not matter.
+        plannedStartFor(watchedDate, "12:00")
+      ),
+    enabled: open && Boolean(watchedCompanyId) && Boolean(watchedDate),
+    staleTime: 0,
+  });
+  const billingProblems = waybillBillingProblems(
+    readinessQuery.data,
+    companyName,
+    mode
+  );
+
   const submitMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      const plannedStart = `${values.date}T${values.time}:00+02:00`;
+      const plannedStart = plannedStartFor(values.date, values.time);
+      const readiness = await getStaffWaybillBillingReadiness(
+        organisationId,
+        values.companyId,
+        plannedStart
+      );
+      const problems = waybillBillingProblems(
+        readiness,
+        companyOptions.find((c) => c.value === values.companyId)?.label,
+        mode
+      );
+      if (problems.length > 0) {
+        throw new Error(problems[0]);
+      }
       if (mode === "send") {
         return assignStaffTrip(
           organisationId,
@@ -168,7 +222,7 @@ export function AssignStaffTripDialog({
             Cancel
           </Button>
           <Button
-            disabled={submitMutation.isPending}
+            disabled={submitMutation.isPending || billingProblems.length > 0}
             onClick={form.handleSubmit((values) => submitMutation.mutate(values))}
           >
             {primaryLabel}
@@ -206,11 +260,18 @@ export function AssignStaffTripDialog({
         <div className="space-y-1.5">
           <Label>Driver</Label>
           <Select
-            value={form.watch("driverId")}
-            onValueChange={(v) => form.setValue("driverId", v ?? "")}
+            items={driverOptions}
+            value={form.watch("driverId") || null}
+            onValueChange={(v) =>
+              form.setValue("driverId", v ?? "", { shouldValidate: true })
+            }
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select driver" />
+              <SelectValue placeholder="Select driver">
+                {(value) =>
+                  resolveSelectLabel(driverOptions, value, "Select driver")
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {drivers.map((d) => (
@@ -264,6 +325,17 @@ export function AssignStaffTripDialog({
             {...form.register("paxCount", { valueAsNumber: true })}
           />
         </div>
+
+        {billingProblems.length > 0 ? (
+          <div
+            role="alert"
+            className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+          >
+            {billingProblems.map((problem) => (
+              <p key={problem}>{problem}</p>
+            ))}
+          </div>
+        ) : null}
 
         {mode === "backfill" ? (
           <div className="grid grid-cols-2 gap-3">

@@ -510,6 +510,11 @@ export type Trip = {
   updated_at: string;
   deleted_at: string | null;
   routes?: Pick<Route, "id" | "name"> | null;
+  /** Staff waybills (no route) — present on rows from the trips table. */
+  is_staff_transport?: boolean;
+  area_text?: string | null;
+  staff_company?: import("@/lib/constants").StaffTransportCompany | null;
+  companies?: { name: string } | null;
   trip_assignments?: TripAssignment[];
 };
 

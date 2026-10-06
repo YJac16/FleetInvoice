@@ -20,6 +20,10 @@ import { AssignTripDialog } from "@/features/trips/components/assign-trip-dialog
 import { GenerateTripsDialog } from "@/features/trips/components/generate-trips-dialog";
 import { TripLocationsDialog } from "@/features/trips/components/trip-locations-dialog";
 import { TripPassengersDialog } from "@/features/trips/components/trip-passengers-dialog";
+import {
+  tripAreaLabel,
+  tripRouteLabel,
+} from "@/features/trips/lib/trip-display";
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -68,7 +72,13 @@ export function TripsPage() {
     const query = debouncedSearch.trim().toLowerCase();
     if (!query) return data;
     return data.filter((trip) =>
-      [trip.routes?.name, trip.notes]
+      [
+        trip.routes?.name,
+        trip.notes,
+        trip.area_text,
+        trip.service_locations,
+        trip.companies?.name,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -81,7 +91,7 @@ export function TripsPage() {
       {
         accessorKey: "routes",
         header: "Route",
-        cell: ({ row }) => row.original.routes?.name ?? "—",
+        cell: ({ row }) => tripRouteLabel(row.original),
       },
       {
         accessorKey: "planned_start",
@@ -96,10 +106,7 @@ export function TripsPage() {
       {
         id: "locations",
         header: "AREA",
-        cell: ({ row }) =>
-          row.original.service_locations?.trim() ||
-          row.original.routes?.name ||
-          "—",
+        cell: ({ row }) => tripAreaLabel(row.original),
       },
       {
         id: "driver",
