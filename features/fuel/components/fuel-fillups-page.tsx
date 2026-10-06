@@ -256,7 +256,7 @@ export function FuelFillupsPage({
 
       {organisationId ? (
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Log fuel fill-up</DialogTitle>
             </DialogHeader>
