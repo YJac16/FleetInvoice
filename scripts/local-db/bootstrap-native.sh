@@ -131,6 +131,8 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) TO service_role;
+  -- 00057 company-portal trigger is not a client RPC (bootstrap broad grant must not reopen it)
+  REVOKE ALL ON FUNCTION public.guard_company_manager_member_scope() FROM PUBLIC, anon, authenticated;
   -- 00050 PR A function hardening (bootstrap broad grant must not reopen anon/public)
   REVOKE EXECUTE ON FUNCTION public.resolve_trip_line_rate(uuid, uuid, date)
     FROM PUBLIC, anon, authenticated;

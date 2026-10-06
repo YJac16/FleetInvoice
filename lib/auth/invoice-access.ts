@@ -27,27 +27,5 @@ export async function assertInvoiceManageAccess(
   if (opsError) throw opsError;
   if (hasOpsRole) return;
 
-  const { data: hasCompanyRole, error: companyRoleError } = await supabase.rpc(
-    "has_org_role_names",
-    {
-      org_id: invoice.organisation_id,
-      allowed: ["company_manager"],
-    }
-  );
-  if (companyRoleError) throw companyRoleError;
-  if (!hasCompanyRole) {
-    throw new Error("Not authorised to manage this invoice");
-  }
-
-  const { data: hasScope, error: scopeError } = await supabase.rpc(
-    "has_company_scope",
-    {
-      org_id: invoice.organisation_id,
-      company_id: invoice.company_id,
-    }
-  );
-  if (scopeError) throw scopeError;
-  if (!hasScope) {
-    throw new Error("Not authorised to manage this invoice");
-  }
+  throw new Error("Not authorised to manage this invoice");
 }

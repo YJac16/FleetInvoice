@@ -35,6 +35,7 @@ export function InvoicePrintView({
   autoPrint = false,
   emailDeliveryConfigured = false,
   canSendEmail = false,
+  omitDriverAndVehicle = false,
 }: {
   organisation: Pick<Organisation, "id" | "name" | "logo_url" | "settings">;
   company: Company | null;
@@ -45,6 +46,7 @@ export function InvoicePrintView({
   autoPrint?: boolean;
   emailDeliveryConfigured?: boolean;
   canSendEmail?: boolean;
+  omitDriverAndVehicle?: boolean;
 }) {
   const tripEmbeds = useMemo(
     () =>
@@ -93,8 +95,12 @@ export function InvoicePrintView({
   };
   const banking = printSettings.banking;
   const contact = printSettings.contact;
-  const driverLabel = resolveDriverLabel(printSettings.driver_label, tripEmbeds);
-  const vehicleReg = resolveVehicleReg(printSettings.vehicle_reg, tripEmbeds);
+  const driverLabel = omitDriverAndVehicle
+    ? null
+    : resolveDriverLabel(printSettings.driver_label, tripEmbeds);
+  const vehicleReg = omitDriverAndVehicle
+    ? null
+    : resolveVehicleReg(printSettings.vehicle_reg, tripEmbeds);
   const coverMeta = buildInvoiceCoverMetaLines(driverLabel, vehicleReg);
   const invoiceDate = resolveInvoicePrintDate({
     issued_at: invoice.issued_at,

@@ -16,10 +16,10 @@ describe("admin capture permissions", () => {
     expect(hasPermission("employee", "vehicles:manage")).toBe(false);
   });
 
-  it("company_manager is view-only for fleet entities", () => {
-    expect(hasPermission("company_manager", "drivers:view")).toBe(true);
+  it("company_manager cannot view or manage fleet entities", () => {
+    expect(hasPermission("company_manager", "drivers:view")).toBe(false);
     expect(hasPermission("company_manager", "drivers:manage")).toBe(false);
-    expect(hasPermission("company_manager", "vehicles:view")).toBe(true);
+    expect(hasPermission("company_manager", "vehicles:view")).toBe(false);
     expect(hasPermission("company_manager", "vehicles:manage")).toBe(false);
   });
 });

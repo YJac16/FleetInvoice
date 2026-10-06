@@ -31,8 +31,8 @@ order by 1, 2;
 -- Manual scenarios (document expected outcomes; run as specific roles in SQL editor):
 -- 1) Linked driver log_fuel_fillup with odometer >= last → insert succeeds
 -- 2) Same driver with odometer < last → exception
--- 3) Ops role lists all org fuel_fillups; company_manager only scoped company_id rows
--- 4) company_manager generate_weekly_fuel_invoice for scoped company → issued invoice + lines
--- 5) company_manager generate for unscoped company → Not authorised
+-- 3) Ops role lists all org fuel_fillups; company_manager sees 0 fuel_fillups (00057)
+-- 4) company_manager generate_period_invoice / set_invoice_status → Not authorised (00057)
+-- 5) company_manager generate for a company they cannot see → Not authorised
 -- 6) Second generate for same week → returns existing invoice (idempotent)
 -- 7) Direct insert into invoice_lines as authenticated → denied (no insert policy; RPC only)

@@ -39,4 +39,4 @@ order by 1, 2;
 -- 4) Second generate same period → returns existing (idempotent)
 -- 5) set_invoice_status issued → paid → paid_at set
 -- 6) set_invoice_status paid → void → exception
--- 7) company_manager mark paid for scoped company → ok; unscoped → Not authorised
+-- 7) company_manager set_invoice_status (mark paid or void) → Not authorised (00057)

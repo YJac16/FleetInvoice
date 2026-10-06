@@ -1,13 +1,7 @@
-import { InvoicesPage } from "@/features/invoices/components/invoices-page";
+import { CompanyInvoicesPage } from "@/features/company/components/company-invoices-page";
 
 export const dynamic = "force-dynamic";
 
 export default function Page() {
-  return (
-    <InvoicesPage
-      title="Invoices"
-      description="Period invoices for your companies — open Print for a browser PDF."
-      printBasePath="/company/invoices"
-    />
-  );
+  return <CompanyInvoicesPage />;
 }

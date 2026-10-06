@@ -18,6 +18,8 @@ export default async function Page({
       backHref="/company/invoices"
       autoPrint={print === "1"}
       emailDeliveryConfigured={isEmailDeliveryConfigured()}
+      rejectDriverInvoice
+      omitDriverAndVehicle
     />
   );
 }
