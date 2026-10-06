@@ -84,15 +84,36 @@ describe("permissions", () => {
     expect(hasPermission("dispatcher", "geofences:manage")).toBe(true);
   });
 
-  it("gives company_manager invoice generate, fuel view, fleet view, and attendance manage", () => {
+  it("limits company_manager to read-only own-company portal permissions", () => {
+    expect(permissionsForRole("company_manager")).toEqual([
+      "dashboard:view",
+      "profile:view",
+      "companies:view",
+      "employees:view",
+      "sites:view",
+      "routes:view",
+      "schedules:view",
+      "trips:view",
+      "reports:view",
+      "attendance:view",
+      "invoices:view",
+    ]);
     expect(hasPermission("company_manager", "invoices:view")).toBe(true);
-    expect(hasPermission("company_manager", "invoices:manage")).toBe(true);
-    expect(hasPermission("company_manager", "fuel:view")).toBe(true);
-    expect(hasPermission("company_manager", "fuel:manage")).toBe(false);
-    expect(hasPermission("company_manager", "vehicles:view")).toBe(true);
-    expect(hasPermission("company_manager", "drivers:view")).toBe(true);
-    expect(hasPermission("company_manager", "vehicles:manage")).toBe(false);
-    expect(hasPermission("company_manager", "attendance:manage")).toBe(true);
+    expect(hasPermission("company_manager", "invoices:manage")).toBe(false);
+    expect(hasPermission("company_manager", "fuel:view")).toBe(false);
+    expect(hasPermission("company_manager", "vehicles:view")).toBe(false);
+    expect(hasPermission("company_manager", "drivers:view")).toBe(false);
+    expect(hasPermission("company_manager", "rate_cards:view")).toBe(false);
+    expect(hasPermission("company_manager", "attendance:manage")).toBe(false);
+    expect(hasPermission("company_manager", "payroll:view")).toBe(false);
+    expect(hasPermission("organisation_admin", "invoices:manage")).toBe(true);
+    expect(hasPermission("manager", "invoices:manage")).toBe(true);
+    expect(hasPermission("dispatcher", "invoices:manage")).toBe(true);
+    expect(hasPermission("organisation_admin", "fuel:view")).toBe(true);
+    expect(hasPermission("dispatcher", "vehicles:view")).toBe(true);
+    expect(hasPermission("supervisor", "drivers:view")).toBe(true);
+    expect(hasPermission("organisation_admin", "rate_cards:view")).toBe(true);
+    expect(hasPermission("supervisor", "attendance:manage")).toBe(true);
   });
 
   it("keeps trips:manage for dispatcher and manager", () => {
@@ -102,10 +123,10 @@ describe("permissions", () => {
     expect(hasPermission("manager", "invoices:manage")).toBe(true);
   });
 
-  it("gives ops rate_cards manage and company_manager view only", () => {
+  it("gives ops rate_cards manage and denies company_manager rate cards", () => {
     expect(hasPermission("organisation_admin", "rate_cards:manage")).toBe(true);
     expect(hasPermission("dispatcher", "rate_cards:manage")).toBe(true);
-    expect(hasPermission("company_manager", "rate_cards:view")).toBe(true);
+    expect(hasPermission("company_manager", "rate_cards:view")).toBe(false);
     expect(hasPermission("company_manager", "rate_cards:manage")).toBe(false);
   });
 

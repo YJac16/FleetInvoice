@@ -22,11 +22,17 @@ export function InvoicePrintPage({
   backHref,
   autoPrint = false,
   emailDeliveryConfigured = false,
+  rejectDriverInvoice = false,
+  omitDriverAndVehicle = false,
 }: {
   invoiceId: string;
   backHref: string;
   autoPrint?: boolean;
   emailDeliveryConfigured?: boolean;
+  /** Company portal: a driver invoice is not this user's document. */
+  rejectDriverInvoice?: boolean;
+  /** Company portal: do not print driver name or vehicle registration. */
+  omitDriverAndVehicle?: boolean;
 }) {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
@@ -103,11 +109,11 @@ export function InvoicePrintPage({
   const invoice = invoiceQuery.data;
   const organisation = orgQuery.data;
 
-  if (!invoice || !organisation) {
+  if (!invoice || !organisation || (rejectDriverInvoice && invoice.driver_id)) {
     return (
       <div className="space-y-4 p-6">
         <EmptyState
-          title="Invoice not found"
+          title="Not found"
           description="This invoice is missing or you cannot access it."
         />
         <Link href={backHref} className="text-sm underline">
@@ -128,6 +134,7 @@ export function InvoicePrintPage({
       autoPrint={autoPrint}
       emailDeliveryConfigured={emailDeliveryConfigured}
       canSendEmail={canSendEmail}
+      omitDriverAndVehicle={omitDriverAndVehicle}
     />
   );
 }

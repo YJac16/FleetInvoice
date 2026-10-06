@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -9,24 +10,31 @@ import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
-import type { Permission } from "@/lib/permissions";
+import { COMPANY_NAV } from "@/features/company/lib/company-nav";
+import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { listCompanies } from "@/services/companies.service";
 import { signOut } from "@/services/auth.service";
 import type { MembershipWithOrg, Profile } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
+import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
-
-const COMPANY_NAV: { href: string; label: string; permission: Permission }[] = [
-  { href: "/company", label: "Home", permission: "dashboard:view" },
-  { href: "/company/fuel", label: "Fuel", permission: "fuel:view" },
-  { href: "/company/fleet", label: "Fleet", permission: "vehicles:view" },
-  { href: "/company/invoices", label: "Invoices", permission: "invoices:view" },
-  { href: "/company/reports", label: "Reports", permission: "reports:view" },
-];
 
 function CompanyHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const { profile, can } = useOrg();
+  const organisationId = useActiveOrgId();
+  const companiesQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.companies(organisationId)
+      : ["companies", "none"],
+    queryFn: () => listCompanies(organisationId!),
+    enabled: Boolean(organisationId),
+  });
+  const companyName =
+    companiesQuery.data && companiesQuery.data.length > 0
+      ? companiesQuery.data.map((company) => company.name).join(", ")
+      : null;
 
   async function handleSignOut() {
     try {
@@ -43,7 +51,7 @@ function CompanyHeader() {
       <div className="flex h-14 items-center gap-3 px-4 md:px-6">
         <GoOpsLogo size="sm" href="/company" />
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          Company hub
+          {companyName ? companyName : "Company hub"}
         </span>
         <div className="ml-auto flex items-center gap-1">
           <Button

@@ -165,7 +165,13 @@ function AttendanceResults({ report }: { report: AttendanceReport }) {
   );
 }
 
-function CommercialResults({ report }: { report: CommercialReport }) {
+function CommercialResults({
+  report,
+  hidePayroll = false,
+}: {
+  report: CommercialReport;
+  hidePayroll?: boolean;
+}) {
   const invoiceColumns = useMemo<
     ColumnDef<(typeof report.invoiceRows)[number], unknown>[]
   >(
@@ -227,10 +233,12 @@ function CommercialResults({ report }: { report: CommercialReport }) {
           {report.invoiceIssuedTotal.toFixed(2)} / paid{" "}
           {report.invoicePaidTotal.toFixed(2)})
         </span>
-        <span className="rounded-md bg-muted px-2 py-1">
-          Payroll runs: {report.payrollCount} (finalized{" "}
-          {report.payrollFinalizedTotal.toFixed(2)})
-        </span>
+        {hidePayroll ? null : (
+          <span className="rounded-md bg-muted px-2 py-1">
+            Payroll runs: {report.payrollCount} (finalized{" "}
+            {report.payrollFinalizedTotal.toFixed(2)})
+          </span>
+        )}
       </div>
       <div className="space-y-2">
         <h3 className="font-heading text-lg">Invoices</h3>
@@ -240,19 +248,27 @@ function CommercialResults({ report }: { report: CommercialReport }) {
           emptyMessage="No invoices in this period."
         />
       </div>
-      <div className="space-y-2">
-        <h3 className="font-heading text-lg">Payroll</h3>
-        <DataTable
-          columns={payrollColumns}
-          data={report.payrollRows}
-          emptyMessage="No payroll runs in this period."
-        />
-      </div>
+      {hidePayroll ? null : (
+        <div className="space-y-2">
+          <h3 className="font-heading text-lg">Payroll</h3>
+          <DataTable
+            columns={payrollColumns}
+            data={report.payrollRows}
+            emptyMessage="No payroll runs in this period."
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-function ReportResults({ report }: { report: OpsReport }) {
+function ReportResults({
+  report,
+  hidePayroll = false,
+}: {
+  report: OpsReport;
+  hidePayroll?: boolean;
+}) {
   switch (report.type) {
     case "trips":
       return <TripsResults report={report} />;
@@ -261,7 +277,7 @@ function ReportResults({ report }: { report: OpsReport }) {
     case "attendance":
       return <AttendanceResults report={report} />;
     case "commercial":
-      return <CommercialResults report={report} />;
+      return <CommercialResults report={report} hidePayroll={hidePayroll} />;
     default: {
       const _exhaustive: never = report;
       return _exhaustive;
@@ -273,11 +289,16 @@ export function ReportsPage({
   title = "Reports",
   description = "Period reports with CSV export for trips, fuel, attendance, and commercial summaries.",
   showMasterCounts = true,
+  allowedKinds,
+  hidePayroll = false,
 }: {
   title?: string;
   description?: string;
   showMasterCounts?: boolean;
+  allowedKinds?: readonly ReportType[];
+  hidePayroll?: boolean;
 } = {}) {
+  const reportKinds = allowedKinds ?? REPORT_TYPES;
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("reports:view");
@@ -391,9 +412,12 @@ export function ReportsPage({
           control={form.control}
           name="report_type"
           label="Report"
-          options={REPORT_TYPES.map((t) => ({
+          options={reportKinds.map((t) => ({
             value: t,
-            label: REPORT_TYPE_LABELS[t],
+            label:
+              hidePayroll && t === "commercial"
+                ? "Invoices"
+                : REPORT_TYPE_LABELS[t],
           }))}
         />
         <TextField
@@ -418,7 +442,7 @@ export function ReportsPage({
       {reportQuery.isLoading ? (
         <LoadingSkeleton rows={5} />
       ) : reportQuery.data ? (
-        <ReportResults report={reportQuery.data} />
+        <ReportResults report={reportQuery.data} hidePayroll={hidePayroll} />
       ) : (
         <EmptyState
           title="No report yet"

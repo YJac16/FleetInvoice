@@ -36,8 +36,8 @@ Run [`foundation_checks.sql`](./foundation_checks.sql), [`phase4_checks.sql`](./
 | 8 | Linked driver `transition_trip(..., started)` | Status `in_progress` + event |
 | 9 | Direct `insert into trip_events` | Denied (RPC only) |
 | 10 | Linked driver `log_fuel_fillup` odometer decrease | Exception |
-| 11 | Scoped `company_manager` weekly fuel invoice | Issued invoice + fuel lines |
-| 12 | Repeat weekly invoice same week | Idempotent existing invoice |
+| 11 | Scoped `company_manager` fuel or period invoice generate / mark paid | Not authorised. `company_manager` reads 0 `fuel_fillups` and cannot call `generate_period_invoice` or `set_invoice_status` (00057). Ops weekly fuel generate is unchanged |
+| 12 | `company_manager` `set_invoice_status` or `update_draft_invoice_line` | Not authorised. Ops repeat of the same week stays idempotent |
 | 13 | Ops `issue_qr_token` for trip + employee | Raw token returned; `issued` attendance event |
 | 14 | Linked employee `scan_qr_token` | `boarded` event; token `used_at` set |
 | 15 | Repeat scan same token | Exception `Token already used` |

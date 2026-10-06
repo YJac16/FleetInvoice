@@ -1,7 +1,5 @@
-import { VehiclesPage } from "@/features/vehicles/components/vehicles-page";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <VehiclesPage />;
+  redirect("/company");
 }

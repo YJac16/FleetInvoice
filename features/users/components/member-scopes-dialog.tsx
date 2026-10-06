@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { resolveBillToCompanyId } from "@/lib/billing/bill-to-company";
 import { listCompanies } from "@/services/companies.service";
 import {
   addMemberScope,
   listMemberScopes,
   removeMemberScope,
 } from "@/services/member-scopes.service";
+import { getOrganisation } from "@/services/organisations.service";
 import { writeAuditLog } from "@/services/audit.service";
 import type { OrganisationMember } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
@@ -45,6 +47,12 @@ export function MemberScopesDialog({
   const companiesQuery = useQuery({
     queryKey: queryKeys.companies(organisationId),
     queryFn: () => listCompanies(organisationId),
+    enabled: open && Boolean(organisationId),
+  });
+
+  const organisationQuery = useQuery({
+    queryKey: ["organisation", organisationId],
+    queryFn: () => getOrganisation(organisationId),
     enabled: open && Boolean(organisationId),
   });
 
@@ -110,6 +118,14 @@ export function MemberScopesDialog({
 
   const companies = companiesQuery.data ?? [];
   const scopes = scopesQuery.data ?? [];
+  const billToCompanyId = resolveBillToCompanyId(companies, {
+    invoice_bill_to_company_id: organisationQuery.data?.settings
+      ?.invoice_bill_to_company_id,
+  });
+  const selectableCompanies = companies.filter(
+    (company) => company.id !== billToCompanyId
+  );
+  const alreadyScoped = scopes.length >= 1;
   const companyName = (id: string) =>
     companies.find((c) => c.id === id)?.name ?? id;
 
@@ -124,7 +140,9 @@ export function MemberScopesDialog({
           : undefined
       }
     >
-      {companiesQuery.isLoading || scopesQuery.isLoading ? (
+      {companiesQuery.isLoading ||
+      organisationQuery.isLoading ||
+      scopesQuery.isLoading ? (
         <LoadingSkeleton rows={3} />
       ) : (
         <div className="space-y-4">
@@ -133,11 +151,11 @@ export function MemberScopesDialog({
               value={companyId}
               onValueChange={(value) => setCompanyId(value ?? "")}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" disabled={alreadyScoped}>
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
               <SelectContent>
-                {companies.map((company) => (
+                {selectableCompanies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
                   </SelectItem>
@@ -145,12 +163,17 @@ export function MemberScopesDialog({
               </SelectContent>
             </Select>
             <Button
-              disabled={!companyId || addMutation.isPending}
+              disabled={!companyId || addMutation.isPending || alreadyScoped}
               onClick={() => addMutation.mutate()}
             >
               Add
             </Button>
           </div>
+          {alreadyScoped ? (
+            <p className="text-sm text-muted-foreground">
+              One company per company login
+            </p>
+          ) : null}
 
           {scopes.length === 0 ? (
             <EmptyState

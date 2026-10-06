@@ -6,8 +6,10 @@ export default function Page() {
   return (
     <ReportsPage
       title="Company reports"
-      description="Period summaries for your scoped companies (fuel, trips, invoices where visible)."
+      description="Trips and invoices for your company."
       showMasterCounts={false}
+      allowedKinds={["trips", "commercial"]}
+      hidePayroll
     />
   );
 }
