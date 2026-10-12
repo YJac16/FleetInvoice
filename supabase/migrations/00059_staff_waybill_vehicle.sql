@@ -1,4 +1,10 @@
--- WorkOps — staff waybill / backfill: require vehicle; default driver-linked vehicle on start
+-- =============================================================================
+-- 00059 — Staff waybills: vehicle on backfill + driver-default on start
+-- =============================================================================
+-- Requires 00058_staff_waybill_creation_billing_checks.sql (PR #58) applied first.
+-- Replaces assign_staff_trip and backfill_staff_waybill (also redefined in 00058);
+-- start_staff_trip is only changed in this migration.
+-- =============================================================================
 
 -- ---------------------------------------------------------------------------
 -- Helper: current open driver → vehicle assignment
@@ -93,6 +99,9 @@ grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid
 drop function if exists public.assign_staff_trip(
   uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company
 );
+drop function if exists public.assign_staff_trip(
+  uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, uuid
+);
 
 create or replace function public.assign_staff_trip(
   p_organisation_id uuid,
@@ -177,6 +186,12 @@ begin
   else
     v_company_id := public.resolve_staff_company_id(p_organisation_id, p_staff_company);
   end if;
+
+  perform public.assert_staff_waybill_billing_ready(
+    p_organisation_id,
+    v_company_id,
+    p_planned_start
+  );
 
   insert into public.trips (
     organisation_id,
@@ -266,8 +281,6 @@ declare
   v_trip_id uuid;
   v_company_id uuid;
   v_total numeric;
-  v_trip_date date;
-  v_rate numeric;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -332,14 +345,11 @@ begin
     v_company_id := public.resolve_staff_company_id(p_organisation_id, p_staff_company);
   end if;
 
-  v_trip_date := (p_planned_start at time zone 'Africa/Johannesburg')::date;
-  select unit_amount into v_rate
-  from public.resolve_trip_line_rate(p_organisation_id, v_company_id, v_trip_date)
-  limit 1;
-
-  if v_rate is null then
-    raise exception 'No trip rate configured for this company. Add a rate before saving this waybill.';
-  end if;
+  perform public.assert_staff_waybill_billing_ready(
+    p_organisation_id,
+    v_company_id,
+    p_planned_start
+  );
 
   if p_opening_km is not null and p_closing_km is not null then
     if p_closing_km < p_opening_km then
