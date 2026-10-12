@@ -21,7 +21,12 @@ import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,9 +122,11 @@ export function StaffTripsMonitorPage() {
     enabled: Boolean(organisationId),
     refetchInterval: 15_000,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
 
   const presenceQuery = useQuery({
     queryKey: organisationId
@@ -241,6 +248,7 @@ export function StaffTripsMonitorPage() {
         range={range}
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
       />
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -327,6 +335,7 @@ export function StaffTripsMonitorPage() {
       {showTripsSkeleton ? (
         <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
       ) : (
+        <RangeQueryBody query={tripsQuery}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {MONITOR_COLUMNS.map((status) => {
             const columnTrips = grouped.get(status) ?? [];
@@ -475,6 +484,7 @@ export function StaffTripsMonitorPage() {
             );
           })}
         </div>
+        </RangeQueryBody>
       )}
 
       {!canManage ? (

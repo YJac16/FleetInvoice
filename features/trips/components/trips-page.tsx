@@ -21,7 +21,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
@@ -63,9 +68,11 @@ export function TripsPage() {
     queryFn: () => listTrips(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId),
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancelTrip(id),
@@ -232,13 +239,16 @@ export function TripsPage() {
           range={range}
           onPresetChange={setPreset}
           onCustomChange={setCustomRange}
+          updating={rangeRefreshing}
         />
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
       {showTripsSkeleton ? (
         <LoadingSkeleton />
-      ) : rows.length === 0 ? (
+      ) : (
+        <RangeQueryBody query={tripsQuery}>
+          {rows.length === 0 ? (
         <EmptyState
           icon={Bus}
           title={
@@ -266,8 +276,10 @@ export function TripsPage() {
               : undefined
           }
         />
-      ) : (
-        <DataTable columns={columns} data={rows} />
+          ) : (
+            <DataTable columns={columns} data={rows} />
+          )}
+        </RangeQueryBody>
       )}
 
       <AssignStaffTripDialog

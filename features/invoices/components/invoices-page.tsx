@@ -61,7 +61,12 @@ import {
 } from "@/features/invoices/lib/invoice-list-filters";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -296,9 +301,11 @@ export function InvoicesPage({
     queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(invoicesQuery);
 
   const linesQuery = useQuery({
     queryKey:
@@ -565,6 +572,7 @@ export function InvoicesPage({
             range={range}
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
+            updating={rangeRefreshing}
           />
           {!showInvoicesSkeleton ? (
             <InvoiceListFilters
@@ -583,11 +591,13 @@ export function InvoicesPage({
       ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filteredInvoices}
-          emptyMessage={listEmptyMessage}
-        />
+        <RangeQueryBody query={invoicesQuery}>
+          <DataTable
+            columns={columns}
+            data={filteredInvoices}
+            emptyMessage={listEmptyMessage}
+          />
+        </RangeQueryBody>
       )}
 
       {selectedId ? (

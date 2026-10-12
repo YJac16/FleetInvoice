@@ -14,3 +14,13 @@ export function useShowListSkeleton<TData>(
   }
   return false;
 }
+
+/** True while a new range/query key is loading but previous rows are still shown. */
+export function isRangeQueryRefreshing<TData>(
+  query: Pick<
+    UseQueryResult<TData, unknown>,
+    "isFetching" | "isPlaceholderData"
+  >
+): boolean {
+  return Boolean(query.isFetching && query.isPlaceholderData);
+}

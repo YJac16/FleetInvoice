@@ -6,7 +6,12 @@ import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { completedTrips } from "@/features/driver-portal/lib/trip-labels";
@@ -30,9 +35,11 @@ export function DriverHistoryPage() {
     queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showHistorySkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
 
   const history = completedTrips(tripsQuery.data ?? []).reverse();
 
@@ -60,6 +67,7 @@ export function DriverHistoryPage() {
         range={range}
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
         className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
 
@@ -71,11 +79,13 @@ export function DriverHistoryPage() {
           description="Finished trips will appear here."
         />
       ) : (
-        <div className="space-y-2">
-          {history.map((trip) => (
-            <StaffTripCard key={trip.id} trip={trip} compact />
-          ))}
-        </div>
+        <RangeQueryBody query={tripsQuery}>
+          <div className="space-y-2">
+            {history.map((trip) => (
+              <StaffTripCard key={trip.id} trip={trip} compact />
+            ))}
+          </div>
+        </RangeQueryBody>
       )}
     </div>
   );

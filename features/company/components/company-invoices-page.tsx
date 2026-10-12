@@ -7,7 +7,12 @@ import { useMemo } from "react";
 
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
@@ -35,9 +40,11 @@ export function CompanyInvoicesPage() {
     queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(invoicesQuery);
 
   const invoices = useMemo(() => {
     return (invoicesQuery.data ?? []).filter(
@@ -123,15 +130,18 @@ export function CompanyInvoicesPage() {
         range={range}
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
       />
       {showInvoicesSkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={invoices}
-          emptyMessage="No invoices for your company yet."
-        />
+        <RangeQueryBody query={invoicesQuery}>
+          <DataTable
+            columns={columns}
+            data={invoices}
+            emptyMessage="No invoices for your company yet."
+          />
+        </RangeQueryBody>
       )}
     </div>
   );

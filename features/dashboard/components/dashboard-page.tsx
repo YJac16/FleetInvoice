@@ -21,7 +21,12 @@ import { CardGridSkeleton } from "@/components/shared/card-grid-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +64,7 @@ export function DashboardPage() {
       : ["dashboard", "none"],
     queryFn: () => getDashboardCounts(organisationId!),
     enabled: Boolean(organisationId) && can("dashboard:view"),
+    meta: primaryRouteQueryMeta,
   });
 
   const opsQuery = useQuery({
@@ -72,9 +78,11 @@ export function DashboardPage() {
       can("dashboard:view") &&
       (can("trips:view") || can("dispatch:view")),
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showOpsSkeleton = useShowListSkeleton(opsQuery);
+  const opsRefreshing = isRangeQueryRefreshing(opsQuery);
   const showCountsSkeleton = useShowListSkeleton(countsQuery);
 
   if (!organisationId) {
@@ -160,13 +168,15 @@ export function DashboardPage() {
           range={range}
           onPresetChange={setPreset}
           onCustomChange={setCustomRange}
+          updating={opsRefreshing}
         />
       ) : null}
 
       {showOpsSkeleton ? (
         <CardGridSkeleton cards={5} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" />
       ) : ops ? (
-        <div>
+        <RangeQueryBody query={opsQuery}>
+          <div>
           <h2 className="mb-3 font-heading text-lg">
             Operations · {formatRangeLabel(range)}
           </h2>
@@ -206,12 +216,14 @@ export function DashboardPage() {
               }
             />
           </div>
-        </div>
+          </div>
+        </RangeQueryBody>
       ) : null}
 
       {showCountsSkeleton ? (
         <CardGridSkeleton cards={7} />
       ) : (
+        <RangeQueryBody query={countsQuery}>
         <div>
           <h2 className="mb-3 font-heading text-lg">Organisation</h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -259,6 +271,7 @@ export function DashboardPage() {
             />
           </div>
         </div>
+        </RangeQueryBody>
       )}
 
       {browseGroups.length ? (

@@ -54,19 +54,19 @@ function FilterChipRow({
     <div className="relative min-w-0 flex-1">
       {fadeLeft ? (
         <div
-          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-background to-transparent"
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background via-background/80 to-transparent"
           aria-hidden
         />
       ) : null}
       {fadeRight ? (
         <div
-          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-background to-transparent"
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background via-background/80 to-transparent"
           aria-hidden
         />
       ) : null}
       <div
         ref={scrollerRef}
-        className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 pr-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
         role="group"
         aria-label="Filter by date range"
       >
@@ -102,11 +102,14 @@ export function DateRangeFilter({
   onPresetChange,
   onCustomChange,
   className,
+  updating = false,
 }: {
   range: ResolvedDateRange;
   onPresetChange: (preset: DateRangePreset) => void;
   onCustomChange: (from: string, to: string) => void;
   className?: string;
+  /** Range/query key changed and fresh data is still loading. */
+  updating?: boolean;
 }) {
   const [customPanelOpen, setCustomPanelOpen] = useState(
     range.preset === "custom"
@@ -143,8 +146,20 @@ export function DateRangeFilter({
           customPanelOpen={customPanelOpen}
           onPresetClick={handlePresetClick}
         />
-        <p className="text-xs text-muted-foreground sm:shrink-0">
-          {formatRangeLabel(range)} · SAST
+        <p className="flex items-center gap-2 text-xs text-muted-foreground sm:shrink-0">
+          <span>{formatRangeLabel(range)} · SAST</span>
+          {updating ? (
+            <span
+              className="inline-flex items-center gap-1 font-medium text-foreground motion-safe:animate-pulse motion-reduce:animate-none"
+              role="status"
+            >
+              <span
+                className="size-2.5 shrink-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin motion-reduce:animate-none"
+                aria-hidden
+              />
+              Updating…
+            </span>
+          ) : null}
         </p>
       </div>
       {showCustomPanel ? (

@@ -13,12 +13,11 @@ import { toast } from "sonner";
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
-import {
-  isInstantInRange,
-  resolveDateRange,
-} from "@/lib/date-range/sast-range";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { driverTodayStaffTripRange } from "@/features/driver-portal/lib/driver-today-range";
+import { isInstantInRange, resolveDateRange } from "@/lib/date-range/sast-range";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { Button } from "@/components/ui/button";
 import { EndTripDialog } from "@/features/driver-portal/components/end-trip-dialog";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
@@ -60,9 +59,7 @@ export function DriverTodayPage() {
   const queryClient = useQueryClient();
   const canSelf = can("trips:self");
   const today = todayDateString();
-  const { range } = useDateRangeFilter("this_week");
-  const from = range.from;
-  const toExclusive = range.toExclusive;
+  const { from, toExclusive } = driverTodayStaffTripRange();
   const tomorrow = nowInDriverTz().add(1, "day").format("YYYY-MM-DD");
   const nowLabel = nowInDriverTz().format("HH:mm");
   const todayRange = resolveDateRange("today");
@@ -80,6 +77,7 @@ export function DriverTodayPage() {
     enabled: Boolean(organisationId) && canSelf,
     refetchInterval: 15_000,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
@@ -204,7 +202,9 @@ export function DriverTodayPage() {
 
         {showTripsSkeleton ? (
           <LoadingSkeleton rows={2} />
-        ) : active ? (
+        ) : (
+          <RangeQueryBody query={tripsQuery}>
+        {active ? (
           <section className="relative mb-5 space-y-3">
             <div className="relative mb-1">
               <span className="absolute -left-4 top-1 size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
@@ -305,6 +305,8 @@ export function DriverTodayPage() {
             </p>
           </div>
         ) : null}
+          </RangeQueryBody>
+        )}
       </div>
 
       <StartTripDialog

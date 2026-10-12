@@ -10,7 +10,12 @@ import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
   Card,
@@ -58,9 +63,11 @@ export function DispatchBoardPage() {
     enabled: Boolean(organisationId) && canView,
     refetchInterval: 15_000,
     placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
   const filteredTrips = tripsQuery.data ?? [];
 
   const tripIds = useMemo(
@@ -150,6 +157,7 @@ export function DispatchBoardPage() {
         range={range}
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
       />
 
       <DispatchMap markers={markers} />
@@ -190,6 +198,7 @@ export function DispatchBoardPage() {
         {showTripsSkeleton ? (
           <KanbanSkeleton />
         ) : (
+          <RangeQueryBody query={tripsQuery}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {KANBAN_COLUMNS.map((col) => (
               <Card key={col.status}>
@@ -232,6 +241,7 @@ export function DispatchBoardPage() {
               </Card>
             ))}
           </div>
+          </RangeQueryBody>
         )}
       </div>
     </div>
