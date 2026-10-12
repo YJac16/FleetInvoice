@@ -38,6 +38,9 @@ import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+import { hasExplicitDateRangeParam } from "@/lib/date-range/search-params";
 
 export function TripsPage() {
   const { can } = useOrg();
@@ -55,6 +58,9 @@ export function TripsPage() {
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
+  const searchParams = useSearchParams();
+  const dateRangeFilterActive =
+    hasExplicitDateRangeParam(searchParams) || range.preset !== "this_week";
 
   const tripsQuery = useTripsListQuery(organisationId, range);
 
@@ -239,26 +245,32 @@ export function TripsPage() {
         <EmptyState
           icon={Bus}
           title={
-            (tripsQuery.data ?? []).length === 0 && !debouncedSearch.trim()
+            !debouncedSearch.trim() &&
+            !dateRangeFilterActive &&
+            (tripsQuery.data ?? []).length === 0
               ? "No trips yet"
               : "No trips in this range"
           }
           description={
-            (tripsQuery.data ?? []).length === 0 && !debouncedSearch.trim()
+            !debouncedSearch.trim() &&
+            !dateRangeFilterActive &&
+            (tripsQuery.data ?? []).length === 0
               ? "Generate trips from a schedule to see them here."
               : "Try a different date range or clear your search."
           }
           actionLabel={
             canManage &&
-            (tripsQuery.data ?? []).length === 0 &&
-            !debouncedSearch.trim()
+            !debouncedSearch.trim() &&
+            !dateRangeFilterActive &&
+            (tripsQuery.data ?? []).length === 0
               ? "Generate trips"
               : undefined
           }
           onAction={
             canManage &&
-            (tripsQuery.data ?? []).length === 0 &&
-            !debouncedSearch.trim()
+            !debouncedSearch.trim() &&
+            !dateRangeFilterActive &&
+            (tripsQuery.data ?? []).length === 0
               ? () => setGenerateOpen(true)
               : undefined
           }

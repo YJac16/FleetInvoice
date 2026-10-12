@@ -53,6 +53,11 @@ export function dateRangeFromSearchParams(
   return resolveDateRange(preset, from, to);
 }
 
+/** True when the URL carries an explicit `range` query param (not implicit default). */
+export function hasExplicitDateRangeParam(params: URLSearchParams): boolean {
+  return params.has(RANGE_PARAM);
+}
+
 export function applyDateRangeToSearchParams(
   base: URLSearchParams,
   range: ResolvedDateRange

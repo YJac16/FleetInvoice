@@ -132,9 +132,7 @@ export function DateRangeFilter({
   /** Range/query key changed and fresh data is still loading. */
   updating?: boolean;
 }) {
-  const [customPanelOpen, setCustomPanelOpen] = useState(
-    range.preset === "custom"
-  );
+  const [customPanelOpen, setCustomPanelOpen] = useState(false);
   const [draftFromText, setDraftFromText] = useState(() =>
     isoDateToDisplay(range.from)
   );
@@ -160,13 +158,18 @@ export function DateRangeFilter({
   }, [range.from, range.preset, range.to, resetDraftsToApplied]);
 
   const validation = validateCustomRangeDraft(draftFromText, draftToText);
+  const appliedFromText = isoDateToDisplay(range.from);
+  const appliedToText = isoDateToDisplay(range.to);
+  const draftsDifferFromApplied =
+    draftFromText !== appliedFromText || draftToText !== appliedToText;
   const showFromInvalid = fieldsTouched && validation.fromInvalid;
-  const showToInvalid = fieldsTouched && validation.toInvalid;
+  const showToInvalid =
+    fieldsTouched && (validation.toInvalid || Boolean(validation.orderError));
 
   const handleApply = useCallback(() => {
     if (!validation.canApply || !validation.fromIso || !validation.toIso) return;
     onCustomChange(validation.fromIso, validation.toIso);
-    setCustomPanelOpen(true);
+    setCustomPanelOpen(false);
     setFieldsTouched(false);
   }, [onCustomChange, validation]);
 
@@ -193,7 +196,8 @@ export function DateRangeFilter({
   };
 
   const showCustomPanel = customPanelOpen;
-  const rangeStatusLabel = customPanelOpen
+  const customNotApplied = customPanelOpen && draftsDifferFromApplied;
+  const rangeStatusLabel = customNotApplied
     ? "Custom (not applied)"
     : formatRangeLabel(range);
 

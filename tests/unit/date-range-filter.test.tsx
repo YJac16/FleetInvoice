@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
-import { resolveDateRange } from "@/lib/date-range/sast-range";
+import { formatRangeLabel, resolveDateRange } from "@/lib/date-range/sast-range";
 
 describe("DateRangeFilter custom panel", () => {
   const range = resolveDateRange("this_week");
@@ -41,6 +41,23 @@ describe("DateRangeFilter custom panel", () => {
     expect(onCustomChange).not.toHaveBeenCalled();
   });
 
+  it("does not show Custom (not applied) for an applied custom URL until drafts change", () => {
+    const customRange = resolveDateRange("custom", "2026-09-01", "2026-09-10");
+    render(
+      <DateRangeFilter
+        range={customRange}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+      />
+    );
+
+    expect(screen.queryByText(/Custom \(not applied\)/)).toBeNull();
+    expect(
+      screen.getByText(`${formatRangeLabel(customRange)} · SAST`)
+    ).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Custom date range" })).toBeNull();
+  });
+
   it("applies on Enter when valid and resets drafts on Escape", () => {
     render(
       <DateRangeFilter
@@ -62,6 +79,7 @@ describe("DateRangeFilter custom panel", () => {
     fireEvent.keyDown(dialog, { key: "Enter" });
     expect(onCustomChange).toHaveBeenCalledWith("2026-10-01", "2026-10-14");
 
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
     fireEvent.change(from, { target: { value: "99/99/9999" } });
 
     fireEvent.keyDown(

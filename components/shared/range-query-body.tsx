@@ -31,6 +31,7 @@ export function RangeQueryBody<TData>({
         className
       )}
       aria-busy={refreshing || undefined}
+      {...(refreshing ? { inert: true } : {})}
     >
       {children}
     </div>

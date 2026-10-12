@@ -101,7 +101,9 @@ export function resolveDateRange(
 }
 
 export function isValidCalendarDateStr(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs.tz(value, LIST_FILTER_TZ).isValid();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = dayjs.tz(value, LIST_FILTER_TZ);
+  return d.isValid() && d.format("YYYY-MM-DD") === value;
 }
 
 function isValidDateStr(value: string): boolean {
