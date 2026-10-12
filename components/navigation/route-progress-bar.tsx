@@ -1,33 +1,26 @@
 "use client";
 
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching } from "@tanstack/react-query";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { PRIMARY_ROUTE_QUERY_META } from "@/lib/react-query/primary-route-meta";
 import { cn } from "@/lib/utils";
 
-function isPrimaryRouteFetching(
-  queryClient: ReturnType<typeof useQueryClient>
-) {
-  return (
-    queryClient.isFetching({
-      predicate: (query) =>
-        query.meta?.[PRIMARY_ROUTE_QUERY_META] === true,
-    }) > 0
-  );
-}
+const SETTLE_DEBOUNCE_MS = 120;
+const MAX_SESSION_MS = 15_000;
+const NO_PRIMARY_GRACE_MS = 500;
 
 export function RouteProgressBar() {
-  const queryClient = useQueryClient();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const routeKey = `${pathname}?${searchParams.toString()}`;
 
   const bootstrappedRef = useRef(false);
   const prevRouteKeyRef = useRef(routeKey);
+  const awaitingPrimaryRef = useRef(false);
+  const sessionStartedAtRef = useRef(0);
   const [sessionActive, setSessionActive] = useState(false);
-  const [navSettled, setNavSettled] = useState(true);
   const [progress, setProgress] = useState(0);
   const trickleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -45,35 +38,19 @@ export function RouteProgressBar() {
     }
     if (routeKey === prevRouteKeyRef.current) return;
     prevRouteKeyRef.current = routeKey;
+    awaitingPrimaryRef.current = true;
+    sessionStartedAtRef.current = Date.now();
     setSessionActive(true);
-    setNavSettled(false);
     setProgress((p) => (p < 12 ? 12 : p));
+  }, [routeKey]);
 
-    let cancelled = false;
-    const waitForRouteQueries = async () => {
-      const startedAt = Date.now();
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      });
-      let sawPrimaryFetch = false;
-      const deadline = startedAt + 2_500;
-      while (!cancelled && Date.now() < deadline) {
-        const fetching = isPrimaryRouteFetching(queryClient);
-        if (fetching) sawPrimaryFetch = true;
-        if (sawPrimaryFetch && !fetching) break;
-        if (!sawPrimaryFetch && Date.now() - startedAt > 450) break;
-        await new Promise((r) => window.setTimeout(r, 48));
-      }
-      if (!cancelled) setNavSettled(true);
-    };
-    void waitForRouteQueries();
+  useEffect(() => {
+    if (primaryFetching) {
+      awaitingPrimaryRef.current = false;
+    }
+  }, [primaryFetching]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [routeKey, queryClient]);
-
-  const running = sessionActive || primaryFetching || !navSettled;
+  const running = sessionActive || primaryFetching;
 
   useEffect(() => {
     if (!running) {
@@ -97,25 +74,35 @@ export function RouteProgressBar() {
 
   useEffect(() => {
     if (!sessionActive) return;
-    if (!navSettled || primaryFetching) return;
 
-    let cancelled = false;
-    const frame = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (cancelled) return;
-        setProgress(100);
-        window.setTimeout(() => {
-          setSessionActive(false);
-          setProgress(0);
-        }, 240);
-      });
-    });
+    const elapsed = Date.now() - sessionStartedAtRef.current;
+    if (elapsed >= MAX_SESSION_MS) {
+      setProgress(100);
+      window.setTimeout(() => {
+        setSessionActive(false);
+        setProgress(0);
+      }, 240);
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frame);
-    };
-  }, [sessionActive, navSettled, primaryFetching, routeKey]);
+    if (primaryFetching) return;
+
+    const stillAwaiting =
+      awaitingPrimaryRef.current &&
+      elapsed < NO_PRIMARY_GRACE_MS;
+    if (stillAwaiting) return;
+
+    const timeout = window.setTimeout(() => {
+      if (primaryFetching) return;
+      setProgress(100);
+      window.setTimeout(() => {
+        setSessionActive(false);
+        setProgress(0);
+      }, 240);
+    }, SETTLE_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [sessionActive, primaryFetching, routeKey]);
 
   return (
     <div

@@ -27,6 +27,8 @@ export const queryKeys = {
     from && toExclusive
       ? (["trips", orgId, from, toExclusive] as const)
       : (["trips", orgId] as const),
+  tripDriverNames: (orgId: string, tripIds: string[]) =>
+    ["trip-driver-names", orgId, tripIds.join(",")] as const,
   driverTrips: (orgId: string) => ["driver-trips", orgId] as const,
   staffTrips: (orgId: string, from: string, to: string) =>
     ["staff-trips", orgId, from, to] as const,

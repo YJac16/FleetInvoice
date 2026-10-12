@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Bus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -26,7 +21,7 @@ import {
   useShowListSkeleton,
 } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
-import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { useTripsListQuery } from "@/hooks/use-trips-list-query";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
@@ -37,7 +32,7 @@ import { TripPassengersDialog } from "@/features/trips/components/trip-passenger
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
-import { cancelTrip, listTrips } from "@/services/trips.service";
+import { cancelTrip } from "@/services/trips.service";
 import type { Trip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
@@ -61,15 +56,7 @@ export function TripsPage() {
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
 
-  const tripsQuery = useQuery({
-    queryKey: organisationId
-      ? queryKeys.trips(organisationId, range.from, range.toExclusive)
-      : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!, { dateRange: range }),
-    enabled: Boolean(organisationId),
-    placeholderData: keepPreviousData,
-    meta: primaryRouteQueryMeta,
-  });
+  const tripsQuery = useTripsListQuery(organisationId, range);
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
   const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);

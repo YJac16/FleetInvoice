@@ -21,12 +21,12 @@ export type ListTripsOptions = ListTenantOptions & {
   dateRange?: ResolvedDateRange;
 };
 
-export async function listTrips(
+export async function listTripRows(
   organisationId: string,
   options?: ListTripsOptions
 ) {
   const { dateRange, ...listOptions } = options ?? {};
-  const rows = await listTenantRows<Trip>(TABLE, organisationId, {
+  return listTenantRows<Trip>(TABLE, organisationId, {
     orderBy: "planned_start",
     orderAscending: false,
     select: TRIP_SELECT,
@@ -41,6 +41,13 @@ export async function listTrips(
         })()
       : {}),
   });
+}
+
+export async function listTrips(
+  organisationId: string,
+  options?: ListTripsOptions
+) {
+  const rows = await listTripRows(organisationId, options);
   const names = await getTripDriverNames(rows.map((r) => r.id));
   return mergeTripDriverNames(rows, names);
 }

@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   DATE_RANGE_PRESETS,
   type DateRangePreset,
@@ -137,17 +136,20 @@ export function DateRangeFilter({
   };
 
   const showCustomPanel = customPanelOpen;
+  const rangeStatusLabel = customPanelOpen
+    ? "Custom (not applied)"
+    : formatRangeLabel(range);
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <FilterChipRow
-          activePreset={range.preset}
+          activePreset={customPanelOpen ? "custom" : range.preset}
           customPanelOpen={customPanelOpen}
           onPresetClick={handlePresetClick}
         />
         <p className="flex items-center gap-2 text-xs text-muted-foreground sm:shrink-0">
-          <span>{formatRangeLabel(range)} · SAST</span>
+          <span>{rangeStatusLabel} · SAST</span>
           {updating ? (
             <span
               className="inline-flex items-center gap-1 font-medium text-foreground motion-safe:animate-pulse motion-reduce:animate-none"
@@ -164,30 +166,18 @@ export function DateRangeFilter({
       </div>
       {showCustomPanel ? (
         <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="date-range-from" className="text-xs">
-              From
-            </Label>
-            <Input
-              id="date-range-from"
-              type="date"
-              value={draftFrom}
-              onChange={(e) => setDraftFrom(e.target.value)}
-              className="w-[10.5rem]"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="date-range-to" className="text-xs">
-              To
-            </Label>
-            <Input
-              id="date-range-to"
-              type="date"
-              value={draftTo}
-              onChange={(e) => setDraftTo(e.target.value)}
-              className="w-[10.5rem]"
-            />
-          </div>
+          <SastDateInput
+            id="date-range-from"
+            label="From"
+            valueIso={draftFrom}
+            onChangeIso={setDraftFrom}
+          />
+          <SastDateInput
+            id="date-range-to"
+            label="To"
+            valueIso={draftTo}
+            onChangeIso={setDraftTo}
+          />
           <Button
             type="button"
             size="sm"

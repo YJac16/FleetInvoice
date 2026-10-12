@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -15,7 +15,7 @@ import {
   useShowListSkeleton,
 } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
-import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { useTripsListQuery } from "@/hooks/use-trips-list-query";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
   Card,
@@ -29,7 +29,6 @@ import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import type { TripStatus } from "@/lib/constants";
 import { listGpsLastPositions } from "@/services/gps.service";
 import { listPassengersForTrips } from "@/services/trip-passengers.service";
-import { listTrips } from "@/services/trips.service";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 
@@ -55,15 +54,9 @@ export function DispatchBoardPage() {
     refetchInterval: 10_000,
   });
 
-  const tripsQuery = useQuery({
-    queryKey: organisationId
-      ? queryKeys.trips(organisationId, range.from, range.toExclusive)
-      : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!, { dateRange: range }),
-    enabled: Boolean(organisationId) && canView,
+  const tripsQuery = useTripsListQuery(organisationId, range, {
+    enabled: canView,
     refetchInterval: 15_000,
-    placeholderData: keepPreviousData,
-    meta: primaryRouteQueryMeta,
   });
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
