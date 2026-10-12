@@ -175,7 +175,7 @@ export function DashboardPage() {
       {showOpsSkeleton ? (
         <CardGridSkeleton cards={5} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" />
       ) : ops ? (
-        <RangeQueryBody query={opsQuery}>
+        <RangeQueryBody query={opsQuery} refreshing={opsRefreshing}>
           <div>
           <h2 className="mb-3 font-heading text-lg">
             Operations · {formatRangeLabel(range)}

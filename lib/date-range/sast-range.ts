@@ -100,8 +100,12 @@ export function resolveDateRange(
   return { preset, from, to, toExclusive };
 }
 
-function isValidDateStr(value: string): boolean {
+export function isValidCalendarDateStr(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs.tz(value, LIST_FILTER_TZ).isValid();
+}
+
+function isValidDateStr(value: string): boolean {
+  return isValidCalendarDateStr(value);
 }
 
 /** Half-open interval [from 00:00 SAST, toExclusive 00:00 SAST). */

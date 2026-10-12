@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { resolveDateRange } from "@/lib/date-range/sast-range";
 import {
+  invoicePeriodOverlapBoundsForRange,
   periodStartBoundsForRange,
   plannedStartBoundsForRange,
 } from "@/lib/date-range/supabase-bounds";
@@ -25,6 +26,14 @@ describe("supabase date bounds", () => {
     expect(periodStartBoundsForRange(range)).toEqual({
       gte: "2026-10-05",
       lte: "2026-10-11",
+    });
+  });
+
+  it("maps invoice overlap (period_start <= to AND period_end >= from)", () => {
+    const range = resolveDateRange("this_week", null, null, new Date("2026-10-07T12:00:00+02:00"));
+    expect(invoicePeriodOverlapBoundsForRange(range)).toEqual({
+      periodEndGte: "2026-10-05",
+      periodStartLte: "2026-10-11",
     });
   });
 });

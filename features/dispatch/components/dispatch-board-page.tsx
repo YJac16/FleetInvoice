@@ -191,7 +191,13 @@ export function DispatchBoardPage() {
         {showTripsSkeleton ? (
           <KanbanSkeleton />
         ) : (
-          <RangeQueryBody query={tripsQuery}>
+          <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+          {filteredTrips.length === 0 ? (
+            <EmptyState
+              title="No trips in this range"
+              description="Try a different date range or create trips for this period."
+            />
+          ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {KANBAN_COLUMNS.map((col) => (
               <Card key={col.status}>
@@ -234,6 +240,7 @@ export function DispatchBoardPage() {
               </Card>
             ))}
           </div>
+          )}
           </RangeQueryBody>
         )}
       </div>

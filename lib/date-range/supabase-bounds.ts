@@ -17,3 +17,14 @@ export function periodStartBoundsForRange(range: ResolvedDateRange): {
 } {
   return { gte: range.from, lte: range.to };
 }
+
+/** Invoice period overlaps filter range [from, to] (inclusive calendar dates). */
+export function invoicePeriodOverlapBoundsForRange(range: ResolvedDateRange): {
+  periodEndGte: string;
+  periodStartLte: string;
+} {
+  return {
+    periodEndGte: range.from,
+    periodStartLte: range.to,
+  };
+}

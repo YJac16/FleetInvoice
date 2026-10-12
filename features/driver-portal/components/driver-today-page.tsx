@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+
+import { useSastDayKey } from "@/hooks/use-sast-day-key";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -22,10 +24,7 @@ import { Button } from "@/components/ui/button";
 import { EndTripDialog } from "@/features/driver-portal/components/end-trip-dialog";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { StartTripDialog } from "@/features/driver-portal/components/start-trip-dialog";
-import {
-  nowInDriverTz,
-  todayDateString,
-} from "@/features/driver-portal/lib/dates";
+import { nowInDriverTz } from "@/features/driver-portal/lib/dates";
 import {
   canAdvanceStaffTrip,
   canEndStaffTrip,
@@ -58,11 +57,25 @@ export function DriverTodayPage() {
   const organisationId = useActiveOrgId();
   const queryClient = useQueryClient();
   const canSelf = can("trips:self");
-  const today = todayDateString();
-  const { from, toExclusive } = driverTodayStaffTripRange();
-  const tomorrow = nowInDriverTz().add(1, "day").format("YYYY-MM-DD");
+  const sastDayKey = useSastDayKey();
+  const today = sastDayKey;
+  const { from, toExclusive } = useMemo(() => {
+    const noonSast = new Date(`${sastDayKey}T12:00:00+02:00`);
+    return driverTodayStaffTripRange(noonSast);
+  }, [sastDayKey]);
+  const tomorrow = useMemo(() => {
+    return nowInDriverTz()
+      .year(Number(sastDayKey.slice(0, 4)))
+      .month(Number(sastDayKey.slice(5, 7)) - 1)
+      .date(Number(sastDayKey.slice(8, 10)))
+      .add(1, "day")
+      .format("YYYY-MM-DD");
+  }, [sastDayKey]);
   const nowLabel = nowInDriverTz().format("HH:mm");
-  const todayRange = resolveDateRange("today");
+  const todayRange = useMemo(
+    () => resolveDateRange("today", null, null, new Date(`${sastDayKey}T12:00:00+02:00`)),
+    [sastDayKey]
+  );
   const hasTripsToday = (trips: StaffTrip[]) =>
     trips.some((t) => isInstantInRange(t.planned_start, todayRange));
 

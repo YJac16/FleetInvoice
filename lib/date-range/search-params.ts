@@ -1,5 +1,6 @@
 import {
   type DateRangePreset,
+  isValidCalendarDateStr,
   resolveDateRange,
   type ResolvedDateRange,
 } from "@/lib/date-range/sast-range";
@@ -27,9 +28,28 @@ export function dateRangeFromSearchParams(
   params: URLSearchParams,
   defaultPreset: DateRangePreset = "this_week"
 ): ResolvedDateRange {
-  const preset = parsePreset(params.get(RANGE_PARAM)) ?? defaultPreset;
+  const rawPreset = params.get(RANGE_PARAM);
+  const parsedPreset = parsePreset(rawPreset);
+
+  if (rawPreset && !parsedPreset) {
+    return resolveDateRange("this_week");
+  }
+
+  const preset = parsedPreset ?? defaultPreset;
   const from = params.get(FROM_PARAM);
   const to = params.get(TO_PARAM);
+
+  if (preset === "custom") {
+    if (
+      !from ||
+      !to ||
+      !isValidCalendarDateStr(from) ||
+      !isValidCalendarDateStr(to)
+    ) {
+      return resolveDateRange("this_week");
+    }
+  }
+
   return resolveDateRange(preset, from, to);
 }
 

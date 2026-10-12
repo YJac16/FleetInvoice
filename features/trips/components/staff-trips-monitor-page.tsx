@@ -335,7 +335,13 @@ export function StaffTripsMonitorPage() {
       {showTripsSkeleton ? (
         <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
       ) : (
-        <RangeQueryBody query={tripsQuery}>
+        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+        {trips.length === 0 ? (
+          <EmptyState
+            title="No trips in this range"
+            description="Adjust the date range or create a waybill for this period."
+          />
+        ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {MONITOR_COLUMNS.map((status) => {
             const columnTrips = grouped.get(status) ?? [];
@@ -484,6 +490,7 @@ export function StaffTripsMonitorPage() {
             );
           })}
         </div>
+        )}
         </RangeQueryBody>
       )}
 

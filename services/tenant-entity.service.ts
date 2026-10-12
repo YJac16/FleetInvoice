@@ -19,6 +19,8 @@ export type ListTenantOptions = {
   periodStartGte?: string;
   /** Inclusive upper bound on `period_start` (date). */
   periodStartLte?: string;
+  /** Inclusive lower bound on `period_end` (date). */
+  periodEndGte?: string;
 };
 
 export async function listTenantRows<T extends SoftDeleteable>(
@@ -51,6 +53,9 @@ export async function listTenantRows<T extends SoftDeleteable>(
   }
   if (options.periodStartLte) {
     query = query.lte("period_start", options.periodStartLte);
+  }
+  if (options.periodEndGte) {
+    query = query.gte("period_end", options.periodEndGte);
   }
 
   if (options.archivedOnly) {

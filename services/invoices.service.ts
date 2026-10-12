@@ -1,5 +1,5 @@
 import type { ResolvedDateRange } from "@/lib/date-range/sast-range";
-import { periodStartBoundsForRange } from "@/lib/date-range/supabase-bounds";
+import { invoicePeriodOverlapBoundsForRange } from "@/lib/date-range/supabase-bounds";
 import { createClient } from "@/lib/supabase/client";
 import { sortInvoiceLinesChronologically } from "@/features/invoices/lib/invoice-line-sort";
 import type { InvoiceTripEmbed } from "@/features/invoices/lib/invoice-trip-row";
@@ -32,10 +32,10 @@ export function listInvoices(
     ...listOptions,
     ...(dateRange
       ? (() => {
-          const bounds = periodStartBoundsForRange(dateRange);
+          const bounds = invoicePeriodOverlapBoundsForRange(dateRange);
           return {
-            periodStartGte: bounds.gte,
-            periodStartLte: bounds.lte,
+            periodEndGte: bounds.periodEndGte,
+            periodStartLte: bounds.periodStartLte,
           };
         })()
       : {}),

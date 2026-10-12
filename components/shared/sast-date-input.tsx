@@ -41,7 +41,7 @@ export function SastDateInput({
         autoComplete="off"
         placeholder="DD/MM/YYYY"
         aria-describedby={`${id}-hint`}
-        aria-invalid={showError}
+        aria-invalid={showError ? true : undefined}
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
         onBlur={() => {

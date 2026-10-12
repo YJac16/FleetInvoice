@@ -24,6 +24,7 @@ function FilterChipRow({
   onPresetClick: (preset: DateRangePreset) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const activeChipRef = useRef<HTMLButtonElement | null>(null);
   const [fadeLeft, setFadeLeft] = useState(false);
   const [fadeRight, setFadeRight] = useState(false);
 
@@ -50,6 +51,17 @@ function FilterChipRow({
       ro?.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const narrow = window.matchMedia("(max-width: 390px)");
+    if (!narrow.matches) return;
+    activeChipRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [activePreset, customPanelOpen]);
 
   return (
     <div className="relative min-w-0 flex-1">
@@ -79,6 +91,7 @@ function FilterChipRow({
           return (
             <Button
               key={option.value}
+              ref={selected ? activeChipRef : undefined}
               type="button"
               size="sm"
               variant={selected ? "default" : "outline"}
@@ -195,12 +208,16 @@ export function DateRangeFilter({
           customPanelOpen={customPanelOpen}
           onPresetClick={handlePresetClick}
         />
-        <p className="flex items-center gap-2 text-xs text-muted-foreground sm:shrink-0">
-          <span>{rangeStatusLabel} · SAST</span>
-          {updating ? (
+        <p className="text-xs text-muted-foreground sm:shrink-0">
+          <span className="inline-flex items-center gap-2">
+            <span>{rangeStatusLabel} · SAST</span>
             <span
-              className="inline-flex items-center gap-1 font-medium text-foreground motion-safe:animate-pulse motion-reduce:animate-none"
+              className={cn(
+                "inline-flex w-[5.75rem] items-center gap-1 font-medium text-foreground motion-safe:animate-pulse motion-reduce:animate-none",
+                !updating && "invisible"
+              )}
               role="status"
+              aria-hidden={!updating}
             >
               <span
                 className="size-2.5 shrink-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin motion-reduce:animate-none"
@@ -208,7 +225,7 @@ export function DateRangeFilter({
               />
               Updating…
             </span>
-          ) : null}
+          </span>
         </p>
       </div>
       {showCustomPanel ? (

@@ -234,7 +234,7 @@ export function TripsPage() {
       {showTripsSkeleton ? (
         <LoadingSkeleton />
       ) : (
-        <RangeQueryBody query={tripsQuery}>
+        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
           {rows.length === 0 ? (
         <EmptyState
           icon={Bus}

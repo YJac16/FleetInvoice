@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 export function RangeQueryBody<TData>({
   query,
+  refreshing: refreshingProp,
   children,
   className,
 }: {
@@ -14,10 +15,13 @@ export function RangeQueryBody<TData>({
     isFetching: boolean;
     isPlaceholderData: boolean;
   };
+  /** When true, stale list rows are non-interactive (matches DateRangeFilter “Updating…”). */
+  refreshing?: boolean;
   children: ReactNode;
   className?: string;
 }) {
-  const refreshing = isRangeQueryRefreshing(query);
+  const refreshing =
+    refreshingProp ?? isRangeQueryRefreshing(query);
 
   return (
     <div
@@ -26,7 +30,7 @@ export function RangeQueryBody<TData>({
         refreshing && "pointer-events-none opacity-60",
         className
       )}
-      aria-busy={refreshing}
+      aria-busy={refreshing || undefined}
     >
       {children}
     </div>

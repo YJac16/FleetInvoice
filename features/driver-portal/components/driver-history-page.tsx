@@ -75,11 +75,11 @@ export function DriverHistoryPage() {
         <LoadingSkeleton rows={4} />
       ) : history.length === 0 ? (
         <EmptyState
-          title="No completed trips"
-          description="Finished trips will appear here."
+          title="No trips in this range"
+          description="Try a different date range or complete a trip to see it here."
         />
       ) : (
-        <RangeQueryBody query={tripsQuery}>
+        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
           <div className="space-y-2">
             {history.map((trip) => (
               <StaffTripCard key={trip.id} trip={trip} compact />

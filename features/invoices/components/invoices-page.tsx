@@ -591,7 +591,7 @@ export function InvoicesPage({
       ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />
       ) : (
-        <RangeQueryBody query={invoicesQuery}>
+        <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
           <DataTable
             columns={columns}
             data={filteredInvoices}
