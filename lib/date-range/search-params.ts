@@ -25,7 +25,7 @@ function parsePreset(value: string | null | undefined): DateRangePreset | null {
 
 export function dateRangeFromSearchParams(
   params: URLSearchParams,
-  defaultPreset: DateRangePreset = "today"
+  defaultPreset: DateRangePreset = "this_week"
 ): ResolvedDateRange {
   const preset = parsePreset(params.get(RANGE_PARAM)) ?? defaultPreset;
   const from = params.get(FROM_PARAM);

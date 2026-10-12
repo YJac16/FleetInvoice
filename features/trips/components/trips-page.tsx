@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Bus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -15,7 +20,8 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { filterTripsByPlannedStart } from "@/lib/date-range/filter-items";
+import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
@@ -48,12 +54,18 @@ export function TripsPage() {
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
+  const rangeHref = usePreservedRangeHref();
 
   const tripsQuery = useQuery({
-    queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!),
+    queryKey: organisationId
+      ? queryKeys.trips(organisationId, range.from, range.toExclusive)
+      : ["trips", "none"],
+    queryFn: () => listTrips(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId),
+    placeholderData: keepPreviousData,
   });
+
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancelTrip(id),
@@ -68,7 +80,7 @@ export function TripsPage() {
   });
 
   const rows = useMemo(() => {
-    const data = filterTripsByPlannedStart(tripsQuery.data ?? [], range);
+    const data = tripsQuery.data ?? [];
     const query = debouncedSearch.trim().toLowerCase();
     if (!query) return data;
     return data.filter((trip) =>
@@ -78,7 +90,7 @@ export function TripsPage() {
         .toLowerCase()
         .includes(query)
     );
-  }, [tripsQuery.data, debouncedSearch, range]);
+  }, [tripsQuery.data, debouncedSearch]);
 
   const columns = useMemo<ColumnDef<Trip, unknown>[]>(
     () => [
@@ -197,7 +209,10 @@ export function TripsPage() {
         actions={
           canManage ? (
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" render={<Link href="/staff-transport" />}>
+              <Button
+                variant="outline"
+                render={<Link href={rangeHref("/staff-transport")} />}
+              >
                 Monitor
               </Button>
               <Button variant="secondary" onClick={() => setAssignStaffOpen(true)}>
@@ -221,7 +236,7 @@ export function TripsPage() {
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
-      {tripsQuery.isLoading ? (
+      {showTripsSkeleton ? (
         <LoadingSkeleton />
       ) : rows.length === 0 ? (
         <EmptyState

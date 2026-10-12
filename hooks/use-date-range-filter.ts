@@ -13,7 +13,7 @@ import {
   type ResolvedDateRange,
 } from "@/lib/date-range/sast-range";
 
-export function useDateRangeFilter(defaultPreset: DateRangePreset = "today") {
+export function useDateRangeFilter(defaultPreset: DateRangePreset = "this_week") {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

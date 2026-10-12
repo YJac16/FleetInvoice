@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -10,7 +10,7 @@ import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { filterTripsByPlannedStart } from "@/lib/date-range/filter-items";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
   Card,
@@ -39,7 +39,7 @@ export function DispatchBoardPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("dispatch:view") || can("gps:view");
-  const { range, setPreset, setCustomRange } = useDateRangeFilter("today");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const positionsQuery = useQuery({
     queryKey: organisationId
@@ -51,16 +51,17 @@ export function DispatchBoardPage() {
   });
 
   const tripsQuery = useQuery({
-    queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!),
+    queryKey: organisationId
+      ? queryKeys.trips(organisationId, range.from, range.toExclusive)
+      : ["trips", "none"],
+    queryFn: () => listTrips(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
     refetchInterval: 15_000,
+    placeholderData: keepPreviousData,
   });
 
-  const filteredTrips = useMemo(
-    () => filterTripsByPlannedStart(tripsQuery.data ?? [], range),
-    [tripsQuery.data, range]
-  );
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const filteredTrips = tripsQuery.data ?? [];
 
   const tripIds = useMemo(
     () => filteredTrips.map((t) => t.id),
@@ -186,7 +187,7 @@ export function DispatchBoardPage() {
 
       <div>
         <h2 className="mb-3 font-heading text-lg">Trip board</h2>
-        {tripsQuery.isLoading ? (
+        {showTripsSkeleton ? (
           <KanbanSkeleton />
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

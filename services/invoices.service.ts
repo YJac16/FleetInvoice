@@ -1,3 +1,5 @@
+import type { ResolvedDateRange } from "@/lib/date-range/sast-range";
+import { periodStartBoundsForRange } from "@/lib/date-range/supabase-bounds";
 import { createClient } from "@/lib/supabase/client";
 import { sortInvoiceLinesChronologically } from "@/features/invoices/lib/invoice-line-sort";
 import type { InvoiceTripEmbed } from "@/features/invoices/lib/invoice-trip-row";
@@ -14,14 +16,29 @@ const TABLE = "invoices";
 const INVOICE_SELECT =
   "*, companies:company_id (id, name), drivers:driver_id (id, full_name)";
 
+export type ListInvoicesOptions = ListTenantOptions & {
+  dateRange?: ResolvedDateRange;
+};
+
 export function listInvoices(
   organisationId: string,
-  options?: ListTenantOptions
+  options?: ListInvoicesOptions
 ) {
+  const { dateRange, ...listOptions } = options ?? {};
   return listTenantRows<Invoice>(TABLE, organisationId, {
     orderBy: "period_start",
+    orderAscending: false,
     select: INVOICE_SELECT,
-    ...options,
+    ...listOptions,
+    ...(dateRange
+      ? (() => {
+          const bounds = periodStartBoundsForRange(dateRange);
+          return {
+            periodStartGte: bounds.gte,
+            periodStartLte: bounds.lte,
+          };
+        })()
+      : {}),
   });
 }
 

@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { Radio } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -16,6 +21,7 @@ import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,7 +98,7 @@ export function StaffTripsMonitorPage() {
   const canViewGps = can("gps:view") || can("dispatch:view") || canManage;
   const queryClient = useQueryClient();
 
-  const { range, setPreset, setCustomRange } = useDateRangeFilter("today");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const from = range.from;
   const toExclusive = range.toExclusive;
 
@@ -110,7 +116,10 @@ export function StaffTripsMonitorPage() {
     queryFn: () => listStaffTripsForAdmin(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId),
     refetchInterval: 15_000,
+    placeholderData: keepPreviousData,
   });
+
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
 
   const presenceQuery = useQuery({
     queryKey: organisationId
@@ -315,7 +324,7 @@ export function StaffTripsMonitorPage() {
         </section>
       ) : null}
 
-      {tripsQuery.isLoading ? (
+      {showTripsSkeleton ? (
         <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

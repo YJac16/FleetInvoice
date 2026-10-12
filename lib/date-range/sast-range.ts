@@ -122,11 +122,21 @@ export function isInstantInRange(iso: string, range: ResolvedDateRange): boolean
   return !z.isBefore(startInclusive) && z.isBefore(endExclusive);
 }
 
+const SA_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: LIST_FILTER_TZ,
+};
+
+function formatSaCalendarDate(dateStr: string): string {
+  const d = dayjs.tz(dateStr, LIST_FILTER_TZ);
+  return new Intl.DateTimeFormat("en-ZA", SA_DATE_FORMAT).format(d.toDate());
+}
+
 export function formatRangeLabel(range: ResolvedDateRange): string {
   if (range.from === range.to) {
-    return dayjs.tz(range.from, LIST_FILTER_TZ).format("D MMM YYYY");
+    return formatSaCalendarDate(range.from);
   }
-  const a = dayjs.tz(range.from, LIST_FILTER_TZ).format("D MMM");
-  const b = dayjs.tz(range.to, LIST_FILTER_TZ).format("D MMM YYYY");
-  return `${a} – ${b}`;
+  return `${formatSaCalendarDate(range.from)} – ${formatSaCalendarDate(range.to)}`;
 }

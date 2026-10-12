@@ -1,7 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,7 +61,7 @@ import {
 } from "@/features/invoices/lib/invoice-list-filters";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { filterInvoicesByPeriodStart } from "@/lib/date-range/filter-items";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -286,11 +291,14 @@ export function InvoicesPage({
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.invoices(organisationId)
+      ? queryKeys.invoices(organisationId, range.from, range.to)
       : ["invoices", "none"],
-    queryFn: () => listInvoices(organisationId!),
+    queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
+    placeholderData: keepPreviousData,
   });
+
+  const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
 
   const linesQuery = useQuery({
     queryKey:
@@ -302,11 +310,10 @@ export function InvoicesPage({
   });
 
   const filteredInvoices = useMemo(() => {
-    const base = filterInvoicesByPeriodStart(invoicesQuery.data ?? [], range);
-    return base
+    return (invoicesQuery.data ?? [])
       .filter((invoice) => matchesInvoiceStatusFilter(invoice, statusFilter))
       .sort((a, b) => compareInvoicesByPeriodEnd(a, b, sortOrder));
-  }, [invoicesQuery.data, sortOrder, statusFilter, range]);
+  }, [invoicesQuery.data, sortOrder, statusFilter]);
 
   const listEmptyMessage = useMemo(() => {
     if ((invoicesQuery.data ?? []).length === 0) {
@@ -559,7 +566,7 @@ export function InvoicesPage({
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
           />
-          {!invoicesQuery.isLoading ? (
+          {!showInvoicesSkeleton ? (
             <InvoiceListFilters
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
@@ -573,7 +580,7 @@ export function InvoicesPage({
           title="No organisation"
           description="Select an organisation to view invoices."
         />
-      ) : invoicesQuery.isLoading ? (
+      ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />
       ) : (
         <DataTable

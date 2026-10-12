@@ -1,3 +1,5 @@
+import type { ResolvedDateRange } from "@/lib/date-range/sast-range";
+import { plannedStartBoundsForRange } from "@/lib/date-range/supabase-bounds";
 import { createClient } from "@/lib/supabase/client";
 import {
   getTripDriverNames,
@@ -15,14 +17,29 @@ const TABLE = "trips";
 const TRIP_SELECT =
   "*, routes:route_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
 
+export type ListTripsOptions = ListTenantOptions & {
+  dateRange?: ResolvedDateRange;
+};
+
 export async function listTrips(
   organisationId: string,
-  options?: ListTenantOptions
+  options?: ListTripsOptions
 ) {
+  const { dateRange, ...listOptions } = options ?? {};
   const rows = await listTenantRows<Trip>(TABLE, organisationId, {
     orderBy: "planned_start",
+    orderAscending: false,
     select: TRIP_SELECT,
-    ...options,
+    ...listOptions,
+    ...(dateRange
+      ? (() => {
+          const bounds = plannedStartBoundsForRange(dateRange);
+          return {
+            plannedStartGte: bounds.gte,
+            plannedStartLt: bounds.lt,
+          };
+        })()
+      : {}),
   });
   const names = await getTripDriverNames(rows.map((r) => r.id));
   return mergeTripDriverNames(rows, names);

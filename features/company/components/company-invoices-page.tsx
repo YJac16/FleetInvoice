@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
-import { filterInvoicesByPeriodStart } from "@/lib/date-range/filter-items";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
@@ -30,18 +30,20 @@ export function CompanyInvoicesPage() {
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.invoices(organisationId)
+      ? queryKeys.invoices(organisationId, range.from, range.to)
       : ["invoices", "none"],
-    queryFn: () => listInvoices(organisationId!),
+    queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
+    placeholderData: keepPreviousData,
   });
 
+  const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
+
   const invoices = useMemo(() => {
-    const companyOnly = (invoicesQuery.data ?? []).filter(
+    return (invoicesQuery.data ?? []).filter(
       (invoice) => invoice.driver_id == null
     );
-    return filterInvoicesByPeriodStart(companyOnly, range);
-  }, [invoicesQuery.data, range]);
+  }, [invoicesQuery.data]);
 
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
@@ -122,7 +124,7 @@ export function CompanyInvoicesPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
       />
-      {invoicesQuery.isLoading ? (
+      {showInvoicesSkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : (
         <DataTable

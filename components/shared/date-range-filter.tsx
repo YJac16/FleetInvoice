@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,34 +14,85 @@ import {
 import { cn } from "@/lib/utils";
 
 function FilterChipRow({
-  value,
-  onChange,
+  activePreset,
+  customPanelOpen,
+  onPresetClick,
 }: {
-  value: DateRangePreset;
-  onChange: (preset: DateRangePreset) => void;
+  activePreset: DateRangePreset;
+  customPanelOpen: boolean;
+  onPresetClick: (preset: DateRangePreset) => void;
 }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [fadeLeft, setFadeLeft] = useState(false);
+  const [fadeRight, setFadeRight] = useState(false);
+
+  const updateFades = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setFadeLeft(scrollLeft > 4);
+    setFadeRight(scrollLeft + clientWidth < scrollWidth - 4);
+  };
+
+  useEffect(() => {
+    updateFades();
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateFades, { passive: true });
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(updateFades);
+      ro.observe(el);
+    }
+    return () => {
+      el.removeEventListener("scroll", updateFades);
+      ro?.disconnect();
+    };
+  }, []);
+
   return (
-    <div
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
-      role="group"
-      aria-label="Filter by date range"
-    >
-      {DATE_RANGE_PRESETS.map((option) => {
-        const selected = value === option.value;
-        return (
-          <Button
-            key={option.value}
-            type="button"
-            size="sm"
-            variant={selected ? "default" : "outline"}
-            className={cn("shrink-0 rounded-full", selected && "shadow-sm")}
-            aria-pressed={selected}
-            onClick={() => onChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        );
-      })}
+    <div className="relative min-w-0 flex-1">
+      {fadeLeft ? (
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r from-background to-transparent"
+          aria-hidden
+        />
+      ) : null}
+      {fadeRight ? (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l from-background to-transparent"
+          aria-hidden
+        />
+      ) : null}
+      <div
+        ref={scrollerRef}
+        className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+        role="group"
+        aria-label="Filter by date range"
+      >
+        {DATE_RANGE_PRESETS.map((option) => {
+          const selected =
+            option.value === "custom"
+              ? customPanelOpen || activePreset === "custom"
+              : activePreset === option.value && !customPanelOpen;
+          return (
+            <Button
+              key={option.value}
+              type="button"
+              size="sm"
+              variant={selected ? "default" : "outline"}
+              className={cn(
+                "shrink-0 rounded-full whitespace-nowrap",
+                selected && "shadow-sm"
+              )}
+              aria-pressed={selected}
+              onClick={() => onPresetClick(option.value)}
+            >
+              {option.label}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -57,25 +108,46 @@ export function DateRangeFilter({
   onCustomChange: (from: string, to: string) => void;
   className?: string;
 }) {
+  const [customPanelOpen, setCustomPanelOpen] = useState(
+    range.preset === "custom"
+  );
   const [draftFrom, setDraftFrom] = useState(range.from);
   const [draftTo, setDraftTo] = useState(range.to);
 
   useEffect(() => {
     if (range.preset === "custom") {
+      setCustomPanelOpen(true);
       setDraftFrom(range.from);
       setDraftTo(range.to);
     }
   }, [range.from, range.preset, range.to]);
 
+  const handlePresetClick = (preset: DateRangePreset) => {
+    if (preset === "custom") {
+      setDraftFrom(range.from);
+      setDraftTo(range.to);
+      setCustomPanelOpen(true);
+      return;
+    }
+    setCustomPanelOpen(false);
+    onPresetChange(preset);
+  };
+
+  const showCustomPanel = customPanelOpen;
+
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <FilterChipRow value={range.preset} onChange={onPresetChange} />
-        <p className="text-xs text-muted-foreground md:shrink-0">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <FilterChipRow
+          activePreset={range.preset}
+          customPanelOpen={customPanelOpen}
+          onPresetClick={handlePresetClick}
+        />
+        <p className="text-xs text-muted-foreground sm:shrink-0">
           {formatRangeLabel(range)} · SAST
         </p>
       </div>
-      {range.preset === "custom" ? (
+      {showCustomPanel ? (
         <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
           <div className="space-y-1.5">
             <Label htmlFor="date-range-from" className="text-xs">
@@ -104,8 +176,10 @@ export function DateRangeFilter({
           <Button
             type="button"
             size="sm"
-            variant="secondary"
-            onClick={() => onCustomChange(draftFrom, draftTo)}
+            onClick={() => {
+              onCustomChange(draftFrom, draftTo);
+              setCustomPanelOpen(true);
+            }}
           >
             Apply
           </Button>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isInstantInRange,
+  formatRangeLabel,
   resolveDateRange,
   todayInListTz,
 } from "@/lib/date-range/sast-range";
@@ -57,6 +58,16 @@ describe("date range SAST", () => {
     expect(range.preset).toBe("custom");
     expect(range.from).toBe("2026-09-01");
     expect(range.to).toBe("2026-09-03");
+  });
+
+  it("formatRangeLabel uses en-ZA style", () => {
+    const range = resolveDateRange(
+      "today",
+      null,
+      null,
+      new Date("2026-10-12T12:00:00+02:00")
+    );
+    expect(formatRangeLabel(range)).toMatch(/12 Oct 2026/);
   });
 
   it("todayInListTz uses SAST calendar date", () => {

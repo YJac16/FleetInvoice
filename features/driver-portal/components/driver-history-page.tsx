@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useOrg } from "@/components/layout/org-context";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { completedTrips } from "@/features/driver-portal/lib/trip-labels";
@@ -18,7 +19,7 @@ export function DriverHistoryPage() {
   const organisationId = useActiveOrgId();
   const canSelf = can("trips:self");
 
-  const { range, setPreset, setCustomRange } = useDateRangeFilter("last_week");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const from = range.from;
   const toExclusive = range.toExclusive;
 
@@ -28,7 +29,10 @@ export function DriverHistoryPage() {
       : ["staff-trips", "none"],
     queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
+    placeholderData: keepPreviousData,
   });
+
+  const showHistorySkeleton = useShowListSkeleton(tripsQuery);
 
   const history = completedTrips(tripsQuery.data ?? []).reverse();
 
@@ -59,7 +63,7 @@ export function DriverHistoryPage() {
         className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
 
-      {tripsQuery.isLoading ? (
+      {showHistorySkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : history.length === 0 ? (
         <EmptyState
