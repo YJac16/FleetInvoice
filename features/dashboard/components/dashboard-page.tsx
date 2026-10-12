@@ -15,9 +15,13 @@ import {
 } from "lucide-react";
 
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
+import { CardGridSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
@@ -45,6 +49,7 @@ const BROWSE_GROUP_ORDER: NavGroupId[] = [
 export function DashboardPage() {
   const { can, canModule } = useOrg();
   const organisationId = useActiveOrgId();
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("today");
 
   const countsQuery = useQuery({
     queryKey: organisationId
@@ -56,9 +61,10 @@ export function DashboardPage() {
 
   const opsQuery = useQuery({
     queryKey: organisationId
-      ? ["dashboard-ops", organisationId]
+      ? ["dashboard-ops", organisationId, range.from, range.toExclusive]
       : ["dashboard-ops", "none"],
-    queryFn: () => getDashboardOpsSummary(organisationId!),
+    queryFn: () =>
+      getDashboardOpsSummary(organisationId!, range.from, range.toExclusive),
     enabled:
       Boolean(organisationId) &&
       can("dashboard:view") &&
@@ -143,11 +149,21 @@ export function DashboardPage() {
         </div>
       ) : null}
 
+      {(can("trips:view") || can("dispatch:view")) && can("dashboard:view") ? (
+        <DateRangeFilter
+          range={range}
+          onPresetChange={setPreset}
+          onCustomChange={setCustomRange}
+        />
+      ) : null}
+
       {opsQuery.isLoading ? (
-        <LoadingSkeleton rows={2} />
+        <CardGridSkeleton cards={5} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" />
       ) : ops ? (
         <div>
-          <h2 className="mb-3 font-heading text-lg">Today’s operations</h2>
+          <h2 className="mb-3 font-heading text-lg">
+            Operations · {formatRangeLabel(range)}
+          </h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               title="In progress"
@@ -188,7 +204,7 @@ export function DashboardPage() {
       ) : null}
 
       {countsQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
+        <CardGridSkeleton cards={7} />
       ) : (
         <div>
           <h2 className="mb-3 font-heading text-lg">Organisation</h2>

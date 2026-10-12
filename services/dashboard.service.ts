@@ -48,19 +48,14 @@ export async function getDashboardCounts(
   };
 }
 
-function dayBoundsIso(): { start: string; end: string } {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
 export async function getDashboardOpsSummary(
-  organisationId: string
+  organisationId: string,
+  fromInclusive: string,
+  toExclusive: string
 ): Promise<DashboardOpsSummary> {
   const supabase = createClient();
-  const { start, end } = dayBoundsIso();
+  const rangeStart = `${fromInclusive}T00:00:00+02:00`;
+  const rangeEnd = `${toExclusive}T00:00:00+02:00`;
 
   const { data, error } = await supabase
     .from("trips")
@@ -69,8 +64,8 @@ export async function getDashboardOpsSummary(
     )
     .eq("organisation_id", organisationId)
     .is("deleted_at", null)
-    .gte("planned_start", start)
-    .lte("planned_start", end);
+    .gte("planned_start", rangeStart)
+    .lt("planned_start", rangeEnd);
   if (error) throw error;
 
   const rows = (data ?? []) as Array<{

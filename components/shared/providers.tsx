@@ -2,9 +2,10 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 
 import { SessionTabListener } from "@/components/auth/session-tab-listener";
+import { RouteProgressBar } from "@/components/navigation/route-progress-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { WhiteLabelTheme } from "@/components/layout/white-label-theme";
 
@@ -26,6 +27,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <WhiteLabelTheme />
         <SessionTabListener />
+        <Suspense fallback={null}>
+          <RouteProgressBar />
+        </Suspense>
         {children}
         <Toaster richColors closeButton position="top-right" />
       </QueryClientProvider>

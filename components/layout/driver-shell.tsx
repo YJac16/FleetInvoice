@@ -14,6 +14,7 @@ import {
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider } from "@/components/layout/org-context";
+import { PageFadeIn } from "@/components/shared/page-fade-in";
 import { NotificationBell } from "@/features/driver-portal/components/notification-bell";
 import { StaffTripGpsTracker } from "@/features/driver-portal/components/staff-trip-gps-tracker";
 import {
@@ -144,7 +145,7 @@ export function DriverShell({
           <DriverHeader profile={profile} />
           <main className="mx-auto w-full max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">
             <StaffTripGpsTracker />
-            {children}
+            <PageFadeIn>{children}</PageFadeIn>
           </main>
           <DriverBottomNav />
         </DriverPresenceProvider>

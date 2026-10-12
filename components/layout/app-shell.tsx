@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { OrgProvider } from "@/components/layout/org-context";
+import { PageFadeIn } from "@/components/shared/page-fade-in";
 import type { MembershipWithOrg, Profile } from "@/types";
 
 type AppShellProps = {
@@ -38,7 +39,7 @@ export function AppShell({
             <AppHeader />
           </div>
           <main className="invoice-print-flow flex-1 px-4 py-8 md:px-8 print:p-0">
-            {children}
+            <PageFadeIn>{children}</PageFadeIn>
           </main>
         </div>
       </div>

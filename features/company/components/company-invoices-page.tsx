@@ -5,6 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { filterInvoicesByPeriodStart } from "@/lib/date-range/filter-items";
+
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -22,6 +26,7 @@ export function CompanyInvoicesPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("invoices:view");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
@@ -31,11 +36,12 @@ export function CompanyInvoicesPage() {
     enabled: Boolean(organisationId) && canView,
   });
 
-  const invoices = useMemo(
-    () =>
-      (invoicesQuery.data ?? []).filter((invoice) => invoice.driver_id == null),
-    [invoicesQuery.data]
-  );
+  const invoices = useMemo(() => {
+    const companyOnly = (invoicesQuery.data ?? []).filter(
+      (invoice) => invoice.driver_id == null
+    );
+    return filterInvoicesByPeriodStart(companyOnly, range);
+  }, [invoicesQuery.data, range]);
 
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
@@ -110,6 +116,11 @@ export function CompanyInvoicesPage() {
       <PageHeader
         title="Invoices"
         description="Read-only invoices for your company. Open Print for a browser PDF."
+      />
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
       />
       {invoicesQuery.isLoading ? (
         <LoadingSkeleton rows={4} />

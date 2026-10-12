@@ -49,11 +49,14 @@ import {
 } from "@/features/invoices/components/invoice-list-filters";
 import {
   DEFAULT_INVOICE_LIST_FILTERS,
-  filterAndSortInvoices,
+  compareInvoicesByPeriodEnd,
+  matchesInvoiceStatusFilter,
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
-  type InvoiceWeekFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { filterInvoicesByPeriodStart } from "@/lib/date-range/filter-items";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -276,12 +279,10 @@ export function InvoicesPage({
   const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>(
     DEFAULT_INVOICE_LIST_FILTERS.sortOrder
   );
-  const [weekFilter, setWeekFilter] = useState<InvoiceWeekFilter>(
-    DEFAULT_INVOICE_LIST_FILTERS.weekFilter
-  );
   const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(
     DEFAULT_INVOICE_LIST_FILTERS.statusFilter
   );
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
@@ -300,15 +301,12 @@ export function InvoicesPage({
     enabled: Boolean(organisationId && selectedId),
   });
 
-  const filteredInvoices = useMemo(
-    () =>
-      filterAndSortInvoices(invoicesQuery.data ?? [], {
-        sortOrder,
-        weekFilter,
-        statusFilter,
-      }),
-    [invoicesQuery.data, sortOrder, weekFilter, statusFilter]
-  );
+  const filteredInvoices = useMemo(() => {
+    const base = filterInvoicesByPeriodStart(invoicesQuery.data ?? [], range);
+    return base
+      .filter((invoice) => matchesInvoiceStatusFilter(invoice, statusFilter))
+      .sort((a, b) => compareInvoicesByPeriodEnd(a, b, sortOrder));
+  }, [invoicesQuery.data, sortOrder, statusFilter, range]);
 
   const listEmptyMessage = useMemo(() => {
     if ((invoicesQuery.data ?? []).length === 0) {
@@ -554,14 +552,19 @@ export function InvoicesPage({
         }
       />
 
-      {organisationId && canView && !invoicesQuery.isLoading ? (
-        <div className="mb-4">
-          <InvoiceListFilters
-            weekFilter={weekFilter}
-            statusFilter={statusFilter}
-            onWeekFilterChange={setWeekFilter}
-            onStatusFilterChange={setStatusFilter}
+      {organisationId && canView ? (
+        <div className="mb-4 space-y-4">
+          <DateRangeFilter
+            range={range}
+            onPresetChange={setPreset}
+            onCustomChange={setCustomRange}
           />
+          {!invoicesQuery.isLoading ? (
+            <InvoiceListFilters
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+            />
+          ) : null}
         </div>
       ) : null}
 

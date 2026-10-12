@@ -6,8 +6,11 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { Button } from "@/components/ui/button";
 import { EndTripDialog } from "@/features/driver-portal/components/end-trip-dialog";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
@@ -43,37 +46,37 @@ import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
 
-function tomorrowDateString(): string {
-  return nowInDriverTz().add(1, "day").format("YYYY-MM-DD");
-}
-
 export function DriverTodayPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const queryClient = useQueryClient();
   const canSelf = can("trips:self");
   const today = todayDateString();
-  const tomorrow = tomorrowDateString();
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("today");
+  const from = range.from;
+  const toExclusive = range.toExclusive;
   const nowLabel = nowInDriverTz().format("HH:mm");
+  const isSingleTodayRange =
+    range.preset === "today" || (range.from === range.to && range.from === today);
 
   const [startTarget, setStartTarget] = useState<StaffTrip | null>(null);
   const [endTarget, setEndTarget] = useState<StaffTrip | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.staffTrips(organisationId, today, tomorrow)
+      ? queryKeys.staffTrips(organisationId, from, toExclusive)
       : ["staff-trips", "none"],
-    queryFn: () => listMyStaffTrips(organisationId!, today, tomorrow),
+    queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
     refetchInterval: 15_000,
   });
 
   const noTripQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.noTripDays(organisationId, today, tomorrow)
+      ? queryKeys.noTripDays(organisationId, from, toExclusive)
       : ["no-trip-days", "none"],
-    queryFn: () => listNoTripDays(organisationId!, today, tomorrow),
-    enabled: Boolean(organisationId) && canSelf,
+    queryFn: () => listNoTripDays(organisationId!, from, toExclusive),
+    enabled: Boolean(organisationId) && canSelf && isSingleTodayRange,
   });
 
   const trips = tripsQuery.data ?? [];
@@ -86,13 +89,13 @@ export function DriverTodayPage() {
     if (!organisationId) return;
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: queryKeys.staffTrips(organisationId, today, tomorrow),
+        queryKey: queryKeys.staffTrips(organisationId, from, toExclusive),
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.noTripDays(organisationId, today, tomorrow),
+        queryKey: queryKeys.noTripDays(organisationId, from, toExclusive),
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+        queryKey: queryKeys.staffTripsAdmin(organisationId, from, toExclusive),
       }),
     ]);
   };
@@ -174,7 +177,9 @@ export function DriverTodayPage() {
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-white">
             Today
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500">{tripCountLabel}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {tripCountLabel} · {formatRangeLabel(range)}
+          </p>
         </div>
         <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium tabular-nums text-zinc-400">
           {nowLabel}
@@ -182,6 +187,13 @@ export function DriverTodayPage() {
       </div>
 
       <DriverComplianceBanner />
+
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
+      />
 
       <div className="relative pl-4">
         <div className="absolute bottom-0 left-[5px] top-0 w-px bg-zinc-800" />
@@ -261,7 +273,8 @@ export function DriverTodayPage() {
 
         {!tripsQuery.isLoading &&
         trips.length === 0 &&
-        !declaredNoTrip ? (
+        !declaredNoTrip &&
+        isSingleTodayRange ? (
           <div className="space-y-3 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-4 py-5 text-center">
             <p className="text-sm font-medium text-zinc-300">
               No trips assigned
@@ -281,7 +294,7 @@ export function DriverTodayPage() {
           </div>
         ) : null}
 
-        {declaredNoTrip && trips.length === 0 ? (
+        {declaredNoTrip && trips.length === 0 && isSingleTodayRange ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 text-center">
             <p className="text-sm font-medium text-zinc-300">No trip today</p>
             <p className="mt-1 text-xs text-zinc-500">

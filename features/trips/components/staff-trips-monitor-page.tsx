@@ -10,9 +10,13 @@ import { useOrg } from "@/components/layout/org-context";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
+import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { Button } from "@/components/ui/button";
 import {
   pathCoordinatesFromGpsPoints,
@@ -88,8 +92,9 @@ export function StaffTripsMonitorPage() {
   const canViewGps = can("gps:view") || can("dispatch:view") || canManage;
   const queryClient = useQueryClient();
 
-  const today = dayjs().format("YYYY-MM-DD");
-  const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("today");
+  const from = range.from;
+  const toExclusive = range.toExclusive;
 
   const [playbackTripId, setPlaybackTripId] = useState<string | null>(null);
   const [createWaybillOpen, setCreateWaybillOpen] = useState(false);
@@ -100,9 +105,9 @@ export function StaffTripsMonitorPage() {
 
   const tripsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.staffTripsAdmin(organisationId, today, tomorrow)
+      ? queryKeys.staffTripsAdmin(organisationId, from, toExclusive)
       : ["staff-trips-admin", "none"],
-    queryFn: () => listStaffTripsForAdmin(organisationId!, today, tomorrow),
+    queryFn: () => listStaffTripsForAdmin(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId),
     refetchInterval: 15_000,
   });
@@ -180,7 +185,7 @@ export function StaffTripsMonitorPage() {
   const invalidateStaffTrips = async () => {
     if (!organisationId) return;
     await queryClient.invalidateQueries({
-      queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+      queryKey: queryKeys.staffTripsAdmin(organisationId, from, toExclusive),
     });
     await queryClient.invalidateQueries({
       queryKey: queryKeys.invoices(organisationId),
@@ -223,10 +228,17 @@ export function StaffTripsMonitorPage() {
         }
       />
 
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+      />
+
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
         <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
           <Radio className="size-3 text-emerald-500" aria-hidden />
-          {summary.total} trip{summary.total === 1 ? "" : "s"} today
+          {summary.total} trip{summary.total === 1 ? "" : "s"} ·{" "}
+          {formatRangeLabel(range)}
         </span>
         <span className="text-muted-foreground">·</span>
         <span className="text-muted-foreground">
@@ -304,7 +316,7 @@ export function StaffTripsMonitorPage() {
       ) : null}
 
       {tripsQuery.isLoading ? (
-        <LoadingSkeleton rows={4} />
+        <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {MONITOR_COLUMNS.map((status) => {

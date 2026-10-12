@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import dayjs from "dayjs";
-
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
-import { mondayOfWeek } from "@/features/driver-portal/lib/dates";
 import { completedTrips } from "@/features/driver-portal/lib/trip-labels";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { listMyStaffTrips } from "@/services/staff-trips.service";
@@ -18,14 +18,15 @@ export function DriverHistoryPage() {
   const organisationId = useActiveOrgId();
   const canSelf = can("trips:self");
 
-  const from = dayjs().subtract(30, "day").format("YYYY-MM-DD");
-  const to = dayjs().add(1, "day").format("YYYY-MM-DD");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("last_week");
+  const from = range.from;
+  const toExclusive = range.toExclusive;
 
   const tripsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.staffTrips(organisationId, from, to)
+      ? queryKeys.staffTrips(organisationId, from, toExclusive)
       : ["staff-trips", "none"],
-    queryFn: () => listMyStaffTrips(organisationId!, from, to),
+    queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
   });
 
@@ -47,9 +48,16 @@ export function DriverHistoryPage() {
           History
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Completed trips (last 30 days)
+          Completed trips · {formatRangeLabel(range)}
         </p>
       </div>
+
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
+      />
 
       {tripsQuery.isLoading ? (
         <LoadingSkeleton rows={4} />

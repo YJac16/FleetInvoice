@@ -4,15 +4,8 @@ import { Button } from "@/components/ui/button";
 import type {
   InvoiceSortOrder,
   InvoiceStatusFilter,
-  InvoiceWeekFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
 import { cn } from "@/lib/utils";
-
-const WEEK_OPTIONS: { value: InvoiceWeekFilter; label: string }[] = [
-  { value: "this_week", label: "This week" },
-  { value: "last_4_weeks", label: "Last 4 weeks" },
-  { value: "all", label: "All" },
-];
 
 const STATUS_OPTIONS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -92,30 +85,18 @@ export function InvoiceSortToggle({
 }
 
 export function InvoiceListFilters({
-  weekFilter,
   statusFilter,
-  onWeekFilterChange,
   onStatusFilterChange,
 }: {
-  weekFilter: InvoiceWeekFilter;
   statusFilter: InvoiceStatusFilter;
-  onWeekFilterChange: (value: InvoiceWeekFilter) => void;
   onStatusFilterChange: (value: InvoiceStatusFilter) => void;
 }) {
   return (
-    <div className="space-y-3">
-      <FilterChipRow
-        ariaLabel="Filter by service week"
-        options={WEEK_OPTIONS}
-        value={weekFilter}
-        onChange={onWeekFilterChange}
-      />
-      <FilterChipRow
-        ariaLabel="Filter by invoice status"
-        options={STATUS_OPTIONS}
-        value={statusFilter}
-        onChange={onStatusFilterChange}
-      />
-    </div>
+    <FilterChipRow
+      ariaLabel="Filter by invoice status"
+      options={STATUS_OPTIONS}
+      value={statusFilter}
+      onChange={onStatusFilterChange}
+    />
   );
 }

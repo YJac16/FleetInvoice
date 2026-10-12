@@ -6,6 +6,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CompanyInvoicesPage } from "@/features/company/components/company-invoices-page";
 import type { Invoice } from "@/types";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+  usePathname: () => "/company/invoices",
+  useSearchParams: () =>
+    new URLSearchParams("range=custom&from=2026-01-01&to=2026-12-31"),
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     href,

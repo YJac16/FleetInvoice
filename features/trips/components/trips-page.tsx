@@ -10,9 +10,12 @@ import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { filterTripsByPlannedStart } from "@/lib/date-range/filter-items";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
@@ -44,6 +47,7 @@ export function TripsPage() {
   const [assigningTripId, setAssigningTripId] = useState<string | null>(null);
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const tripsQuery = useQuery({
     queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
@@ -64,7 +68,7 @@ export function TripsPage() {
   });
 
   const rows = useMemo(() => {
-    const data = tripsQuery.data ?? [];
+    const data = filterTripsByPlannedStart(tripsQuery.data ?? [], range);
     const query = debouncedSearch.trim().toLowerCase();
     if (!query) return data;
     return data.filter((trip) =>
@@ -74,7 +78,7 @@ export function TripsPage() {
         .toLowerCase()
         .includes(query)
     );
-  }, [tripsQuery.data, debouncedSearch]);
+  }, [tripsQuery.data, debouncedSearch, range]);
 
   const columns = useMemo<ColumnDef<Trip, unknown>[]>(
     () => [
@@ -208,19 +212,44 @@ export function TripsPage() {
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 space-y-4">
+        <DateRangeFilter
+          range={range}
+          onPresetChange={setPreset}
+          onCustomChange={setCustomRange}
+        />
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
       {tripsQuery.isLoading ? (
         <LoadingSkeleton />
-      ) : rows.length === 0 && !debouncedSearch ? (
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={Bus}
-          title="No trips yet"
-          description="Generate trips from a schedule to see them here."
-          actionLabel={canManage ? "Generate trips" : undefined}
-          onAction={canManage ? () => setGenerateOpen(true) : undefined}
+          title={
+            (tripsQuery.data ?? []).length === 0 && !debouncedSearch.trim()
+              ? "No trips yet"
+              : "No trips in this range"
+          }
+          description={
+            (tripsQuery.data ?? []).length === 0 && !debouncedSearch.trim()
+              ? "Generate trips from a schedule to see them here."
+              : "Try a different date range or clear your search."
+          }
+          actionLabel={
+            canManage &&
+            (tripsQuery.data ?? []).length === 0 &&
+            !debouncedSearch.trim()
+              ? "Generate trips"
+              : undefined
+          }
+          onAction={
+            canManage &&
+            (tripsQuery.data ?? []).length === 0 &&
+            !debouncedSearch.trim()
+              ? () => setGenerateOpen(true)
+              : undefined
+          }
         />
       ) : (
         <DataTable columns={columns} data={rows} />
