@@ -145,16 +145,16 @@ DO $$ BEGIN
     uuid, timestamptz, uuid, public.staff_transport_company, text, int
   ) TO authenticated;
   REVOKE EXECUTE ON FUNCTION public.assign_staff_trip(
-    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, uuid
   ) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION public.assign_staff_trip(
-    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, uuid
   ) TO authenticated;
   REVOKE EXECUTE ON FUNCTION public.backfill_staff_waybill(
-    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric, uuid
   ) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION public.backfill_staff_waybill(
-    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric
+    uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, numeric, numeric, uuid
   ) TO authenticated;
   REVOKE EXECUTE ON FUNCTION public.upsert_company_with_trip_rate(
     uuid, text, uuid, text, text, text, text, text, public.entity_status, numeric, date, text, text

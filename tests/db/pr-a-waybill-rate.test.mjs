@@ -35,6 +35,7 @@ const COMP_A = "e5000000-0000-4000-8000-000000000011";
 const COMP_B = "e5000000-0000-4000-8000-000000000012";
 const HIST_CO = "e5000000-0000-4000-8000-000000000013";
 const BOUNDARY_CO = "e5000000-0000-4000-8000-000000000014";
+const VEHICLE_A = "f5000000-0000-4000-8000-000000000001";
 
 const RATE_ERR =
   "No trip rate configured for this company. Add a rate before saving this waybill.";
@@ -213,6 +214,20 @@ function seedFixtures() {
       select 1 from public.rate_cards rc
       where rc.organisation_id = '${ORG_A}' and rc.company_id = c.id and rc.line_type = 'trip' and rc.deleted_at is null
     );
+
+    insert into public.vehicles (
+      id, organisation_id, company_id, name, registration_number, vehicle_type, status
+    )
+    values (
+      '${VEHICLE_A}',
+      '${ORG_A}',
+      '${WCL}',
+      'Audit Test Van',
+      'AUDIT 001',
+      'minibus',
+      'active'
+    )
+    on conflict (id) do update set registration_number = excluded.registration_number;
   `);
 }
 
@@ -228,7 +243,8 @@ function backfill(userId, companyId, plannedStart, area = "Test area") {
       '${companyId}'::uuid,
       null,
       null,
-      null
+      null,
+      '${VEHICLE_A}'::uuid
     )::text;`
   );
 }
@@ -274,9 +290,32 @@ const blocked = psqlAs(
     '${NO_RATE}'::uuid,
     null,
     null,
+    null,
+    '${VEHICLE_A}'::uuid
+  );`,
+  { allowError: true }
+);
+
+const noVehicle = psqlAs(
+  adminA,
+  `select public.backfill_staff_waybill(
+    '${ORG_A}'::uuid,
+    '${driverA}'::uuid,
+    timestamptz '2026-09-24 11:30:00+02',
+    'No vehicle',
+    1,
+    '${WCL}'::uuid,
+    null,
+    null,
+    null,
     null
   );`,
   { allowError: true }
+);
+record(
+  "BACKFILL-vehicle-required",
+  !noVehicle.ok && /Vehicle is required/i.test(noVehicle.text),
+  noVehicle.ok ? "unexpected success" : "error matched"
 );
 record(
   "BLOCK-no-rate",
@@ -295,7 +334,8 @@ const legacy = psqlAs(
     null,
     'lewis_compliance'::public.staff_transport_company,
     null,
-    null
+    null,
+    '${VEHICLE_A}'::uuid
   )::text;`
 );
 const legacyAmount = psqlAdmin(
@@ -501,7 +541,7 @@ record(
 );
 
 const anonBackfill = psqlAsAnon(
-  `select public.backfill_staff_waybill('${ORG_A}', '${driverA}', timezone('utc', now()), 'Anon area', 1, '${WCL}'::uuid)::text;`,
+  `select public.backfill_staff_waybill('${ORG_A}', '${driverA}', timezone('utc', now()), 'Anon area', 1, '${WCL}'::uuid, null, null, null, '${VEHICLE_A}'::uuid)::text;`,
   { allowError: true }
 );
 record(
