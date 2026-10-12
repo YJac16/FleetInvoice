@@ -29,6 +29,7 @@ export const queryKeys = {
       : (["trips", orgId] as const),
   tripDriverNames: (orgId: string, tripIds: string[]) =>
     ["trip-driver-names", orgId, tripIds.join(",")] as const,
+  tripsOrgHasAny: (orgId: string) => ["trips-org-has-any", orgId] as const,
   driverTrips: (orgId: string) => ["driver-trips", orgId] as const,
   staffTrips: (orgId: string, from: string, to: string) =>
     ["staff-trips", orgId, from, to] as const,

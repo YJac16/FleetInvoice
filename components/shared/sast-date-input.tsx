@@ -15,6 +15,7 @@ export function SastDateInput({
   text,
   onTextChange,
   invalid = false,
+  fieldError = null,
   className,
 }: {
   id: string;
@@ -23,11 +24,15 @@ export function SastDateInput({
   onTextChange: (text: string) => void;
   /** Parent-validated: non-empty text that does not parse. */
   invalid?: boolean;
+  /** Validation message shown under the field (e.g. date order). */
+  fieldError?: string | null;
   className?: string;
 }) {
   const parsed = parseDisplayDateToIso(text);
   const showError = invalid;
   const hint = parsed ? formatIsoDateEnZa(parsed) : null;
+  const hintText =
+    fieldError ?? (showError ? "Use DD/MM/YYYY" : hint ? hint : "DD/MM/YYYY");
 
   return (
     <div className={cn("space-y-1.5", className)}>
@@ -57,10 +62,10 @@ export function SastDateInput({
         id={`${id}-hint`}
         className={cn(
           "min-h-[1.125rem] text-[11px] leading-tight",
-          showError ? "text-destructive" : "text-muted-foreground"
+          fieldError || showError ? "text-destructive" : "text-muted-foreground"
         )}
       >
-        {showError ? "Use DD/MM/YYYY" : hint ? hint : "DD/MM/YYYY"}
+        {hintText}
       </p>
     </div>
   );

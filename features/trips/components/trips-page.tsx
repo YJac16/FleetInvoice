@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Bus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -32,15 +32,13 @@ import { TripPassengersDialog } from "@/features/trips/components/trip-passenger
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
-import { cancelTrip } from "@/services/trips.service";
+import { resolveTripsListEmptyState } from "@/features/trips/lib/trips-empty-state";
+import { cancelTrip, orgHasAnyTrips } from "@/services/trips.service";
 import type { Trip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-
-import { hasExplicitDateRangeParam } from "@/lib/date-range/search-params";
 
 export function TripsPage() {
   const { can } = useOrg();
@@ -58,14 +56,29 @@ export function TripsPage() {
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
-  const searchParams = useSearchParams();
-  const dateRangeFilterActive =
-    hasExplicitDateRangeParam(searchParams) || range.preset !== "this_week";
 
   const tripsQuery = useTripsListQuery(organisationId, range);
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
   const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
+
+  const hasSearchFilter = debouncedSearch.trim().length > 0;
+  const rangedResultEmpty =
+    !showTripsSkeleton && (tripsQuery.data ?? []).length === 0;
+
+  const orgTripsExistQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.tripsOrgHasAny(organisationId)
+      : ["trips-org-has-any", "none"],
+    queryFn: () => orgHasAnyTrips(organisationId!),
+    enabled: Boolean(organisationId) && rangedResultEmpty && !hasSearchFilter,
+    staleTime: 60_000,
+  });
+
+  const emptyState = resolveTripsListEmptyState({
+    hasSearchFilter,
+    orgHasAnyTrips: orgTripsExistQuery.data,
+  });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancelTrip(id),
@@ -244,33 +257,15 @@ export function TripsPage() {
           {rows.length === 0 ? (
         <EmptyState
           icon={Bus}
-          title={
-            !debouncedSearch.trim() &&
-            !dateRangeFilterActive &&
-            (tripsQuery.data ?? []).length === 0
-              ? "No trips yet"
-              : "No trips in this range"
-          }
-          description={
-            !debouncedSearch.trim() &&
-            !dateRangeFilterActive &&
-            (tripsQuery.data ?? []).length === 0
-              ? "Generate trips from a schedule to see them here."
-              : "Try a different date range or clear your search."
-          }
+          title={emptyState.title}
+          description={emptyState.description}
           actionLabel={
-            canManage &&
-            !debouncedSearch.trim() &&
-            !dateRangeFilterActive &&
-            (tripsQuery.data ?? []).length === 0
+            canManage && emptyState.showGenerateAction
               ? "Generate trips"
               : undefined
           }
           onAction={
-            canManage &&
-            !debouncedSearch.trim() &&
-            !dateRangeFilterActive &&
-            (tripsQuery.data ?? []).length === 0
+            canManage && emptyState.showGenerateAction
               ? () => setGenerateOpen(true)
               : undefined
           }

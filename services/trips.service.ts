@@ -21,6 +21,19 @@ export type ListTripsOptions = ListTenantOptions & {
   dateRange?: ResolvedDateRange;
 };
 
+/** Cheap existence check (no date filter) for empty-state copy on the trips list. */
+export async function orgHasAnyTrips(organisationId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("organisation_id", organisationId)
+    .is("deleted_at", null)
+    .limit(1);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export async function listTripRows(
   organisationId: string,
   options?: ListTripsOptions

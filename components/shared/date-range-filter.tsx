@@ -201,7 +201,7 @@ export function DateRangeFilter({
     ? "Custom (not applied)"
     : formatRangeLabel(range);
 
-  const rangeError =
+  const toFieldError =
     fieldsTouched && validation.orderError ? validation.orderError : null;
 
   return (
@@ -213,21 +213,26 @@ export function DateRangeFilter({
           onPresetClick={handlePresetClick}
         />
         <p className="text-xs text-muted-foreground sm:shrink-0">
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex flex-wrap items-center gap-2">
             <span>{rangeStatusLabel} · SAST</span>
             <span
-              className={cn(
-                "inline-flex w-[5.75rem] items-center gap-1 font-medium text-foreground motion-safe:animate-pulse motion-reduce:animate-none",
-                !updating && "invisible"
-              )}
-              role="status"
+              className="inline-flex h-6 w-[8.25rem] shrink-0 items-center sm:w-[8.75rem]"
               aria-hidden={!updating}
             >
               <span
-                className="size-2.5 shrink-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin motion-reduce:animate-none"
-                aria-hidden
-              />
-              Updating…
+                className={cn(
+                  "inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border bg-muted/70 px-2.5 py-0.5 text-[11px] font-medium text-foreground shadow-sm",
+                  "motion-safe:animate-pulse motion-reduce:animate-none",
+                  !updating && "invisible"
+                )}
+                role="status"
+              >
+                <span
+                  className="size-2.5 shrink-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin motion-reduce:animate-none"
+                  aria-hidden
+                />
+                Updating…
+              </span>
             </span>
           </span>
         </p>
@@ -255,6 +260,7 @@ export function DateRangeFilter({
               label="To"
               text={draftToText}
               invalid={showToInvalid}
+              fieldError={toFieldError}
               onTextChange={(text) => {
                 setFieldsTouched(true);
                 setDraftToText(text);
@@ -269,13 +275,6 @@ export function DateRangeFilter({
               Apply
             </Button>
           </div>
-          <p
-            className="mt-2 min-h-[1.125rem] text-[11px] leading-tight text-destructive"
-            role="alert"
-            aria-live="polite"
-          >
-            {rangeError ?? "\u00a0"}
-          </p>
         </div>
       ) : null}
     </div>
