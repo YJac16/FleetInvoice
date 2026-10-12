@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,26 +12,21 @@ import { cn } from "@/lib/utils";
 export function SastDateInput({
   id,
   label,
-  valueIso,
-  onChangeIso,
+  text,
+  onTextChange,
+  invalid = false,
   className,
 }: {
   id: string;
   label: string;
-  valueIso: string;
-  onChangeIso: (iso: string) => void;
+  text: string;
+  onTextChange: (text: string) => void;
+  /** Parent-validated: non-empty text that does not parse. */
+  invalid?: boolean;
   className?: string;
 }) {
-  const [text, setText] = useState(() => isoDateToDisplay(valueIso));
-  const [touched, setTouched] = useState(false);
-
-  useEffect(() => {
-    setText(isoDateToDisplay(valueIso));
-    setTouched(false);
-  }, [valueIso]);
-
   const parsed = parseDisplayDateToIso(text);
-  const showError = touched && text.length > 0 && !parsed;
+  const showError = invalid;
   const hint = parsed ? formatIsoDateEnZa(parsed) : null;
 
   return (
@@ -48,28 +41,22 @@ export function SastDateInput({
         autoComplete="off"
         placeholder="DD/MM/YYYY"
         aria-describedby={`${id}-hint`}
+        aria-invalid={showError}
         value={text}
-        onChange={(e) => {
-          setTouched(true);
-          const next = e.target.value;
-          setText(next);
-          const iso = parseDisplayDateToIso(next);
-          if (iso) onChangeIso(iso);
-        }}
+        onChange={(e) => onTextChange(e.target.value)}
         onBlur={() => {
-          setTouched(true);
           const iso = parseDisplayDateToIso(text);
-          if (iso) {
-            setText(isoDateToDisplay(iso));
-            onChangeIso(iso);
-          }
+          if (iso) onTextChange(isoDateToDisplay(iso));
         }}
-        className={cn("w-[10.5rem] font-mono tabular-nums", showError && "border-destructive")}
+        className={cn(
+          "w-[10.5rem] font-mono tabular-nums",
+          showError && "border-destructive"
+        )}
       />
       <p
         id={`${id}-hint`}
         className={cn(
-          "text-[11px] leading-tight",
+          "min-h-[1.125rem] text-[11px] leading-tight",
           showError ? "text-destructive" : "text-muted-foreground"
         )}
       >

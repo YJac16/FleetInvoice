@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
+import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
+import { validateCustomRangeDraft } from "@/lib/date-range/custom-range-draft";
 import {
   DATE_RANGE_PRESETS,
   type DateRangePreset,
@@ -96,6 +98,13 @@ function FilterChipRow({
   );
 }
 
+function draftsFromRange(range: ResolvedDateRange) {
+  return {
+    fromText: isoDateToDisplay(range.from),
+    toText: isoDateToDisplay(range.to),
+  };
+}
+
 export function DateRangeFilter({
   range,
   onPresetChange,
@@ -113,32 +122,70 @@ export function DateRangeFilter({
   const [customPanelOpen, setCustomPanelOpen] = useState(
     range.preset === "custom"
   );
-  const [draftFrom, setDraftFrom] = useState(range.from);
-  const [draftTo, setDraftTo] = useState(range.to);
+  const [draftFromText, setDraftFromText] = useState(() =>
+    isoDateToDisplay(range.from)
+  );
+  const [draftToText, setDraftToText] = useState(() =>
+    isoDateToDisplay(range.to)
+  );
+  const [fieldsTouched, setFieldsTouched] = useState(false);
+
+  const resetDraftsToApplied = useCallback(() => {
+    const { fromText, toText } = draftsFromRange(range);
+    setDraftFromText(fromText);
+    setDraftToText(toText);
+    setFieldsTouched(false);
+  }, [range]);
+
+  const closeCustomPanel = useCallback(() => {
+    resetDraftsToApplied();
+    setCustomPanelOpen(false);
+  }, [resetDraftsToApplied]);
 
   useEffect(() => {
-    if (range.preset === "custom") {
-      setCustomPanelOpen(true);
-      setDraftFrom(range.from);
-      setDraftTo(range.to);
-    }
-  }, [range.from, range.preset, range.to]);
+    resetDraftsToApplied();
+  }, [range.from, range.preset, range.to, resetDraftsToApplied]);
+
+  const validation = validateCustomRangeDraft(draftFromText, draftToText);
+  const showFromInvalid = fieldsTouched && validation.fromInvalid;
+  const showToInvalid = fieldsTouched && validation.toInvalid;
+
+  const handleApply = useCallback(() => {
+    if (!validation.canApply || !validation.fromIso || !validation.toIso) return;
+    onCustomChange(validation.fromIso, validation.toIso);
+    setCustomPanelOpen(true);
+    setFieldsTouched(false);
+  }, [onCustomChange, validation]);
 
   const handlePresetClick = (preset: DateRangePreset) => {
     if (preset === "custom") {
-      setDraftFrom(range.from);
-      setDraftTo(range.to);
+      resetDraftsToApplied();
       setCustomPanelOpen(true);
       return;
     }
-    setCustomPanelOpen(false);
+    closeCustomPanel();
     onPresetChange(preset);
+  };
+
+  const handlePanelKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeCustomPanel();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (validation.canApply) handleApply();
+    }
   };
 
   const showCustomPanel = customPanelOpen;
   const rangeStatusLabel = customPanelOpen
     ? "Custom (not applied)"
     : formatRangeLabel(range);
+
+  const rangeError =
+    fieldsTouched && validation.orderError ? validation.orderError : null;
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -165,29 +212,49 @@ export function DateRangeFilter({
         </p>
       </div>
       {showCustomPanel ? (
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
-          <SastDateInput
-            id="date-range-from"
-            label="From"
-            valueIso={draftFrom}
-            onChangeIso={setDraftFrom}
-          />
-          <SastDateInput
-            id="date-range-to"
-            label="To"
-            valueIso={draftTo}
-            onChangeIso={setDraftTo}
-          />
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              onCustomChange(draftFrom, draftTo);
-              setCustomPanelOpen(true);
-            }}
+        <div
+          className="rounded-lg border bg-muted/20 p-3"
+          role="dialog"
+          aria-label="Custom date range"
+          onKeyDown={handlePanelKeyDown}
+        >
+          <div className="flex flex-wrap items-end gap-3">
+            <SastDateInput
+              id="date-range-from"
+              label="From"
+              text={draftFromText}
+              invalid={showFromInvalid}
+              onTextChange={(text) => {
+                setFieldsTouched(true);
+                setDraftFromText(text);
+              }}
+            />
+            <SastDateInput
+              id="date-range-to"
+              label="To"
+              text={draftToText}
+              invalid={showToInvalid}
+              onTextChange={(text) => {
+                setFieldsTouched(true);
+                setDraftToText(text);
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={!validation.canApply}
+              onClick={handleApply}
+            >
+              Apply
+            </Button>
+          </div>
+          <p
+            className="mt-2 min-h-[1.125rem] text-[11px] leading-tight text-destructive"
+            role="alert"
+            aria-live="polite"
           >
-            Apply
-          </Button>
+            {rangeError ?? "\u00a0"}
+          </p>
         </div>
       ) : null}
     </div>
