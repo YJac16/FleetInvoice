@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
 import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { completedTrips } from "@/features/driver-portal/lib/trip-labels";
@@ -70,7 +71,10 @@ export function DriverHistoryPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={showHistorySkeleton ? undefined : history.length}
+        resultCount={resolveRangeFilterResultCount(tripsQuery, {
+          listReady: !showHistorySkeleton,
+          count: history.length,
+        })}
         resultUnit={{ singular: "trip", plural: "trips" }}
         className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
@@ -83,24 +87,26 @@ export function DriverHistoryPage() {
         />
       ) : showHistorySkeleton ? (
         <LoadingSkeleton rows={4} />
-      ) : history.length === 0 ? (
-        <EmptyState
-          title="No trips in this range"
-          description="Try a different date range or complete a trip to see it here."
-          action={
-            <DateRangeEmptyActions
-              range={range}
-              onPresetChange={setPreset}
-            />
-          }
-        />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
-          <div className="space-y-2">
-            {history.map((trip) => (
-              <StaffTripCard key={trip.id} trip={trip} compact />
-            ))}
-          </div>
+          {history.length === 0 ? (
+            <EmptyState
+              title="No trips in this range"
+              description="Try a different date range or complete a trip to see it here."
+              action={
+                <DateRangeEmptyActions
+                  range={range}
+                  onPresetChange={setPreset}
+                />
+              }
+            />
+          ) : (
+            <div className="space-y-2">
+              {history.map((trip) => (
+                <StaffTripCard key={trip.id} trip={trip} compact />
+              ))}
+            </div>
+          )}
         </RangeQueryBody>
       )}
     </div>

@@ -32,6 +32,17 @@ describe("useShowListSkeleton", () => {
     ).toBe(false);
   });
 
+  it("hides skeleton when pending but previous placeholder rows exist", () => {
+    expect(
+      useShowListSkeleton({
+        isPending: true,
+        isFetching: true,
+        data: [{ id: "1" }],
+        isPlaceholderData: true,
+      })
+    ).toBe(false);
+  });
+
   it("hides skeleton when placeholder data is shown during fetch", () => {
     expect(
       useShowListSkeleton({

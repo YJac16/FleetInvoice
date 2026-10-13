@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { CUSTOM_RANGE_ORDER_ERROR } from "@/lib/date-range/custom-range-draft";
 import { formatRangeLabel, resolveDateRange } from "@/lib/date-range/sast-range";
 
 describe("DateRangeFilter custom panel", () => {
@@ -57,6 +58,25 @@ describe("DateRangeFilter custom panel", () => {
       screen.getByText(`${formatRangeLabel(customRange)} · SAST`)
     ).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: "Custom date range" })).toBeNull();
+  });
+
+  it("shows apply helper without duplicating the To field order error", () => {
+    render(
+      <DateRangeFilter
+        range={range}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+
+    const from = screen.getByLabelText("From");
+    const to = screen.getByLabelText("To");
+    fireEvent.change(from, { target: { value: "14/10/2026" } });
+    fireEvent.change(to, { target: { value: "01/10/2026" } });
+
+    expect(screen.getAllByText(CUSTOM_RANGE_ORDER_ERROR).length).toBe(1);
   });
 
   it("shows result count beside the range label when provided", () => {

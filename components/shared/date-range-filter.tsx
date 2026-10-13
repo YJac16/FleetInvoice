@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { SastDateInput } from "@/components/shared/sast-date-input";
@@ -18,15 +25,27 @@ import {
 } from "@/lib/date-range/sast-range";
 import { cn } from "@/lib/utils";
 
+const CUSTOM_RANGE_SHEET_TITLE_ID = "custom-range-sheet-title";
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((el) => !el.hasAttribute("aria-hidden"));
+}
+
 function FilterChipRow({
   activePreset,
   customPanelOpen,
   chipScrollKey,
+  customChipRef,
   onPresetClick,
 }: {
   activePreset: DateRangePreset;
   customPanelOpen: boolean;
   chipScrollKey: string;
+  customChipRef: RefObject<HTMLButtonElement | null>;
   onPresetClick: (preset: DateRangePreset) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +116,13 @@ function FilterChipRow({
           return (
             <Button
               key={option.value}
-              ref={selected ? activeChipRef : undefined}
+              ref={
+                option.value === "custom"
+                  ? customChipRef
+                  : selected
+                    ? activeChipRef
+                    : undefined
+              }
               type="button"
               size="sm"
               variant={selected ? "default" : "outline"}
@@ -127,12 +152,16 @@ function draftsFromRange(range: ResolvedDateRange) {
 function MobileCustomRangeSheet({
   open,
   onClose,
+  onKeyDown,
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
   children: React.ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
@@ -144,15 +173,38 @@ function MobileCustomRangeSheet({
 
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const focusFirst = () => {
+      const fromInput = panel.querySelector<HTMLElement>("#date-range-from");
+      const focusables = getFocusableElements(panel);
+      (fromInput ?? focusables[0] ?? panel).focus();
+    };
+    const raf = requestAnimationFrame(focusFirst);
+
+    const trapTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusables = getFocusableElements(panel);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && active === first) {
         event.preventDefault();
-        onClose();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+
+    panel.addEventListener("keydown", trapTab);
+    return () => {
+      cancelAnimationFrame(raf);
+      panel.removeEventListener("keydown", trapTab);
+    };
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -165,10 +217,16 @@ function MobileCustomRangeSheet({
         onClick={onClose}
       />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={CUSTOM_RANGE_SHEET_TITLE_ID}
+        onKeyDown={onKeyDown}
         className="fixed inset-x-0 bottom-0 z-[101] max-h-[min(85vh,32rem)] overflow-y-auto rounded-t-xl border-t bg-background p-3 shadow-xl pb-[max(1rem,env(safe-area-inset-bottom))]"
-        role="presentation"
       >
-        <p className="mb-3 text-sm font-medium">Custom range</p>
+        <p id={CUSTOM_RANGE_SHEET_TITLE_ID} className="mb-3 text-sm font-medium">
+          Custom range
+        </p>
         {children}
       </div>
     </>,
@@ -183,7 +241,9 @@ function CustomRangeFields({
   showToInvalid,
   toFieldError,
   applyHelperText,
+  applyHelperId,
   canApply,
+  surface,
   onFromChange,
   onToChange,
   onApply,
@@ -195,7 +255,9 @@ function CustomRangeFields({
   showToInvalid: boolean;
   toFieldError: string | null;
   applyHelperText?: string;
+  applyHelperId: string;
   canApply: boolean;
+  surface: "desktop" | "mobile-sheet";
   onFromChange: (text: string) => void;
   onToChange: (text: string) => void;
   onApply: () => void;
@@ -206,13 +268,13 @@ function CustomRangeFields({
     onApply();
   };
 
-  return (
-    <div
-      role="dialog"
-      aria-label="Custom date range"
-      onKeyDown={onKeyDown}
-      className="flex flex-col gap-3"
-    >
+  const visibleHelper =
+    !canApply &&
+    applyHelperText &&
+    !(toFieldError && applyHelperText === toFieldError);
+
+  const fields = (
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <SastDateInput
           id="date-range-from"
@@ -232,18 +294,37 @@ function CustomRangeFields({
         <Button
           type="button"
           size="sm"
-          className="min-h-11 md:min-h-8"
+          className={cn(
+            "min-h-11 md:min-h-8",
+            !canApply && "cursor-not-allowed opacity-50"
+          )}
           aria-disabled={!canApply}
+          aria-describedby={visibleHelper ? applyHelperId : undefined}
           onClick={handleApplyClick}
         >
           Apply
         </Button>
       </div>
-      {!canApply && applyHelperText ? (
-        <p className="text-xs text-muted-foreground" role="status">
+      {visibleHelper ? (
+        <p id={applyHelperId} className="text-xs text-muted-foreground">
           {applyHelperText}
         </p>
       ) : null}
+    </>
+  );
+
+  if (surface === "mobile-sheet") {
+    return <div className="flex flex-col gap-3">{fields}</div>;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Custom date range"
+      onKeyDown={onKeyDown}
+      className="flex flex-col gap-3"
+    >
+      {fields}
     </div>
   );
 }
@@ -266,6 +347,8 @@ export function DateRangeFilter({
   resultUnit?: { singular: string; plural: string };
 }) {
   const isMobile = useIsMobile();
+  const customChipRef = useRef<HTMLButtonElement | null>(null);
+  const applyHelperId = useId();
   const [customPanelOpen, setCustomPanelOpen] = useState(false);
   const [draftFromText, setDraftFromText] = useState(() =>
     isoDateToDisplay(range.from)
@@ -285,6 +368,7 @@ export function DateRangeFilter({
   const closeCustomPanel = useCallback(() => {
     resetDraftsToApplied();
     setCustomPanelOpen(false);
+    customChipRef.current?.focus();
   }, [resetDraftsToApplied]);
 
   useEffect(() => {
@@ -350,14 +434,40 @@ export function DateRangeFilter({
       ? formatRangeResultCount(resultCount, resultUnit.singular, resultUnit.plural)
       : null;
 
-  const customFields = (
+  const customFieldsDesktop = (
     <CustomRangeFields
+      surface="desktop"
       draftFromText={draftFromText}
       draftToText={draftToText}
       showFromInvalid={showFromInvalid}
       showToInvalid={showToInvalid}
       toFieldError={toFieldError}
       applyHelperText={applyHelperText}
+      applyHelperId={applyHelperId}
+      canApply={validation.canApply}
+      onFromChange={(text) => {
+        setFieldsTouched(true);
+        setDraftFromText(text);
+      }}
+      onToChange={(text) => {
+        setFieldsTouched(true);
+        setDraftToText(text);
+      }}
+      onApply={handleApply}
+      onKeyDown={handlePanelKeyDown}
+    />
+  );
+
+  const customFieldsMobile = (
+    <CustomRangeFields
+      surface="mobile-sheet"
+      draftFromText={draftFromText}
+      draftToText={draftToText}
+      showFromInvalid={showFromInvalid}
+      showToInvalid={showToInvalid}
+      toFieldError={toFieldError}
+      applyHelperText={applyHelperText}
+      applyHelperId={applyHelperId}
       canApply={validation.canApply}
       onFromChange={(text) => {
         setFieldsTouched(true);
@@ -384,6 +494,7 @@ export function DateRangeFilter({
           activePreset={customPanelOpen ? "custom" : range.preset}
           customPanelOpen={customPanelOpen}
           chipScrollKey={chipScrollKey}
+          customChipRef={customChipRef}
           onPresetClick={handlePresetClick}
         />
         <p className="px-1 text-xs text-muted-foreground sm:shrink-0">
@@ -418,12 +529,16 @@ export function DateRangeFilter({
       </div>
       {customPanelOpen && !isMobile ? (
         <div className="mx-1 mt-3 rounded-lg border bg-muted/20 p-3">
-          {customFields}
+          {customFieldsDesktop}
         </div>
       ) : null}
       {customPanelOpen && isMobile ? (
-        <MobileCustomRangeSheet open onClose={closeCustomPanel}>
-          {customFields}
+        <MobileCustomRangeSheet
+          open
+          onClose={closeCustomPanel}
+          onKeyDown={handlePanelKeyDown}
+        >
+          {customFieldsMobile}
         </MobileCustomRangeSheet>
       ) : null}
     </div>

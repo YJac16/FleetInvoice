@@ -32,6 +32,7 @@ import {
 import { DispatchMap } from "@/features/dispatch/components/dispatch-map";
 import { tripRouteLabel } from "@/features/trips/lib/trip-display";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import type { TripStatus } from "@/lib/constants";
 import { listGpsLastPositions } from "@/services/gps.service";
 import { listPassengersForTrips } from "@/services/trip-passengers.service";
@@ -157,9 +158,10 @@ export function DispatchBoardPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={
-          showTripsSkeleton ? undefined : filteredTrips.length
-        }
+        resultCount={resolveRangeFilterResultCount(tripsQuery, {
+          listReady: !showTripsSkeleton,
+          count: filteredTrips.length,
+        })}
         resultUnit={{ singular: "trip", plural: "trips" }}
       />
 

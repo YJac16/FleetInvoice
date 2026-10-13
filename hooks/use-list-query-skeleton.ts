@@ -7,6 +7,7 @@ export function useShowListSkeleton<TData>(
     "isPending" | "isFetching" | "data" | "isPlaceholderData"
   >
 ): boolean {
+  if (query.isPlaceholderData && query.data !== undefined) return false;
   if (query.isPending) return true;
   if (query.data === undefined && query.isFetching) return true;
   if (query.isFetching && !query.isPlaceholderData && query.data === undefined) {

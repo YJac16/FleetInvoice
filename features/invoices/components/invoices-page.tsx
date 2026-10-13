@@ -60,6 +60,7 @@ import {
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
@@ -575,9 +576,10 @@ export function InvoicesPage({
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
             updating={rangeRefreshing}
-            resultCount={
-              showInvoicesSkeleton ? undefined : filteredInvoices.length
-            }
+            resultCount={resolveRangeFilterResultCount(invoicesQuery, {
+              listReady: !showInvoicesSkeleton,
+              count: filteredInvoices.length,
+            })}
             resultUnit={{ singular: "invoice", plural: "invoices" }}
           />
           <div className="mb-4">

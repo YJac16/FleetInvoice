@@ -38,6 +38,7 @@ import {
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import { resolveTripsListEmptyState } from "@/features/trips/lib/trips-empty-state";
 import { cancelTrip, orgHasAnyTrips } from "@/services/trips.service";
 import type { Trip } from "@/types";
@@ -267,13 +268,12 @@ export function TripsPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={
-          showTripsSkeleton
-            ? undefined
-            : hasSearchFilter
-              ? rows.length
-              : (tripsQuery.data ?? []).length
-        }
+        resultCount={resolveRangeFilterResultCount(tripsQuery, {
+          listReady: !showTripsSkeleton,
+          count: hasSearchFilter
+            ? rows.length
+            : (tripsQuery.data ?? []).length,
+        })}
         resultUnit={{ singular: "trip", plural: "trips" }}
       />
       <div className="mb-4">

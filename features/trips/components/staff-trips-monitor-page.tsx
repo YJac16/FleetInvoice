@@ -33,6 +33,7 @@ import {
 } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
 import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { Button } from "@/components/ui/button";
 import {
@@ -251,7 +252,10 @@ export function StaffTripsMonitorPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={showTripsSkeleton ? undefined : summary.total}
+        resultCount={resolveRangeFilterResultCount(tripsQuery, {
+          listReady: !showTripsSkeleton,
+          count: summary.total,
+        })}
         resultUnit={{ singular: "trip", plural: "trips" }}
       />
 
