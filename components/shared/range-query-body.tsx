@@ -27,7 +27,11 @@ export function RangeQueryBody<TData>({
     <div
       className={cn(
         "relative motion-safe:transition-opacity motion-safe:duration-200 motion-reduce:transition-none",
-        refreshing && "pointer-events-none opacity-60",
+        refreshing && [
+          "pointer-events-none opacity-60",
+          "[&_a]:pointer-events-none [&_a]:cursor-not-allowed [&_a]:opacity-50",
+          "[&_button]:pointer-events-none [&_button]:cursor-not-allowed [&_button]:opacity-50",
+        ],
         className
       )}
       aria-busy={refreshing || undefined}

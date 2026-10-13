@@ -71,12 +71,25 @@ export function TripsPage() {
       ? queryKeys.tripsOrgHasAny(organisationId)
       : ["trips-org-has-any", "none"],
     queryFn: () => orgHasAnyTrips(organisationId!),
-    enabled: Boolean(organisationId) && rangedResultEmpty && !hasSearchFilter,
+    enabled:
+      Boolean(organisationId) &&
+      rangedResultEmpty &&
+      !hasSearchFilter &&
+      !tripsQuery.isError,
     staleTime: 60_000,
   });
 
+  const orgTripCountStatus = orgTripsExistQuery.isError
+    ? "error"
+    : orgTripsExistQuery.isPending || orgTripsExistQuery.isFetching
+      ? "loading"
+      : orgTripsExistQuery.isSuccess
+        ? "ready"
+        : "loading";
+
   const emptyState = resolveTripsListEmptyState({
     hasSearchFilter,
+    orgTripCountStatus,
     orgHasAnyTrips: orgTripsExistQuery.data,
   });
 
@@ -252,24 +265,32 @@ export function TripsPage() {
 
       {showTripsSkeleton ? (
         <LoadingSkeleton />
+      ) : tripsQuery.isError ? (
+        <EmptyState
+          icon={Bus}
+          title="Couldn't load trips"
+          description={getErrorMessage(tripsQuery.error)}
+          actionLabel="Retry"
+          onAction={() => void tripsQuery.refetch()}
+        />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
           {rows.length === 0 ? (
-        <EmptyState
-          icon={Bus}
-          title={emptyState.title}
-          description={emptyState.description}
-          actionLabel={
-            canManage && emptyState.showGenerateAction
-              ? "Generate trips"
-              : undefined
-          }
-          onAction={
-            canManage && emptyState.showGenerateAction
-              ? () => setGenerateOpen(true)
-              : undefined
-          }
-        />
+              <EmptyState
+                icon={Bus}
+                title={emptyState.title}
+                description={emptyState.description}
+                actionLabel={
+                  canManage && emptyState.showGenerateAction
+                    ? "Generate trips"
+                    : undefined
+                }
+                onAction={
+                  canManage && emptyState.showGenerateAction
+                    ? () => setGenerateOpen(true)
+                    : undefined
+                }
+              />
           ) : (
             <DataTable columns={columns} data={rows} />
           )}

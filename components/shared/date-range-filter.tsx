@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
 import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
+import { customRangeApplyDisabledTitle } from "@/lib/date-range/custom-range-apply";
 import { validateCustomRangeDraft } from "@/lib/date-range/custom-range-draft";
 import {
   DATE_RANGE_PRESETS,
@@ -17,10 +18,12 @@ import { cn } from "@/lib/utils";
 function FilterChipRow({
   activePreset,
   customPanelOpen,
+  chipScrollKey,
   onPresetClick,
 }: {
   activePreset: DateRangePreset;
   customPanelOpen: boolean;
+  chipScrollKey: string;
   onPresetClick: (preset: DateRangePreset) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -61,7 +64,7 @@ function FilterChipRow({
       block: "nearest",
       inline: "center",
     });
-  }, [activePreset, customPanelOpen]);
+  }, [activePreset, customPanelOpen, chipScrollKey]);
 
   return (
     <div className="relative min-w-0 flex-1">
@@ -79,7 +82,7 @@ function FilterChipRow({
       ) : null}
       <div
         ref={scrollerRef}
-        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 pr-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain scroll-pr-1.5 pb-1 pr-1.5 [scroll-padding-inline-end:6px] [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
         role="group"
         aria-label="Filter by date range"
       >
@@ -204,12 +207,21 @@ export function DateRangeFilter({
   const toFieldError =
     fieldsTouched && validation.orderError ? validation.orderError : null;
 
+  const applyDisabledTitle = customRangeApplyDisabledTitle(
+    validation,
+    draftFromText,
+    draftToText
+  );
+
+  const chipScrollKey = `${range.preset}:${range.from}:${range.to}`;
+
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <FilterChipRow
           activePreset={customPanelOpen ? "custom" : range.preset}
           customPanelOpen={customPanelOpen}
+          chipScrollKey={chipScrollKey}
           onPresetClick={handlePresetClick}
         />
         <p className="text-xs text-muted-foreground sm:shrink-0">
@@ -270,6 +282,8 @@ export function DateRangeFilter({
               type="button"
               size="sm"
               disabled={!validation.canApply}
+              aria-disabled={!validation.canApply}
+              title={applyDisabledTitle}
               onClick={handleApply}
             >
               Apply

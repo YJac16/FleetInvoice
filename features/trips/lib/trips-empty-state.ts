@@ -4,16 +4,28 @@ export type TripsListEmptyState = {
   showGenerateAction: boolean;
 };
 
+export type OrgTripCountStatus = "loading" | "error" | "ready";
+
 /** Copy for trips list when the ranged query returned no rows (client search excluded). */
 export function resolveTripsListEmptyState({
   hasSearchFilter,
+  orgTripCountStatus,
   orgHasAnyTrips,
 }: {
   hasSearchFilter: boolean;
-  /** `undefined` while the org-wide head count is still loading. */
-  orgHasAnyTrips: boolean | undefined;
+  orgTripCountStatus: OrgTripCountStatus;
+  /** Set only when `orgTripCountStatus === "ready"`. */
+  orgHasAnyTrips?: boolean;
 }): TripsListEmptyState {
   if (hasSearchFilter) {
+    return {
+      title: "No trips in this range",
+      description: "Try a different date range or clear your search.",
+      showGenerateAction: false,
+    };
+  }
+
+  if (orgTripCountStatus !== "ready") {
     return {
       title: "No trips in this range",
       description: "Try a different date range or clear your search.",
