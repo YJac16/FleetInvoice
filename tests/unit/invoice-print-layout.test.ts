@@ -82,6 +82,11 @@ describe("invoice print pagination", () => {
 
     const banking = ruleBlock(css, ".invoice-print-banking-block");
     expect(banking).toMatch(/break-inside:\s*avoid/);
+    expect(banking).toMatch(/break-before:\s*avoid/);
+
+    expect(css).toMatch(
+      /\.invoice-print-sheet\s*\{[^}]*padding:\s*0\s+12mm\s*!important/
+    );
   });
 
   it("uses A4 portrait, fixed column widths summing to 100%, and safe ref wrapping", () => {

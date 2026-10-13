@@ -11,6 +11,7 @@ export function readInvoicePrintStyles(): string {
 }
 
 function fixtureRowPadding(lineCount: number): string {
+  if (lineCount <= 12) return "0.5rem";
   if (lineCount <= 16) return "0.68rem";
   if (lineCount <= 24) return "0.55rem";
   return "0.45rem";

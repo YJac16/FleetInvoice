@@ -226,7 +226,7 @@
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 12mm !important;
+    padding: 0 12mm !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -328,6 +328,8 @@
   }
 
   .invoice-print-banking-block {
+    break-before: avoid;
+    page-break-before: avoid;
     break-inside: avoid;
     page-break-inside: avoid;
   }
