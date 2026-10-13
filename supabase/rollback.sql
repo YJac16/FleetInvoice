@@ -548,14 +548,6 @@ grant all on table public.compliance_scan_quota to authenticated;
 grant all on table public.compliance_scan_temp_objects to authenticated;
 grant all on table public.compliance_storage_purge_queue to authenticated;
 
-revoke all on function public.driver_default_vehicle_id(uuid, uuid) from public, anon, authenticated;
-grant execute on function public.driver_default_vehicle_id(uuid, uuid) to service_role;
-
-revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from public, anon, authenticated;
-grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) to service_role;
-
-revoke all on function public.guard_company_manager_member_scope() from public, anon, authenticated;
-
 -- 00052 SECURITY DEFINER grants (pre-00060 PostgREST surface)
 -- =============================================================================
 -- 00052 — Security hardening: anon RPC surface, compliance_scan_quota RLS,
@@ -819,5 +811,13 @@ begin
 end;
 $$;
 
+-- Internal helpers (not client RPCs pre-00060) — after 00052 replay so authenticated is not re-granted
+revoke all on function public.driver_default_vehicle_id(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.driver_default_vehicle_id(uuid, uuid) to service_role;
+
+revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from public, anon, authenticated;
+grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) to service_role;
+
+revoke all on function public.guard_company_manager_member_scope() from public, anon, authenticated;
 
 COMMIT;
