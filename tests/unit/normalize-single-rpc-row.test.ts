@@ -41,4 +41,16 @@ describe("normalizeSingleRpcRow", () => {
   it("returns null for an empty array", () => {
     expect(normalizeSingleRpcRow([])).toBeNull();
   });
+
+  it("uses a custom presence key for invitation preview rows without id", () => {
+    const preview = {
+      org_name: "Acme",
+      email: "u***@example.com",
+      role: "manager",
+      status: "pending",
+      expires_at: "2099-01-01T00:00:00Z",
+    };
+    expect(normalizeSingleRpcRow(preview, "email")).toEqual(preview);
+    expect(normalizeSingleRpcRow({ ...preview, email: "" }, "email")).toBeNull();
+  });
 });

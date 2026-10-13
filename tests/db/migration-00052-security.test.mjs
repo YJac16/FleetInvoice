@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { INTERNAL_SECURITY_DEFINER_RPCS } from "../../scripts/db/00055-advisor-constants.mjs";
 import {
   apply00052HostedFidelity,
   defaultPrivilegesPostgresScopeOnly,
@@ -18,6 +19,10 @@ const MIG_00052 = join(
   ROOT,
   "supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
 );
+const MIG_00060 = join(
+  ROOT,
+  "supabase/migrations/00060_supabase_audit_hardening_13_oct.sql"
+);
 const PG_DB = process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit";
 
 const ORG_A = "a0000000-0000-4000-8000-000000000001";
@@ -27,8 +32,10 @@ const INVITEE_ID = "d0000000-0000-4000-8000-000000000099";
 const TRIP_A = "a0000000-0000-4000-8000-000000000601";
 const ROUTE_A = "a0000000-0000-4000-8000-000000000602";
 
-/** Documented anon SECURITY DEFINER exception (2 public RPCs + 8 RLS helpers). */
+/** Documented anon SECURITY DEFINER exception (00060: 3 client RPCs + 9 RLS/storage helpers). */
 const ANON_DEFINER_ALLOWLIST = new Set([
+  "public.check_invitation_email(text,text)",
+  "public.compliance_storage_path_allowed(text)",
   "public.current_driver_id(uuid)",
   "public.current_employee_id(uuid)",
   "public.get_invitation_by_token(text)",
@@ -167,6 +174,18 @@ function main() {
       ? `fallback: ${applyMode.reason}`
       : applyMode.mode
   );
+
+  const reapply60 = spawnSync(
+    "sudo",
+    ["-u", "postgres", "psql", "-q", "-d", PG_DB, "-v", "ON_ERROR_STOP=1", "-f", MIG_00060],
+    { encoding: "utf8" }
+  );
+  record(
+    "post-00052-reapply-00060",
+    reapply60.status === 0,
+    reapply60.stderr?.slice(0, 80) || "ok"
+  );
+
   seedTripFixture();
 
   for (const name of ANON_RPC_DENIED) {
@@ -195,7 +214,7 @@ function main() {
     .filter(Boolean)
     .map((s) => (s.startsWith("public.") ? s : `public.${s}`));
 
-  record("anon-definer-exact-count-10", anonDefinerSigs.length === 10, String(anonDefinerSigs.length));
+  record("anon-definer-exact-count-12", anonDefinerSigs.length === 12, String(anonDefinerSigs.length));
   const unexpected = anonDefinerSigs.filter((s) => !ANON_DEFINER_ALLOWLIST.has(s));
   const missing = [...ANON_DEFINER_ALLOWLIST].filter((s) => !anonDefinerSigs.includes(s));
   record(
@@ -213,54 +232,28 @@ function main() {
     rlsHelperSmoke.text.slice(0, 120)
   );
 
-  // --- Anon real-table RLS (production-shaped SELECT grant on public tables) ---
+  for (const name of INTERNAL_SECURITY_DEFINER_RPCS) {
+    record(
+      `internal-deny-authenticated-${name}`,
+      isFalse(fnExec("authenticated", name)),
+      `authenticated=${fnExec("authenticated", name)}`
+    );
+  }
+
+  const anonTablePriv = psql(
+    `SELECT (NOT has_table_privilege('anon', 'public.companies', 'SELECT')
+      AND NOT has_table_privilege('anon', 'public.plans', 'SELECT'))::text;`
+  ).text.split("\n").pop();
+  record("anon-no-direct-table-select", isTrue(anonTablePriv ?? ""), anonTablePriv ?? "");
+
   const anonCompanies = psqlAsAnon(
-    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}';`
+    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}';`,
+    { allowError: true }
   );
-  record("anon-rls-companies-zero", anonCompanies.ok && anonCompanies.text.endsWith("0"), anonCompanies.text);
-
-  const anonTrips = psqlAsAnon(
-    `SELECT count(*)::text FROM public.trips WHERE organisation_id = '${ORG_A}';`
-  );
-  record("anon-rls-trips-zero", anonTrips.ok && anonTrips.text.endsWith("0"), anonTrips.text);
-
-  const anonInvoices = psqlAsAnon(
-    `SELECT count(*)::text FROM public.invoices WHERE organisation_id = '${ORG_A}';`
-  );
-  record("anon-rls-invoices-zero", anonInvoices.ok && anonInvoices.text.endsWith("0"), anonInvoices.text);
-
-  const anonSubs = psqlAsAnon(`SELECT count(*)::text FROM public.subscriptions;`);
-  record("anon-rls-subscriptions-zero", anonSubs.ok && anonSubs.text.endsWith("0"), anonSubs.text);
-
-  const anonWl = psqlAsAnon(`SELECT count(*)::text FROM public.white_label_configs;`);
-  record("anon-rls-white_label-zero", anonWl.ok && anonWl.text.endsWith("0"), anonWl.text);
-
-  const anonPlans = psqlAsAnon(
-    `SELECT count(*)::text AS total,
-            count(*) FILTER (WHERE NOT is_active)::text AS inactive
-     FROM public.plans;`
-  );
-  const planLines = anonPlans.text.split("\n").filter(Boolean).pop()?.split("|") ?? [];
   record(
-    "anon-rls-plans-active-catalog-only",
-    anonPlans.ok && (planLines[1] ?? "0") === "0",
-    "public catalog: active plans only (plans_select allows is_active OR platform_owner)"
-  );
-
-  const anonEnt = psqlAsAnon(
-    `SELECT count(*)::text AS total,
-            count(*) FILTER (WHERE NOT EXISTS (
-              SELECT 1 FROM public.plans p WHERE p.id = plan_id AND p.is_active
-            ) AND NOT EXISTS (
-              SELECT 1 FROM public.subscriptions s WHERE s.plan_id = plan_id
-            ))::text AS disallowed
-     FROM public.module_entitlements;`
-  );
-  const entLines = anonEnt.text.split("\n").filter(Boolean).pop()?.split("|") ?? [];
-  record(
-    "anon-rls-module_entitlements-policy",
-    anonEnt.ok && (entLines[1] ?? "0") === "0",
-    "allowed: entitlements on active plans (module_entitlements_select)"
+    "anon-companies-select-denied",
+    !anonCompanies.ok || /permission denied|insufficient privilege/i.test(anonCompanies.text),
+    anonCompanies.text.slice(0, 80)
   );
 
   const authCompanies = psqlAs(
@@ -377,10 +370,22 @@ DROP FUNCTION public._00052_default_priv_probe();
   record("invite-create_invitation", createInv.ok && token.length > 8, token.slice(0, 12));
 
   const preview = psqlAsAnon(`SELECT email FROM public.get_invitation_by_token('${token}');`);
+  const previewEmail = preview.text.split("\n").filter(Boolean).at(-1) ?? "";
   record(
-    "invite-anon-preview",
-    preview.ok && preview.text.includes("invite-new@audit.test"),
-    preview.text.slice(0, 80)
+    "invite-anon-preview-masked",
+    preview.ok &&
+      previewEmail.includes("@audit.test") &&
+      !previewEmail.includes("invite-new@"),
+    previewEmail.slice(0, 80)
+  );
+
+  const emailCheck = psqlAsAnon(
+    `SELECT public.check_invitation_email('${token}', 'invite-new@audit.test')::text;`
+  );
+  record(
+    "invite-check_invitation_email",
+    emailCheck.ok && isTrue(emailCheck.text.split("\n").filter(Boolean).at(-1) ?? ""),
+    emailCheck.text.slice(0, 40)
   );
 
   const accept = psqlAs(INVITEE_ID, `SELECT public.accept_invitation('${token}')::text;`);
