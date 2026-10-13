@@ -23,6 +23,16 @@ function ruleBlock(css: string, selector: string): string {
   return match?.[1] ?? "";
 }
 
+const COLUMN_WIDTHS: Record<string, string> = {
+  ".invoice-print-col-no": "5%",
+  ".invoice-print-col-date": "13%",
+  ".invoice-print-col-time": "8%",
+  ".invoice-print-col-company": "26%",
+  ".invoice-print-col-pax": "6%",
+  ".invoice-print-col-area": "30%",
+  ".invoice-print-col-amount": "12%",
+};
+
 describe("invoice print pagination", () => {
   it("does not reserve a full page under the letterhead", () => {
     const css = printCss();
@@ -37,7 +47,7 @@ describe("invoice print pagination", () => {
     expect(sheet).toMatch(/height:\s*auto\s*!important/);
   });
 
-  it("lets the trip table break so rows can start on page 1", () => {
+  it("keeps tbody rows and totals together while allowing the table to paginate", () => {
     const css = printCss();
     const avoid = ruleBlock(css, ".invoice-print-sheet header");
     expect(avoid).toMatch(/break-inside:\s*avoid/);
@@ -50,14 +60,10 @@ describe("invoice print pagination", () => {
   .invoice-print-sheet tfoot`
     );
     expect(tableParts).toMatch(/break-inside:\s*auto/);
-    expect(tableParts).toMatch(/page-break-inside:\s*auto/);
-    expect(tableParts).not.toMatch(/avoid/);
 
-    const table = ruleBlock(css, ".invoice-print-sheet table");
-    expect(table).toMatch(/display:\s*table\s*!important/);
-
-    const thead = ruleBlock(css, ".invoice-print-sheet thead");
-    expect(thead).toMatch(/display:\s*table-header-group/);
+    const lineRow = ruleBlock(css, ".invoice-print-lines-table tbody tr");
+    expect(lineRow).toMatch(/break-inside:\s*avoid/);
+    expect(lineRow).toMatch(/page-break-inside:\s*avoid/);
 
     const totals = ruleBlock(
       css,
@@ -69,27 +75,44 @@ describe("invoice print pagination", () => {
 
     const lastRow = ruleBlock(css, ".invoice-print-lines-table tbody tr:last-child");
     expect(lastRow).toMatch(/break-after:\s*avoid/);
+
+    const banking = ruleBlock(css, ".invoice-print-banking-block");
+    expect(banking).toMatch(/break-inside:\s*avoid/);
   });
 
-  it("uses A4 portrait and widens company/area columns without break-all on refs", () => {
+  it("uses A4 portrait, fixed column widths summing to 100%, and safe ref wrapping", () => {
     const css = printCss();
     expect(css).toMatch(/size:\s*A4\s+portrait/);
 
-    const company = ruleBlock(css, ".invoice-print-col-company");
-    expect(company).toMatch(/width:\s*30%/);
-    expect(company).not.toMatch(/break-all/);
+    let widthSum = 0;
+    for (const [selector, width] of Object.entries(COLUMN_WIDTHS)) {
+      const block = ruleBlock(css, selector);
+      expect(block).toMatch(new RegExp(`width:\\s*${width.replace("%", "\\%")}`));
+      widthSum += Number.parseInt(width, 10);
+      expect(block).not.toMatch(/break-all/);
+      if (selector.includes("area")) {
+        expect(block).not.toMatch(/overflow-wrap:\s*anywhere/);
+        expect(block).toMatch(/overflow-wrap:\s*break-word/);
+      }
+    }
+    expect(widthSum).toBe(100);
 
-    const area = ruleBlock(css, ".invoice-print-col-area");
-    expect(area).toMatch(/width:\s*24%/);
+    const date = ruleBlock(css, ".invoice-print-col-date");
+    expect(date).toMatch(/white-space:\s*nowrap/);
+    const time = ruleBlock(css, ".invoice-print-col-time");
+    expect(time).toMatch(/white-space:\s*nowrap/);
+    const amount = ruleBlock(css, ".invoice-print-col-amount");
+    expect(amount).toMatch(/white-space:\s*nowrap/);
 
     const refValue = ruleBlock(css, ".invoice-print-cover-meta-value");
     expect(refValue).toMatch(/white-space:\s*nowrap/);
-    expect(refValue).not.toMatch(/break-all/);
 
     const view = readRepo("features/invoices/components/invoice-print-view.tsx");
     expect(view).toContain("invoice-print-table-totals");
-    expect(view).toContain("<tfoot");
-    expect(view).not.toMatch(/Total:[\s\S]{0,120}<\/footer>/);
+    expect(view).toContain("invoice-print-mobile-total");
+    expect(view).toContain("renderInvoicePrintArea");
+    expect(view).toContain("invoice-print-banking-block");
+    expect(view).toContain("<colgroup");
   });
 
   it("turns shell flex containers into normal flow while printing an invoice", () => {

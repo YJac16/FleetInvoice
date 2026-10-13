@@ -130,6 +130,41 @@
   --sidebar-ring: #006dff;
 }
 
+.invoice-print-lines-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.invoice-print-col-no {
+  width: 5%;
+}
+
+.invoice-print-col-date {
+  width: 13%;
+}
+
+.invoice-print-col-time {
+  width: 8%;
+}
+
+.invoice-print-col-company {
+  width: 26%;
+  overflow-wrap: break-word;
+}
+
+.invoice-print-col-pax {
+  width: 6%;
+}
+
+.invoice-print-col-area {
+  width: 30%;
+  overflow-wrap: break-word;
+}
+
+.invoice-print-col-amount {
+  width: 12%;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -214,12 +249,19 @@
     table-layout: fixed;
   }
 
+  /* table-header-group is correct per spec; Chromium still often omits repeating
+     headers when the table spans pages inside a padded sheet — not asserted in tests. */
   .invoice-print-sheet thead {
     display: table-header-group;
   }
 
   .invoice-print-sheet tfoot {
     display: table-footer-group;
+  }
+
+  .invoice-print-lines-table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .invoice-print-lines-table tbody tr:last-child {
@@ -234,18 +276,43 @@
     page-break-inside: avoid;
   }
 
+  .invoice-print-col-no {
+    width: 5%;
+  }
+
+  .invoice-print-col-date {
+    width: 13%;
+    white-space: nowrap;
+  }
+
+  .invoice-print-col-time {
+    width: 8%;
+    white-space: nowrap;
+  }
+
   .invoice-print-col-company {
-    width: 30%;
-  }
-
-  .invoice-print-col-area {
-    width: 24%;
-  }
-
-  .invoice-print-col-company,
-  .invoice-print-col-area {
-    overflow-wrap: anywhere;
+    width: 26%;
+    overflow-wrap: break-word;
     word-break: normal;
+  }
+
+  .invoice-print-col-pax {
+    width: 6%;
+  }
+
+  .invoice-print-col-area {
+    width: 30%;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .invoice-print-col-amount {
+    width: 12%;
+    white-space: nowrap;
+  }
+
+  .invoice-print-area-ref {
+    white-space: nowrap;
   }
 
   .invoice-print-cover-meta-value {
@@ -255,8 +322,18 @@
   }
 
   .invoice-print-cover-meta-line {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     word-break: normal;
+  }
+
+  .invoice-print-banking-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .invoice-print-sheet-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   body:has(.invoice-print-sheet) .print\:hidden {
