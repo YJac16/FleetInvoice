@@ -23,6 +23,7 @@ const driverA = "a0000000-0000-4000-8000-000000000201";
 const WCL = "e5800000-0000-4000-8000-000000000001";
 const RATED = "e5800000-0000-4000-8000-000000000002";
 const NO_RATE = "e5800000-0000-4000-8000-000000000003";
+const VEHICLE_A = "e5800000-0000-4000-8000-000000000099";
 
 const RATE_ERR =
   "No trip rate configured for this company. Add a rate before saving this waybill.";
@@ -143,6 +144,20 @@ psqlAdmin(`
     select 1 from public.rate_cards rc
     where rc.company_id = '${RATED}' and rc.line_type = 'trip' and rc.deleted_at is null
   );
+
+  insert into public.vehicles (
+    id, organisation_id, company_id, name, registration_number, vehicle_type, status
+  )
+  values (
+    '${VEHICLE_A}',
+    '${ORG_A}',
+    '${WCL}',
+    'Billing test van',
+    '00058-TEST',
+    'minibus',
+    'active'
+  )
+  on conflict (id) do update set registration_number = excluded.registration_number, deleted_at = null;
 `);
 
 function readiness(userId, companyId) {
@@ -168,7 +183,7 @@ function backfill(companyId, area) {
   return psqlAs(
     adminA,
     `select public.backfill_staff_waybill(
-      '${ORG_A}'::uuid, '${driverA}'::uuid, timestamptz '${PLANNED}', '${area}', 1, '${companyId}'::uuid, null, null, null
+      '${ORG_A}'::uuid, '${driverA}'::uuid, timestamptz '${PLANNED}', '${area}', 1, '${companyId}'::uuid, null, null, null, '${VEHICLE_A}'::uuid
     )::text;`,
     { allowError: true }
   );

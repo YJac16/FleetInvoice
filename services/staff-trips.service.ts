@@ -129,7 +129,8 @@ export async function assignStaffTrip(
   plannedStart: string,
   companyId: string,
   areaText: string,
-  paxCount: number
+  paxCount: number,
+  vehicleId?: string | null
 ): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("assign_staff_trip", {
@@ -140,6 +141,7 @@ export async function assignStaffTrip(
     p_pax_count: paxCount,
     p_company_id: companyId,
     p_staff_company: null,
+    p_vehicle_id: vehicleId ?? null,
   });
   if (error) throw error;
   return data as string;
@@ -152,6 +154,7 @@ export async function backfillStaffWaybill(
   companyId: string,
   areaText: string,
   paxCount: number,
+  vehicleId: string,
   openingKm?: number | null,
   closingKm?: number | null
 ): Promise<string> {
@@ -166,6 +169,7 @@ export async function backfillStaffWaybill(
     p_staff_company: null,
     p_opening_km: openingKm ?? null,
     p_closing_km: closingKm ?? null,
+    p_vehicle_id: vehicleId,
   });
   if (error) throw error;
   return data as string;
