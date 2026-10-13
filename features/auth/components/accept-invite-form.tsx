@@ -26,9 +26,9 @@ import {
 import { getErrorMessage } from "@/utils/errors";
 
 type InvitePreview = {
+  org_name: string;
   email: string;
   role: string;
-  organisation_id: string;
 };
 
 export function AcceptInviteForm({ token }: { token: string }) {
@@ -39,7 +39,7 @@ export function AcceptInviteForm({ token }: { token: string }) {
 
   const form = useForm<AcceptInviteValues>({
     resolver: zodResolver(acceptInviteSchema),
-    defaultValues: { fullName: "", password: "", confirmPassword: "" },
+    defaultValues: { email: "", fullName: "", password: "", confirmPassword: "" },
   });
 
   useEffect(() => {
@@ -54,9 +54,9 @@ export function AcceptInviteForm({ token }: { token: string }) {
           setInvite(null);
         } else {
           setInvite({
+            org_name: row.org_name,
             email: row.email,
             role: row.role,
-            organisation_id: row.organisation_id,
           });
         }
       } catch (error) {
@@ -81,12 +81,12 @@ export function AcceptInviteForm({ token }: { token: string }) {
       if (!user) {
         try {
           await signUpWithInvite({
-            email: invite.email,
+            email: values.email,
             password: values.password,
             fullName: values.fullName,
           });
         } catch {
-          await signInWithPassword(invite.email, values.password);
+          await signInWithPassword(values.email, values.password);
         }
 
         const {
@@ -94,7 +94,7 @@ export function AcceptInviteForm({ token }: { token: string }) {
         } = await supabase.auth.getUser();
 
         if (!signedIn) {
-          await signInWithPassword(invite.email, values.password);
+          await signInWithPassword(values.email, values.password);
         }
       }
 
@@ -148,15 +148,24 @@ export function AcceptInviteForm({ token }: { token: string }) {
       <CardHeader className="space-y-2">
         <CardTitle className="font-heading text-3xl">Accept invite</CardTitle>
         <CardDescription>
-          Joining as{" "}
+          Join{" "}
+          <span className="font-medium text-foreground">{invite.org_name}</span> as{" "}
           <span className="font-medium text-foreground">
             {ROLE_LABELS[invite.role as AppRole] ?? invite.role}
-          </span>{" "}
-          for <span className="font-medium text-foreground">{invite.email}</span>
+          </span>
+          . Invitation sent to{" "}
+          <span className="font-medium text-foreground">{invite.email}</span>.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <TextField
+            control={form.control}
+            name="email"
+            label="Email"
+            type="email"
+            placeholder="you@company.com"
+          />
           <TextField
             control={form.control}
             name="fullName"

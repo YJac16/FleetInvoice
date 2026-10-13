@@ -9,11 +9,9 @@ import { normalizeSingleRpcRow } from "@/lib/supabase/normalize-single-rpc-row";
 import { env } from "@/lib/env";
 
 export type InvitationByToken = {
-  id: string;
-  organisation_id: string;
+  org_name: string;
   email: string;
   role: string;
-  token: string;
   status: string;
   expires_at: string;
 };
