@@ -18,6 +18,7 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -59,6 +60,8 @@ import {
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import {
@@ -567,20 +570,27 @@ export function InvoicesPage({
       />
 
       {organisationId && canView ? (
-        <div className="mb-4 space-y-4">
+        <>
           <DateRangeFilter
             range={range}
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
             updating={rangeRefreshing}
+            resultCount={resolveRangeFilterResultCount(invoicesQuery, {
+              listReady: !showInvoicesSkeleton,
+              count: filteredInvoices.length,
+            })}
+            resultUnit={{ singular: "invoice", plural: "invoices" }}
           />
-          {!showInvoicesSkeleton ? (
-            <InvoiceListFilters
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-            />
-          ) : null}
-        </div>
+          <div className="mb-4">
+            {!showInvoicesSkeleton ? (
+              <InvoiceListFilters
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+              />
+            ) : null}
+          </div>
+        </>
       ) : null}
 
       {!organisationId ? (
@@ -588,15 +598,36 @@ export function InvoicesPage({
           title="No organisation"
           description="Select an organisation to view invoices."
         />
+      ) : invoicesQuery.isError ? (
+        <RangeListErrorState
+          title="Couldn't load invoices"
+          error={invoicesQuery.error}
+          onRetry={() => void invoicesQuery.refetch()}
+        />
       ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />
       ) : (
         <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
-          <DataTable
-            columns={columns}
-            data={filteredInvoices}
-            emptyMessage={listEmptyMessage}
-          />
+          {filteredInvoices.length === 0 ? (
+            <EmptyState
+              title={
+                (invoicesQuery.data ?? []).length === 0
+                  ? "No invoices in this range"
+                  : "No invoices match these filters"
+              }
+              description={listEmptyMessage}
+              action={
+                <DateRangeEmptyActions
+                  range={range}
+                  onPresetChange={setPreset}
+                  hasExtraFilter={statusFilter !== "all"}
+                  onClearExtraFilter={() => setStatusFilter("all")}
+                />
+              }
+            />
+          ) : (
+            <DataTable columns={columns} data={filteredInvoices} />
+          )}
         </RangeQueryBody>
       )}
 

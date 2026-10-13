@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { CUSTOM_RANGE_ORDER_ERROR } from "@/lib/date-range/custom-range-draft";
 import { formatRangeLabel, resolveDateRange } from "@/lib/date-range/sast-range";
 
 describe("DateRangeFilter custom panel", () => {
@@ -30,7 +31,8 @@ describe("DateRangeFilter custom panel", () => {
     const apply = screen.getByRole("button", { name: "Apply" });
 
     fireEvent.change(from, { target: { value: "31/02/2026" } });
-    expect(apply).toBeDisabled();
+    expect(apply).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/valid dates in DD\/MM\/YYYY/i)).toBeTruthy();
 
     fireEvent.click(apply);
     expect(onCustomChange).not.toHaveBeenCalled();
@@ -56,6 +58,42 @@ describe("DateRangeFilter custom panel", () => {
       screen.getByText(`${formatRangeLabel(customRange)} · SAST`)
     ).toBeTruthy();
     expect(screen.queryByRole("dialog", { name: "Custom date range" })).toBeNull();
+  });
+
+  it("shows apply helper without duplicating the To field order error", () => {
+    render(
+      <DateRangeFilter
+        range={range}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+
+    const from = screen.getByLabelText("From");
+    const to = screen.getByLabelText("To");
+    fireEvent.change(from, { target: { value: "14/10/2026" } });
+    fireEvent.change(to, { target: { value: "01/10/2026" } });
+
+    expect(screen.getAllByText(CUSTOM_RANGE_ORDER_ERROR).length).toBe(1);
+
+    const apply = screen.getByRole("button", { name: "Apply" });
+    expect(apply).toHaveAttribute("aria-describedby", "date-range-to-hint");
+  });
+
+  it("shows result count beside the range label when provided", () => {
+    render(
+      <DateRangeFilter
+        range={range}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+        resultCount={12}
+        resultUnit={{ singular: "trip", plural: "trips" }}
+      />
+    );
+
+    expect(screen.getByText(/12 trips/)).toBeTruthy();
   });
 
   it("applies on Enter when valid and resets drafts on Escape", () => {

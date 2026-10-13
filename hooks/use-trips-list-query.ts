@@ -66,9 +66,7 @@ export function useTripsListQuery(
   }, [rowsQuery.data, namesQuery.data, tripIds.length]);
 
   const isFetching = rowsQuery.isFetching || namesQuery.isFetching;
-  const isPending =
-    rowsQuery.isPending ||
-    (tripIds.length > 0 && rowsQuery.isSuccess && namesQuery.isPending);
+  const isPending = rowsQuery.isPending;
   const isPlaceholderData =
     rowsQuery.isPlaceholderData ||
     (tripIds.length > 0 && rowsQuery.isSuccess && namesQuery.isFetching);

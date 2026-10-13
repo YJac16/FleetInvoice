@@ -21,6 +21,7 @@ export function RouteProgressBar() {
   const awaitingPrimaryRef = useRef(false);
   const sessionStartedAtRef = useRef(0);
   const [sessionActive, setSessionActive] = useState(false);
+  const [pastMaxWait, setPastMaxWait] = useState(false);
   const [progress, setProgress] = useState(0);
   const trickleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -40,6 +41,7 @@ export function RouteProgressBar() {
     prevRouteKeyRef.current = routeKey;
     awaitingPrimaryRef.current = true;
     sessionStartedAtRef.current = Date.now();
+    setPastMaxWait(false);
     setSessionActive(true);
     setProgress((p) => (p < 12 ? 12 : p));
   }, [routeKey]);
@@ -50,7 +52,18 @@ export function RouteProgressBar() {
     }
   }, [primaryFetching]);
 
+  const slowIndeterminate = pastMaxWait && primaryFetching;
   const running = sessionActive || primaryFetching;
+
+  useEffect(() => {
+    if (!sessionActive) return;
+    const tick = window.setInterval(() => {
+      if (Date.now() - sessionStartedAtRef.current >= MAX_SESSION_MS) {
+        setPastMaxWait(true);
+      }
+    }, 250);
+    return () => window.clearInterval(tick);
+  }, [sessionActive, routeKey]);
 
   useEffect(() => {
     if (!running) {
@@ -60,36 +73,33 @@ export function RouteProgressBar() {
       }
       return;
     }
-    if (trickleTimerRef.current) return;
+    if (trickleTimerRef.current) {
+      clearInterval(trickleTimerRef.current);
+      trickleTimerRef.current = null;
+    }
     trickleTimerRef.current = setInterval(() => {
-      setProgress((p) => (p >= 92 ? p : Math.min(92, p + 1.5 + Math.random() * 2)));
-    }, 160);
+      setProgress((p) => {
+        const cap = slowIndeterminate ? 96 : 92;
+        if (p >= cap) return p;
+        const step = slowIndeterminate ? 0.35 + Math.random() * 0.45 : 1.5 + Math.random() * 2;
+        return Math.min(cap, p + step);
+      });
+    }, slowIndeterminate ? 280 : 160);
     return () => {
       if (trickleTimerRef.current) {
         clearInterval(trickleTimerRef.current);
         trickleTimerRef.current = null;
       }
     };
-  }, [running]);
+  }, [running, slowIndeterminate]);
 
   useEffect(() => {
     if (!sessionActive) return;
-
-    const elapsed = Date.now() - sessionStartedAtRef.current;
-    if (elapsed >= MAX_SESSION_MS) {
-      setProgress(100);
-      window.setTimeout(() => {
-        setSessionActive(false);
-        setProgress(0);
-      }, 240);
-      return;
-    }
-
     if (primaryFetching) return;
 
+    const elapsed = Date.now() - sessionStartedAtRef.current;
     const stillAwaiting =
-      awaitingPrimaryRef.current &&
-      elapsed < NO_PRIMARY_GRACE_MS;
+      awaitingPrimaryRef.current && elapsed < NO_PRIMARY_GRACE_MS;
     if (stillAwaiting) return;
 
     const timeout = window.setTimeout(() => {
@@ -97,12 +107,13 @@ export function RouteProgressBar() {
       setProgress(100);
       window.setTimeout(() => {
         setSessionActive(false);
+        setPastMaxWait(false);
         setProgress(0);
       }, 240);
     }, SETTLE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [sessionActive, primaryFetching, routeKey]);
+  }, [sessionActive, primaryFetching, pastMaxWait, routeKey]);
 
   return (
     <div
@@ -112,13 +123,20 @@ export function RouteProgressBar() {
       )}
       aria-hidden
     >
-      <div
-        className={cn(
-          "h-full origin-left bg-accent shadow-[0_0_10px_rgba(0,109,255,0.55)] motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none",
-          running || progress > 0 ? "opacity-100" : "opacity-0"
-        )}
-        style={{ width: `${progress}%` }}
-      />
+      {slowIndeterminate ? (
+        <div
+          className="h-full w-[38%] max-w-[14rem] origin-left bg-accent/95 motion-safe:animate-pulse motion-reduce:animate-none"
+          style={{ width: `${Math.max(progress, 38)}%` }}
+        />
+      ) : (
+        <div
+          className={cn(
+            "h-full origin-left bg-accent shadow-[0_0_10px_rgba(0,109,255,0.55)] motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none",
+            running || progress > 0 ? "opacity-100" : "opacity-0"
+          )}
+          style={{ width: `${progress}%` }}
+        />
+      )}
     </div>
   );
 }

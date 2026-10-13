@@ -10,6 +10,8 @@ import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -36,6 +38,7 @@ import {
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
+import { resolveRangeFilterResultCount } from "@/lib/date-range/filter-result-count";
 import { resolveTripsListEmptyState } from "@/features/trips/lib/trips-empty-state";
 import { cancelTrip, orgHasAnyTrips } from "@/services/trips.service";
 import type { Trip } from "@/types";
@@ -75,12 +78,25 @@ export function TripsPage() {
       ? queryKeys.tripsOrgHasAny(organisationId)
       : ["trips-org-has-any", "none"],
     queryFn: () => orgHasAnyTrips(organisationId!),
-    enabled: Boolean(organisationId) && rangedResultEmpty && !hasSearchFilter,
+    enabled:
+      Boolean(organisationId) &&
+      rangedResultEmpty &&
+      !hasSearchFilter &&
+      !tripsQuery.isError,
     staleTime: 60_000,
   });
 
+  const orgTripCountStatus = orgTripsExistQuery.isError
+    ? "error"
+    : orgTripsExistQuery.isPending || orgTripsExistQuery.isFetching
+      ? "loading"
+      : orgTripsExistQuery.isSuccess
+        ? "ready"
+        : "loading";
+
   const emptyState = resolveTripsListEmptyState({
     hasSearchFilter,
+    orgTripCountStatus,
     orgHasAnyTrips: orgTripsExistQuery.data,
   });
 
@@ -247,36 +263,56 @@ export function TripsPage() {
         }
       />
 
-      <div className="mb-4 space-y-4">
-        <DateRangeFilter
-          range={range}
-          onPresetChange={setPreset}
-          onCustomChange={setCustomRange}
-          updating={rangeRefreshing}
-        />
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
+        resultCount={resolveRangeFilterResultCount(tripsQuery, {
+          listReady: !showTripsSkeleton,
+          count: hasSearchFilter
+            ? rows.length
+            : (tripsQuery.data ?? []).length,
+        })}
+        resultUnit={{ singular: "trip", plural: "trips" }}
+      />
+      <div className="mb-4">
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
       {showTripsSkeleton ? (
         <LoadingSkeleton />
+      ) : tripsQuery.isError ? (
+        <RangeListErrorState
+          icon={Bus}
+          title="Couldn't load trips"
+          error={tripsQuery.error}
+          onRetry={() => void tripsQuery.refetch()}
+        />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
           {rows.length === 0 ? (
-        <EmptyState
-          icon={Bus}
-          title={emptyState.title}
-          description={emptyState.description}
-          actionLabel={
-            canManage && emptyState.showGenerateAction
-              ? "Generate trips"
-              : undefined
-          }
-          onAction={
-            canManage && emptyState.showGenerateAction
-              ? () => setGenerateOpen(true)
-              : undefined
-          }
-        />
+              <EmptyState
+                icon={Bus}
+                title={emptyState.title}
+                description={emptyState.description}
+                action={
+                  <div className="flex flex-col items-center gap-3">
+                    {canManage && emptyState.showGenerateAction ? (
+                      <Button onClick={() => setGenerateOpen(true)}>
+                        Generate trips
+                      </Button>
+                    ) : null}
+                    <DateRangeEmptyActions
+                      range={range}
+                      onPresetChange={setPreset}
+                      hasExtraFilter={hasSearchFilter}
+                      onClearExtraFilter={() => setSearch("")}
+                      extraFilterClearLabel="Clear search"
+                    />
+                  </div>
+                }
+              />
           ) : (
             <DataTable columns={columns} data={rows} />
           )}

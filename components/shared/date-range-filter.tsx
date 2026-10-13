@@ -1,11 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
+import { customRangeApplyDisabledTitle } from "@/lib/date-range/custom-range-apply";
 import { validateCustomRangeDraft } from "@/lib/date-range/custom-range-draft";
+import { computeChipCenterScrollLeft } from "@/lib/date-range/chip-scroll-center";
+import { formatRangeResultCount } from "@/lib/date-range/result-count-label";
 import {
   DATE_RANGE_PRESETS,
   type DateRangePreset,
@@ -14,13 +26,38 @@ import {
 } from "@/lib/date-range/sast-range";
 import { cn } from "@/lib/utils";
 
+const CUSTOM_RANGE_SHEET_TITLE_ID = "custom-range-sheet-title";
+const DATE_RANGE_TO_HINT_ID = "date-range-to-hint";
+
+function mergeButtonRefs(
+  ...refs: (RefObject<HTMLButtonElement | null> | undefined)[]
+) {
+  return (node: HTMLButtonElement | null) => {
+    for (const ref of refs) {
+      if (ref) ref.current = node;
+    }
+  };
+}
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((el) => !el.hasAttribute("aria-hidden"));
+}
+
 function FilterChipRow({
   activePreset,
   customPanelOpen,
+  chipScrollKey,
+  customChipRef,
   onPresetClick,
 }: {
   activePreset: DateRangePreset;
   customPanelOpen: boolean;
+  chipScrollKey: string;
+  customChipRef: RefObject<HTMLButtonElement | null>;
   onPresetClick: (preset: DateRangePreset) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -54,14 +91,26 @@ function FilterChipRow({
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const narrow = window.matchMedia("(max-width: 390px)");
-    if (!narrow.matches) return;
-    activeChipRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
+    const belowMd = window.matchMedia("(max-width: 767px)");
+    if (!belowMd.matches) return;
+    const scroller = scrollerRef.current;
+    const chip = activeChipRef.current;
+    if (!scroller || !chip) return;
+
+    const left = computeChipCenterScrollLeft({
+      chipOffsetLeft: chip.offsetLeft,
+      chipOffsetWidth: chip.offsetWidth,
+      scrollerClientWidth: scroller.clientWidth,
+      scrollerScrollWidth: scroller.scrollWidth,
     });
-  }, [activePreset, customPanelOpen]);
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    scroller.scrollTo({
+      left,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }, [activePreset, customPanelOpen, chipScrollKey]);
 
   return (
     <div className="relative min-w-0 flex-1">
@@ -79,7 +128,7 @@ function FilterChipRow({
       ) : null}
       <div
         ref={scrollerRef}
-        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 pr-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain scroll-pr-1.5 pb-1 pr-1.5 [scroll-padding-inline-end:6px] [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
         role="group"
         aria-label="Filter by date range"
       >
@@ -91,12 +140,21 @@ function FilterChipRow({
           return (
             <Button
               key={option.value}
-              ref={selected ? activeChipRef : undefined}
+              ref={
+                option.value === "custom"
+                  ? mergeButtonRefs(
+                      customChipRef,
+                      selected ? activeChipRef : undefined
+                    )
+                  : selected
+                    ? activeChipRef
+                    : undefined
+              }
               type="button"
               size="sm"
               variant={selected ? "default" : "outline"}
               className={cn(
-                "shrink-0 rounded-full whitespace-nowrap",
+                "min-h-11 shrink-0 rounded-full px-3.5 whitespace-nowrap md:min-h-7 md:h-7 md:px-2.5",
                 selected && "shadow-sm"
               )}
               aria-pressed={selected}
@@ -118,20 +176,212 @@ function draftsFromRange(range: ResolvedDateRange) {
   };
 }
 
+function MobileCustomRangeSheet({
+  open,
+  onClose,
+  onKeyDown,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const focusFirst = () => {
+      const fromInput = panel.querySelector<HTMLElement>("#date-range-from");
+      const focusables = getFocusableElements(panel);
+      (fromInput ?? focusables[0] ?? panel).focus();
+    };
+    const raf = requestAnimationFrame(focusFirst);
+
+    const trapTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const focusables = getFocusableElements(panel);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    panel.addEventListener("keydown", trapTab);
+    return () => {
+      cancelAnimationFrame(raf);
+      panel.removeEventListener("keydown", trapTab);
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-[100] bg-black/50"
+        aria-label="Close custom date range"
+        onClick={onClose}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={CUSTOM_RANGE_SHEET_TITLE_ID}
+        onKeyDown={onKeyDown}
+        className="fixed inset-x-0 bottom-0 z-[101] max-h-[min(85vh,32rem)] overflow-y-auto rounded-t-xl border-t bg-background p-3 shadow-xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
+        <p id={CUSTOM_RANGE_SHEET_TITLE_ID} className="mb-3 text-sm font-medium">
+          Custom range
+        </p>
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+}
+
+function CustomRangeFields({
+  draftFromText,
+  draftToText,
+  showFromInvalid,
+  showToInvalid,
+  toFieldError,
+  applyHelperText,
+  applyHelperId,
+  canApply,
+  surface,
+  onFromChange,
+  onToChange,
+  onApply,
+  onKeyDown,
+}: {
+  draftFromText: string;
+  draftToText: string;
+  showFromInvalid: boolean;
+  showToInvalid: boolean;
+  toFieldError: string | null;
+  applyHelperText?: string;
+  applyHelperId: string;
+  canApply: boolean;
+  surface: "desktop" | "mobile-sheet";
+  onFromChange: (text: string) => void;
+  onToChange: (text: string) => void;
+  onApply: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  const handleApplyClick = () => {
+    if (!canApply) return;
+    onApply();
+  };
+
+  const visibleHelper =
+    !canApply &&
+    applyHelperText &&
+    !(toFieldError && applyHelperText === toFieldError);
+
+  const applyDescribedBy = visibleHelper
+    ? applyHelperId
+    : !canApply && toFieldError
+      ? DATE_RANGE_TO_HINT_ID
+      : undefined;
+
+  const fields = (
+    <>
+      <div className="flex flex-wrap items-end gap-3">
+        <SastDateInput
+          id="date-range-from"
+          label="From"
+          text={draftFromText}
+          invalid={showFromInvalid}
+          onTextChange={onFromChange}
+        />
+        <SastDateInput
+          id="date-range-to"
+          label="To"
+          text={draftToText}
+          invalid={showToInvalid}
+          fieldError={toFieldError}
+          onTextChange={onToChange}
+        />
+        <Button
+          type="button"
+          size="sm"
+          className={cn(
+            "min-h-11 md:min-h-8",
+            !canApply && "cursor-not-allowed opacity-50"
+          )}
+          aria-disabled={!canApply}
+          aria-describedby={applyDescribedBy}
+          onClick={handleApplyClick}
+        >
+          Apply
+        </Button>
+      </div>
+      {visibleHelper ? (
+        <p id={applyHelperId} className="text-xs text-muted-foreground">
+          {applyHelperText}
+        </p>
+      ) : null}
+    </>
+  );
+
+  if (surface === "mobile-sheet") {
+    return <div className="flex flex-col gap-3">{fields}</div>;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Custom date range"
+      onKeyDown={onKeyDown}
+      className="flex flex-col gap-3"
+    >
+      {fields}
+    </div>
+  );
+}
+
 export function DateRangeFilter({
   range,
   onPresetChange,
   onCustomChange,
   className,
   updating = false,
+  resultCount,
+  resultUnit,
 }: {
   range: ResolvedDateRange;
   onPresetChange: (preset: DateRangePreset) => void;
   onCustomChange: (from: string, to: string) => void;
   className?: string;
-  /** Range/query key changed and fresh data is still loading. */
   updating?: boolean;
+  resultCount?: number;
+  resultUnit?: { singular: string; plural: string };
 }) {
+  const isMobile = useIsMobile();
+  const customChipRef = useRef<HTMLButtonElement | null>(null);
+  const applyHelperId = useId();
   const [customPanelOpen, setCustomPanelOpen] = useState(false);
   const [draftFromText, setDraftFromText] = useState(() =>
     isoDateToDisplay(range.from)
@@ -151,6 +401,7 @@ export function DateRangeFilter({
   const closeCustomPanel = useCallback(() => {
     resetDraftsToApplied();
     setCustomPanelOpen(false);
+    customChipRef.current?.focus();
   }, [resetDraftsToApplied]);
 
   useEffect(() => {
@@ -195,7 +446,6 @@ export function DateRangeFilter({
     }
   };
 
-  const showCustomPanel = customPanelOpen;
   const customNotApplied = customPanelOpen && draftsDifferFromApplied;
   const rangeStatusLabel = customNotApplied
     ? "Custom (not applied)"
@@ -204,17 +454,90 @@ export function DateRangeFilter({
   const toFieldError =
     fieldsTouched && validation.orderError ? validation.orderError : null;
 
+  const applyHelperText = customRangeApplyDisabledTitle(
+    validation,
+    draftFromText,
+    draftToText
+  );
+
+  const chipScrollKey = `${range.preset}:${range.from}:${range.to}`;
+
+  const countLabel =
+    resultCount !== undefined && resultUnit
+      ? formatRangeResultCount(resultCount, resultUnit.singular, resultUnit.plural)
+      : null;
+
+  const customFieldsDesktop = (
+    <CustomRangeFields
+      surface="desktop"
+      draftFromText={draftFromText}
+      draftToText={draftToText}
+      showFromInvalid={showFromInvalid}
+      showToInvalid={showToInvalid}
+      toFieldError={toFieldError}
+      applyHelperText={applyHelperText}
+      applyHelperId={applyHelperId}
+      canApply={validation.canApply}
+      onFromChange={(text) => {
+        setFieldsTouched(true);
+        setDraftFromText(text);
+      }}
+      onToChange={(text) => {
+        setFieldsTouched(true);
+        setDraftToText(text);
+      }}
+      onApply={handleApply}
+      onKeyDown={handlePanelKeyDown}
+    />
+  );
+
+  const customFieldsMobile = (
+    <CustomRangeFields
+      surface="mobile-sheet"
+      draftFromText={draftFromText}
+      draftToText={draftToText}
+      showFromInvalid={showFromInvalid}
+      showToInvalid={showToInvalid}
+      toFieldError={toFieldError}
+      applyHelperText={applyHelperText}
+      applyHelperId={applyHelperId}
+      canApply={validation.canApply}
+      onFromChange={(text) => {
+        setFieldsTouched(true);
+        setDraftFromText(text);
+      }}
+      onToChange={(text) => {
+        setFieldsTouched(true);
+        setDraftToText(text);
+      }}
+      onApply={handleApply}
+      onKeyDown={handlePanelKeyDown}
+    />
+  );
+
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={cn(
+        "sticky top-0 z-30 -mx-1 bg-background/95 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/85",
+        className
+      )}
+    >
+      <div className="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
         <FilterChipRow
           activePreset={customPanelOpen ? "custom" : range.preset}
           customPanelOpen={customPanelOpen}
+          chipScrollKey={chipScrollKey}
+          customChipRef={customChipRef}
           onPresetClick={handlePresetClick}
         />
-        <p className="text-xs text-muted-foreground sm:shrink-0">
-          <span className="inline-flex flex-wrap items-center gap-2">
-            <span>{rangeStatusLabel} · SAST</span>
+        <p className="px-1 text-xs text-muted-foreground sm:shrink-0">
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              {rangeStatusLabel} · SAST
+              {countLabel ? (
+                <span className="text-foreground"> · {countLabel}</span>
+              ) : null}
+            </span>
             <span
               className="inline-flex h-6 w-[8.25rem] shrink-0 items-center sm:w-[8.75rem]"
               aria-hidden={!updating}
@@ -237,45 +560,19 @@ export function DateRangeFilter({
           </span>
         </p>
       </div>
-      {showCustomPanel ? (
-        <div
-          className="rounded-lg border bg-muted/20 p-3"
-          role="dialog"
-          aria-label="Custom date range"
+      {customPanelOpen && !isMobile ? (
+        <div className="mx-1 mt-3 rounded-lg border bg-muted/20 p-3">
+          {customFieldsDesktop}
+        </div>
+      ) : null}
+      {customPanelOpen && isMobile ? (
+        <MobileCustomRangeSheet
+          open
+          onClose={closeCustomPanel}
           onKeyDown={handlePanelKeyDown}
         >
-          <div className="flex flex-wrap items-end gap-3">
-            <SastDateInput
-              id="date-range-from"
-              label="From"
-              text={draftFromText}
-              invalid={showFromInvalid}
-              onTextChange={(text) => {
-                setFieldsTouched(true);
-                setDraftFromText(text);
-              }}
-            />
-            <SastDateInput
-              id="date-range-to"
-              label="To"
-              text={draftToText}
-              invalid={showToInvalid}
-              fieldError={toFieldError}
-              onTextChange={(text) => {
-                setFieldsTouched(true);
-                setDraftToText(text);
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              disabled={!validation.canApply}
-              onClick={handleApply}
-            >
-              Apply
-            </Button>
-          </div>
-        </div>
+          {customFieldsMobile}
+        </MobileCustomRangeSheet>
       ) : null}
     </div>
   );
