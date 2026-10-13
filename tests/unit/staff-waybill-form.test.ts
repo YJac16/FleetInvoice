@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatVehicleOptionLabel,
   resolveDefaultVehicleIdForDriver,
+  shouldApplyDriverDefaultVehicle,
   validateStaffWaybillSubmit,
 } from "@/features/trips/lib/staff-waybill-form";
 
@@ -54,6 +55,48 @@ describe("validateStaffWaybillSubmit", () => {
     expect(
       validateStaffWaybillSubmit("send", baseValues, orgVehicles)
     ).toEqual({ ok: true });
+  });
+});
+
+describe("shouldApplyDriverDefaultVehicle", () => {
+  it("skips when the admin already chose a vehicle", () => {
+    expect(
+      shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: true,
+        currentVehicleId: "veh-1",
+        driverChanged: false,
+      })
+    ).toBe(false);
+  });
+
+  it("skips when the field has a value and the driver did not change", () => {
+    expect(
+      shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: false,
+        currentVehicleId: "veh-2",
+        driverChanged: false,
+      })
+    ).toBe(false);
+  });
+
+  it("applies when the driver changed and the field is empty", () => {
+    expect(
+      shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: false,
+        currentVehicleId: "",
+        driverChanged: true,
+      })
+    ).toBe(true);
+  });
+
+  it("applies when assignments load and the field is still empty", () => {
+    expect(
+      shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: false,
+        currentVehicleId: "",
+        driverChanged: false,
+      })
+    ).toBe(true);
   });
 });
 

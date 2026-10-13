@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -20,6 +20,7 @@ import {
 import {
   formatVehicleOptionLabel,
   resolveDefaultVehicleIdForDriver,
+  shouldApplyDriverDefaultVehicle,
   staffWaybillBaseSchema,
   validateStaffWaybillSubmit,
   type StaffWaybillFormValues,
@@ -152,17 +153,43 @@ export function AssignStaffTripDialog({
     return map;
   }, [driverVehicleQuery.data]);
 
+  const prevDriverIdRef = useRef<string | null>(null);
+  const vehicleFieldTouchedRef = useRef(false);
+
   useEffect(() => {
-    if (!open || !driverId) return;
+    if (!open) {
+      prevDriverIdRef.current = null;
+      vehicleFieldTouchedRef.current = false;
+      return;
+    }
+    if (!driverId) return;
+
+    const driverChanged = prevDriverIdRef.current !== driverId;
+    if (driverChanged) {
+      prevDriverIdRef.current = driverId;
+      vehicleFieldTouchedRef.current = false;
+    }
+
+    const currentVehicleId = form.getValues("vehicleId");
+    if (
+      !shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: vehicleFieldTouchedRef.current,
+        currentVehicleId,
+        driverChanged,
+      })
+    ) {
+      return;
+    }
+
     const defaultVehicle = resolveDefaultVehicleIdForDriver(
       driverId,
       driverVehicleMap
     );
-    if (defaultVehicle && organisationVehicleIds.has(defaultVehicle)) {
-      form.setValue("vehicleId", defaultVehicle);
-    } else {
-      form.setValue("vehicleId", "");
-    }
+    const nextVehicleId =
+      defaultVehicle && organisationVehicleIds.has(defaultVehicle)
+        ? defaultVehicle
+        : "";
+    form.setValue("vehicleId", nextVehicleId);
   }, [open, driverId, driverVehicleMap, organisationVehicleIds, form]);
 
   const watchedCompanyId = form.watch("companyId");
@@ -352,9 +379,10 @@ export function AssignStaffTripDialog({
             <Select
               items={vehicleOptions}
               value={form.watch("vehicleId") || null}
-              onValueChange={(v) =>
-                form.setValue("vehicleId", v ?? "", { shouldValidate: true })
-              }
+              onValueChange={(v) => {
+                vehicleFieldTouchedRef.current = true;
+                form.setValue("vehicleId", v ?? "", { shouldValidate: true });
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select vehicle (registration)">

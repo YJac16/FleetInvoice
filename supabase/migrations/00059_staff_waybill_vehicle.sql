@@ -34,9 +34,11 @@ as $$
 $$;
 
 comment on function public.driver_default_vehicle_id(uuid, uuid) is
-  'Returns the driver''s current open vehicle assignment in the organisation, if any.';
+  'Internal helper: driver''s current open vehicle assignment. Callable only from SECURITY DEFINER RPCs.';
 
-grant execute on function public.driver_default_vehicle_id(uuid, uuid) to authenticated;
+revoke all on function public.driver_default_vehicle_id(uuid, uuid) from public;
+revoke all on function public.driver_default_vehicle_id(uuid, uuid) from anon;
+revoke all on function public.driver_default_vehicle_id(uuid, uuid) from authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Ensure trip assignment has a vehicle (driver default when omitted)
@@ -90,7 +92,12 @@ begin
 end;
 $$;
 
-grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) to authenticated;
+comment on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) is
+  'Internal helper: set vehicle on open trip assignment. Callable only from SECURITY DEFINER RPCs.';
+
+revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from public;
+revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from anon;
+revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from authenticated;
 
 -- ---------------------------------------------------------------------------
 -- assign_staff_trip — optional vehicle; defaults to driver assignment

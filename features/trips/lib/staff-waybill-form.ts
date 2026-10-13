@@ -31,6 +31,21 @@ export function resolveDefaultVehicleIdForDriver(
   return driverVehicleMap.get(driverId) ?? "";
 }
 
+/** Whether the default-vehicle effect may overwrite the vehicle field. */
+export function shouldApplyDriverDefaultVehicle({
+  vehicleFieldTouched,
+  currentVehicleId,
+  driverChanged,
+}: {
+  vehicleFieldTouched: boolean;
+  currentVehicleId: string | undefined;
+  driverChanged: boolean;
+}): boolean {
+  if (vehicleFieldTouched) return false;
+  if (!driverChanged && Boolean(currentVehicleId?.trim())) return false;
+  return true;
+}
+
 export function validateStaffWaybillSubmit(
   mode: StaffWaybillMode,
   values: StaffWaybillFormValues,
