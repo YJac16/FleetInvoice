@@ -149,7 +149,7 @@
 
 @media print {
   @page {
-    size: auto;
+    size: A4 portrait;
     margin: 0;
     background: var(--invoice-print-bg);
   }
@@ -195,16 +195,15 @@
     print-color-adjust: exact !important;
   }
 
-  .invoice-print-sheet header,
-  .invoice-print-sheet tr,
-  .invoice-print-sheet footer {
+  .invoice-print-sheet header {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .invoice-print-sheet table,
   .invoice-print-sheet thead,
-  .invoice-print-sheet tbody {
+  .invoice-print-sheet tbody,
+  .invoice-print-sheet tfoot {
     break-inside: auto;
     page-break-inside: auto;
   }
@@ -212,10 +211,52 @@
   .invoice-print-sheet table {
     display: table !important;
     width: 100%;
+    table-layout: fixed;
   }
 
   .invoice-print-sheet thead {
     display: table-header-group;
+  }
+
+  .invoice-print-sheet tfoot {
+    display: table-footer-group;
+  }
+
+  .invoice-print-lines-table tbody tr:last-child {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .invoice-print-table-totals,
+  .invoice-print-table-totals tr,
+  .invoice-print-total-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .invoice-print-col-company {
+    width: 30%;
+  }
+
+  .invoice-print-col-area {
+    width: 24%;
+  }
+
+  .invoice-print-col-company,
+  .invoice-print-col-area {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .invoice-print-cover-meta-value {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: keep-all;
+  }
+
+  .invoice-print-cover-meta-line {
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   body:has(.invoice-print-sheet) .print\:hidden {

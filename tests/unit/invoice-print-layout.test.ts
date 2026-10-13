@@ -39,20 +39,15 @@ describe("invoice print pagination", () => {
 
   it("lets the trip table break so rows can start on page 1", () => {
     const css = printCss();
-    const avoid = ruleBlock(
-      css,
-      `.invoice-print-sheet header,
-  .invoice-print-sheet tr,
-  .invoice-print-sheet footer`
-    );
+    const avoid = ruleBlock(css, ".invoice-print-sheet header");
     expect(avoid).toMatch(/break-inside:\s*avoid/);
-    expect(avoid).not.toMatch(/table/);
 
     const tableParts = ruleBlock(
       css,
       `.invoice-print-sheet table,
   .invoice-print-sheet thead,
-  .invoice-print-sheet tbody`
+  .invoice-print-sheet tbody,
+  .invoice-print-sheet tfoot`
     );
     expect(tableParts).toMatch(/break-inside:\s*auto/);
     expect(tableParts).toMatch(/page-break-inside:\s*auto/);
@@ -60,6 +55,41 @@ describe("invoice print pagination", () => {
 
     const table = ruleBlock(css, ".invoice-print-sheet table");
     expect(table).toMatch(/display:\s*table\s*!important/);
+
+    const thead = ruleBlock(css, ".invoice-print-sheet thead");
+    expect(thead).toMatch(/display:\s*table-header-group/);
+
+    const totals = ruleBlock(
+      css,
+      `.invoice-print-table-totals,
+  .invoice-print-table-totals tr,
+  .invoice-print-total-row`
+    );
+    expect(totals).toMatch(/break-inside:\s*avoid/);
+
+    const lastRow = ruleBlock(css, ".invoice-print-lines-table tbody tr:last-child");
+    expect(lastRow).toMatch(/break-after:\s*avoid/);
+  });
+
+  it("uses A4 portrait and widens company/area columns without break-all on refs", () => {
+    const css = printCss();
+    expect(css).toMatch(/size:\s*A4\s+portrait/);
+
+    const company = ruleBlock(css, ".invoice-print-col-company");
+    expect(company).toMatch(/width:\s*30%/);
+    expect(company).not.toMatch(/break-all/);
+
+    const area = ruleBlock(css, ".invoice-print-col-area");
+    expect(area).toMatch(/width:\s*24%/);
+
+    const refValue = ruleBlock(css, ".invoice-print-cover-meta-value");
+    expect(refValue).toMatch(/white-space:\s*nowrap/);
+    expect(refValue).not.toMatch(/break-all/);
+
+    const view = readRepo("features/invoices/components/invoice-print-view.tsx");
+    expect(view).toContain("invoice-print-table-totals");
+    expect(view).toContain("<tfoot");
+    expect(view).not.toMatch(/Total:[\s\S]{0,120}<\/footer>/);
   });
 
   it("turns shell flex containers into normal flow while printing an invoice", () => {

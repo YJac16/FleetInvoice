@@ -164,10 +164,11 @@ export function InvoicePrintView({
           ) : null}
           {companyPhone ? <p>{companyPhone}</p> : null}
           {coverMeta.length > 0 ? (
-            <div className="space-y-0.5 pt-1 text-xs uppercase tracking-wide">
+            <div className="invoice-print-cover-meta space-y-0.5 pt-1 text-xs uppercase tracking-wide">
               {coverMeta.map((line) => (
-                <p key={line.label}>
-                  {line.label}: {line.value}
+                <p key={line.label} className="invoice-print-cover-meta-line">
+                  <span className="invoice-print-cover-meta-label">{line.label}:</span>{" "}
+                  <span className="invoice-print-cover-meta-value">{line.value}</span>
                 </p>
               ))}
             </div>
@@ -202,16 +203,16 @@ export function InvoicePrintView({
           )}
         </div>
 
-        <table className="mt-6 hidden w-full border-collapse text-sm md:table print:table">
+        <table className="invoice-print-lines-table mt-6 hidden w-full border-collapse text-sm md:table print:table">
           <thead>
             <tr className="border-b border-black/30 text-left text-xs uppercase">
-              <th className="w-10 py-2 pr-2 font-semibold">N0.</th>
-              <th className="py-2 pr-2 font-semibold">DATE</th>
-              <th className="py-2 pr-2 font-semibold">TIME</th>
-              <th className="py-2 pr-2 font-semibold">COMPANY</th>
-              <th className="w-12 py-2 pr-2 font-semibold">PAX</th>
-              <th className="py-2 pr-2 font-semibold">Area</th>
-              <th className="py-2 text-right font-semibold">AMOUNT</th>
+              <th className="invoice-print-col-no w-10 py-2 pr-2 font-semibold">N0.</th>
+              <th className="invoice-print-col-date py-2 pr-2 font-semibold">DATE</th>
+              <th className="invoice-print-col-time py-2 pr-2 font-semibold">TIME</th>
+              <th className="invoice-print-col-company py-2 pr-2 font-semibold">COMPANY</th>
+              <th className="invoice-print-col-pax w-12 py-2 pr-2 font-semibold">PAX</th>
+              <th className="invoice-print-col-area py-2 pr-2 font-semibold">Area</th>
+              <th className="invoice-print-col-amount py-2 text-right font-semibold">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
@@ -227,9 +228,9 @@ export function InvoicePrintView({
                   <td className="py-2 pr-2 tabular-nums">{row.lineNumber}</td>
                   <td className="py-2 pr-2 whitespace-nowrap">{row.date}</td>
                   <td className="py-2 pr-2 whitespace-nowrap">{row.time}</td>
-                  <td className="py-2 pr-2">{row.company}</td>
+                  <td className="invoice-print-col-company py-2 pr-2">{row.company}</td>
                   <td className="py-2 pr-2 tabular-nums">{row.pax}</td>
-                  <td className="py-2 pr-2">{row.area}</td>
+                  <td className="invoice-print-col-area py-2 pr-2">{row.area}</td>
                   <td className="py-2 text-right tabular-nums whitespace-nowrap">
                     {row.amount}
                   </td>
@@ -237,18 +238,21 @@ export function InvoicePrintView({
               ))
             )}
           </tbody>
+          {rows.length > 0 ? (
+            <tfoot className="invoice-print-table-totals">
+              <tr className="invoice-print-total-row border-t border-black/20">
+                <td colSpan={6} className="py-3 pr-2 text-right text-base font-semibold">
+                  Total:
+                </td>
+                <td className="py-3 text-right text-base font-semibold tabular-nums whitespace-nowrap">
+                  {formatZarAmount(invoice.total)}
+                </td>
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
 
-        <footer className="mt-4 space-y-6">
-          <div className="flex justify-end border-t border-black/20 pt-3">
-            <p className="text-base font-semibold">
-              Total:{" "}
-              <span className="ml-6 tabular-nums">
-                {formatZarAmount(invoice.total)}
-              </span>
-            </p>
-          </div>
-
+        <footer className="invoice-print-sheet-footer mt-4 space-y-6">
           {banking &&
           (banking.bank ||
             banking.account_name ||
