@@ -39,7 +39,6 @@ export function useDateRangeFilter(defaultPreset: DateRangePreset = "this_week")
         routerReplace: (url) => router.replace(url, { scroll: false }),
         historyReplaceState: (state, unused, url) =>
           window.history.replaceState(state, unused, url),
-        getHistoryState: () => window.history.state,
       });
     },
     [pathname, router, searchParams]

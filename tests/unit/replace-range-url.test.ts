@@ -38,11 +38,10 @@ describe("commitRangeUrlUpdate", () => {
       useHistoryReplaceState: true,
       routerReplace,
       historyReplaceState: replaceState,
-      getHistoryState: () => ({ idx: 0 }),
     });
 
     expect(replaceState).toHaveBeenCalledWith(
-      { idx: 0 },
+      null,
       "",
       "/trips?range=last_week"
     );

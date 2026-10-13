@@ -19,7 +19,6 @@ export type CommitRangeUrlUpdateOptions = {
     unused: string,
     url: string | URL | null
   ) => void;
-  getHistoryState?: () => unknown;
   getScrollY?: () => number;
   restoreScroll?: (y: number) => void;
   requestAnimationFrame?: (callback: () => void) => number;
@@ -33,7 +32,6 @@ export function commitRangeUrlUpdate(
     useHistoryReplaceState,
     routerReplace,
     historyReplaceState,
-    getHistoryState,
     getScrollY = () => (typeof window !== "undefined" ? window.scrollY : 0),
     restoreScroll = (y) => {
       if (typeof window !== "undefined") window.scrollTo(0, y);
@@ -45,8 +43,8 @@ export function commitRangeUrlUpdate(
     },
   } = options;
 
-  if (useHistoryReplaceState && historyReplaceState && getHistoryState) {
-    historyReplaceState(getHistoryState(), "", href);
+  if (useHistoryReplaceState && historyReplaceState) {
+    historyReplaceState(null, "", href);
     return;
   }
 
