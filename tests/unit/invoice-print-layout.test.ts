@@ -25,11 +25,11 @@ function ruleBlock(css: string, selector: string): string {
 
 const COLUMN_WIDTHS: Record<string, string> = {
   ".invoice-print-col-no": "5%",
-  ".invoice-print-col-date": "13%",
+  ".invoice-print-col-date": "14%",
   ".invoice-print-col-time": "8%",
   ".invoice-print-col-company": "26%",
   ".invoice-print-col-pax": "6%",
-  ".invoice-print-col-area": "30%",
+  ".invoice-print-col-area": "29%",
   ".invoice-print-col-amount": "12%",
 };
 
@@ -55,11 +55,15 @@ describe("invoice print pagination", () => {
     const tableParts = ruleBlock(
       css,
       `.invoice-print-sheet table,
-  .invoice-print-sheet thead,
   .invoice-print-sheet tbody,
   .invoice-print-sheet tfoot`
     );
     expect(tableParts).toMatch(/break-inside:\s*auto/);
+
+    const thead = ruleBlock(css, ".invoice-print-sheet thead");
+    expect(thead).toMatch(/display:\s*table-header-group/);
+    expect(thead).toMatch(/break-inside:\s*avoid/);
+    expect(thead).toMatch(/page-break-inside:\s*avoid/);
 
     const lineRow = ruleBlock(css, ".invoice-print-lines-table tbody tr");
     expect(lineRow).toMatch(/break-inside:\s*avoid/);
@@ -83,6 +87,7 @@ describe("invoice print pagination", () => {
   it("uses A4 portrait, fixed column widths summing to 100%, and safe ref wrapping", () => {
     const css = printCss();
     expect(css).toMatch(/size:\s*A4\s+portrait/);
+    expect(css).toMatch(/margin:\s*12mm\s+0/);
 
     let widthSum = 0;
     for (const [selector, width] of Object.entries(COLUMN_WIDTHS)) {
@@ -99,6 +104,7 @@ describe("invoice print pagination", () => {
 
     const date = ruleBlock(css, ".invoice-print-col-date");
     expect(date).toMatch(/white-space:\s*nowrap/);
+    expect(date).toMatch(/padding-right:\s*0\.4rem/);
     const time = ruleBlock(css, ".invoice-print-col-time");
     expect(time).toMatch(/white-space:\s*nowrap/);
     const amount = ruleBlock(css, ".invoice-print-col-amount");

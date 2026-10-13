@@ -5,6 +5,7 @@ import {
   buildInvoicePrintFixtureHtml,
   evaluateInvoicePrintLayout,
 } from "./helpers/invoice-print-fixture";
+import { extractPdfPageText } from "./helpers/pdf-page-text";
 
 test.describe("invoice print layout (Chromium print)", () => {
   test.use({ javaScriptEnabled: true });
@@ -33,6 +34,10 @@ test.describe("invoice print layout (Chromium print)", () => {
         margin: { top: "0", right: "0", bottom: "0", left: "0" },
       });
       expect(pdf.byteLength).toBeGreaterThan(1000);
+
+      const page2Text = await extractPdfPageText(Buffer.from(pdf), 2);
+      expect(page2Text).toMatch(/COMPANY/);
+      expect(page2Text).toMatch(/AMOUNT/);
     });
   }
 });

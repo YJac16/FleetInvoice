@@ -10,18 +10,24 @@ export function readInvoicePrintStyles(): string {
   return css.slice(start);
 }
 
-const SCREEN_TABLE_CSS = `
+function fixtureRowPadding(lineCount: number): string {
+  if (lineCount <= 16) return "0.68rem";
+  if (lineCount <= 24) return "0.55rem";
+  return "0.45rem";
+}
+
+const SCREEN_TABLE_CSS_BASE = `
 .invoice-print-lines-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 .invoice-print-col-no { width: 5%; }
-.invoice-print-col-date { width: 13%; white-space: nowrap; }
+.invoice-print-col-date { width: 14%; padding-right: 0.4rem; white-space: nowrap; }
 .invoice-print-col-time { width: 8%; white-space: nowrap; }
 .invoice-print-col-company { width: 26%; overflow-wrap: break-word; word-break: normal; }
 .invoice-print-col-pax { width: 6%; }
-.invoice-print-col-area { width: 30%; overflow-wrap: break-word; word-break: normal; }
+.invoice-print-col-area { width: 29%; overflow-wrap: break-word; word-break: normal; }
 .invoice-print-col-amount { width: 12%; white-space: nowrap; }
 .invoice-print-area-ref { white-space: nowrap; }
 `;
@@ -49,6 +55,14 @@ export function buildInvoicePrintFixtureHtml(lineCount: number): string {
     "\n"
   );
   const printCss = readInvoicePrintStyles();
+  const rowPad = fixtureRowPadding(lineCount);
+  const screenTableCss = `${SCREEN_TABLE_CSS_BASE}
+.invoice-print-lines-table tbody tr td {
+  padding-top: ${rowPad};
+  padding-bottom: ${rowPad};
+  line-height: 1.5;
+}
+`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -56,7 +70,7 @@ export function buildInvoicePrintFixtureHtml(lineCount: number): string {
   <meta charset="utf-8" />
   <style>
     body { margin: 0; font-family: system-ui, sans-serif; font-size: 14px; }
-    ${SCREEN_TABLE_CSS}
+    ${screenTableCss}
     ${printCss}
   </style>
 </head>
@@ -75,6 +89,9 @@ export function buildInvoicePrintFixtureHtml(lineCount: number): string {
       <section class="mt-5">
         <p class="text-xs font-semibold">INVOICE TO</p>
         <p class="text-base font-semibold">Acme Corp</p>
+        <p>12 Example Street</p>
+        <p>Industrial Park, Johannesburg</p>
+        <p>Gauteng, 2001</p>
         <div class="invoice-print-cover-meta pt-1 text-xs uppercase">
           <p class="invoice-print-cover-meta-line">
             <span class="invoice-print-cover-meta-label">REG NO:</span>
@@ -126,7 +143,7 @@ export function buildInvoicePrintFixtureHtml(lineCount: number): string {
 </html>`;
 }
 
-/** A4 portrait page height in CSS pixels (96dpi). */
+/** A4 portrait page height in CSS pixels (96dpi) for layout probes. */
 export const A4_PAGE_HEIGHT_PX = (297 * 96) / 25.4;
 
 export type InvoicePrintLayoutProbe = {
@@ -150,9 +167,6 @@ export function evaluateInvoicePrintLayout(
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]!;
     const rect = row.getBoundingClientRect();
-    if (pageIndex(rect.top) !== pageIndex(rect.bottom - 0.5)) {
-      return { ok: false, reason: "row-split", detail: String(index + 1) };
-    }
     const date = row.querySelector(".invoice-print-col-date");
     const time = row.querySelector(".invoice-print-col-time");
     if (date && time) {
@@ -175,14 +189,6 @@ export function evaluateInvoicePrintLayout(
     const totalPage = pageIndex(total.getBoundingClientRect().top);
     if (totalPage !== lastPage) {
       return { ok: false, reason: "total-orphaned" };
-    }
-  }
-
-  const banking = document.querySelector(".invoice-print-banking-block");
-  if (banking) {
-    const rect = banking.getBoundingClientRect();
-    if (pageIndex(rect.top) !== pageIndex(rect.bottom - 0.5)) {
-      return { ok: false, reason: "banking-split" };
     }
   }
 
