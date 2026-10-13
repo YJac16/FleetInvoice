@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -17,36 +17,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  formatVehicleOptionLabel,
+  resolveDefaultVehicleIdForDriver,
+  shouldApplyDriverDefaultVehicle,
+  staffWaybillBaseSchema,
+  validateStaffWaybillSubmit,
+  type StaffWaybillFormValues,
+} from "@/features/trips/lib/staff-waybill-form";
+import {
+  waybillBillingProblems,
+  type WaybillMode,
+} from "@/features/trips/lib/waybill-billing-readiness";
 import { listDrivers } from "@/services/drivers.service";
 import { listActiveCompanies } from "@/services/companies.service";
+import { listOpenDriverVehicleAssignments } from "@/services/driver-vehicle-assignment.service";
 import {
   assignStaffTrip,
   backfillStaffWaybill,
   getStaffWaybillBillingReadiness,
 } from "@/services/staff-trips.service";
-import {
-  waybillBillingProblems,
-  type WaybillMode,
-} from "@/features/trips/lib/waybill-billing-readiness";
+import { listVehicles } from "@/services/vehicles.service";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { cn } from "@/lib/utils";
-
-const schema = z.object({
-  driverId: z.string().min(1, "Select a driver"),
-  date: z.string().min(1, "Date required"),
-  time: z.string().min(1, "Time required"),
-  companyId: z.string().uuid("Select a company"),
-  areaText: z.string().min(1, "Area required"),
-  paxCount: z.number().int().min(0),
-  openingKm: z.string().optional(),
-  closingKm: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
 
 function plannedStartFor(date: string, time: string): string {
   return `${date}T${time}:00+02:00`;
@@ -68,8 +64,8 @@ export function AssignStaffTripDialog({
   const today = new Date().toISOString().slice(0, 10);
   const [mode, setMode] = useState<WaybillMode>("send");
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<StaffWaybillFormValues>({
+    resolver: zodResolver(staffWaybillBaseSchema),
     defaultValues: {
       driverId: "",
       date: today,
@@ -77,10 +73,13 @@ export function AssignStaffTripDialog({
       companyId: "",
       areaText: "",
       paxCount: 1,
+      vehicleId: "",
       openingKm: "",
       closingKm: "",
     },
   });
+
+  const driverId = form.watch("driverId");
 
   useEffect(() => {
     if (!open) {
@@ -101,6 +100,18 @@ export function AssignStaffTripDialog({
     enabled: open,
   });
 
+  const vehiclesQuery = useQuery({
+    queryKey: queryKeys.vehicles(organisationId),
+    queryFn: () => listVehicles(organisationId),
+    enabled: open,
+  });
+
+  const driverVehicleQuery = useQuery({
+    queryKey: queryKeys.driverVehicleAssignments(organisationId),
+    queryFn: () => listOpenDriverVehicleAssignments(organisationId),
+    enabled: open,
+  });
+
   const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data]);
   const driverOptions = useMemo(
     () => drivers.map((d) => ({ value: d.id, label: d.full_name })),
@@ -115,12 +126,77 @@ export function AssignStaffTripDialog({
     [companiesQuery.data]
   );
 
+  const vehicles = useMemo(() => vehiclesQuery.data ?? [], [vehiclesQuery.data]);
+  const vehicleOptions = useMemo(
+    () =>
+      vehicles.map((vehicle) => ({
+        value: vehicle.id,
+        label: formatVehicleOptionLabel(
+          vehicle.registration_number,
+          vehicle.name
+        ),
+      })),
+    [vehicles]
+  );
+  const organisationVehicleIds = useMemo(
+    () => new Set(vehicles.map((v) => v.id)),
+    [vehicles]
+  );
+
+  const driverVehicleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of driverVehicleQuery.data ?? []) {
+      if (row.driver_id && row.vehicle_id) {
+        map.set(row.driver_id, row.vehicle_id);
+      }
+    }
+    return map;
+  }, [driverVehicleQuery.data]);
+
+  const prevDriverIdRef = useRef<string | null>(null);
+  const vehicleFieldTouchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      prevDriverIdRef.current = null;
+      vehicleFieldTouchedRef.current = false;
+      return;
+    }
+    if (!driverId) return;
+
+    const driverChanged = prevDriverIdRef.current !== driverId;
+    if (driverChanged) {
+      prevDriverIdRef.current = driverId;
+      vehicleFieldTouchedRef.current = false;
+    }
+
+    const currentVehicleId = form.getValues("vehicleId");
+    if (
+      !shouldApplyDriverDefaultVehicle({
+        vehicleFieldTouched: vehicleFieldTouchedRef.current,
+        currentVehicleId,
+        driverChanged,
+      })
+    ) {
+      return;
+    }
+
+    const defaultVehicle = resolveDefaultVehicleIdForDriver(
+      driverId,
+      driverVehicleMap
+    );
+    const nextVehicleId =
+      defaultVehicle && organisationVehicleIds.has(defaultVehicle)
+        ? defaultVehicle
+        : "";
+    form.setValue("vehicleId", nextVehicleId);
+  }, [open, driverId, driverVehicleMap, organisationVehicleIds, form]);
+
   const watchedCompanyId = form.watch("companyId");
   const watchedDate = form.watch("date");
   const companyName =
     companyOptions.find((c) => c.value === watchedCompanyId)?.label ?? null;
 
-  // Block unratable / un-invoiceable waybills up front (same server lookups as completion).
   const readinessQuery = useQuery({
     queryKey: [
       "staff-waybill-billing-readiness",
@@ -132,7 +208,6 @@ export function AssignStaffTripDialog({
       getStaffWaybillBillingReadiness(
         organisationId,
         watchedCompanyId,
-        // Rate lookup is per SAST trip date; time of day does not matter.
         plannedStartFor(watchedDate, "12:00")
       ),
     enabled: open && Boolean(watchedCompanyId) && Boolean(watchedDate),
@@ -145,7 +220,7 @@ export function AssignStaffTripDialog({
   );
 
   const submitMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
+    mutationFn: async (values: StaffWaybillFormValues) => {
       const plannedStart = plannedStartFor(values.date, values.time);
       const readiness = await getStaffWaybillBillingReadiness(
         organisationId,
@@ -160,6 +235,12 @@ export function AssignStaffTripDialog({
       if (problems.length > 0) {
         throw new Error(problems[0]);
       }
+
+      const gate = validateStaffWaybillSubmit(mode, values, organisationVehicleIds);
+      if (!gate.ok) {
+        throw new Error(gate.message);
+      }
+
       if (mode === "send") {
         return assignStaffTrip(
           organisationId,
@@ -167,7 +248,8 @@ export function AssignStaffTripDialog({
           plannedStart,
           values.companyId,
           values.areaText,
-          values.paxCount
+          values.paxCount,
+          values.vehicleId?.trim() || null
         );
       }
       const opening =
@@ -181,6 +263,7 @@ export function AssignStaffTripDialog({
         values.companyId,
         values.areaText,
         values.paxCount,
+        values.vehicleId!.trim(),
         opening,
         closing
       );
@@ -205,6 +288,8 @@ export function AssignStaffTripDialog({
       : submitMutation.isPending
         ? "Saving…"
         : "Backfill completed";
+
+  const showVehicleField = mode === "backfill";
 
   return (
     <FormDialog
@@ -287,6 +372,45 @@ export function AssignStaffTripDialog({
             </p>
           ) : null}
         </div>
+
+        {showVehicleField ? (
+          <div className="space-y-1.5">
+            <Label>Vehicle</Label>
+            <Select
+              items={vehicleOptions}
+              value={form.watch("vehicleId") || null}
+              onValueChange={(v) => {
+                vehicleFieldTouchedRef.current = true;
+                form.setValue("vehicleId", v ?? "", { shouldValidate: true });
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select vehicle (registration)">
+                  {(value) =>
+                    resolveSelectLabel(
+                      vehicleOptions,
+                      value,
+                      "Select vehicle (registration)"
+                    )
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {vehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                    {formatVehicleOptionLabel(
+                      vehicle.registration_number,
+                      vehicle.name
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!form.watch("vehicleId")?.trim() && form.formState.isSubmitted ? (
+              <p className="text-xs text-destructive">Select a vehicle</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
