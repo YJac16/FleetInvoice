@@ -11,6 +11,7 @@ import {
   RangeListSecondaryLine,
 } from "@/components/shared/range-list-lines";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -156,7 +157,9 @@ export function DispatchBoardPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={filteredTrips.length}
+        resultCount={
+          showTripsSkeleton ? undefined : filteredTrips.length
+        }
         resultUnit={{ singular: "trip", plural: "trips" }}
       />
 
@@ -195,7 +198,13 @@ export function DispatchBoardPage() {
 
       <div>
         <h2 className="mb-3 font-heading text-lg">Trip board</h2>
-        {showTripsSkeleton ? (
+        {tripsQuery.isError ? (
+          <RangeListErrorState
+            title="Couldn't load trips"
+            error={tripsQuery.error}
+            onRetry={() => void tripsQuery.refetch()}
+          />
+        ) : showTripsSkeleton ? (
           <KanbanSkeleton />
         ) : (
           <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>

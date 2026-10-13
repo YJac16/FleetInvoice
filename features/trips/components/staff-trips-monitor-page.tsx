@@ -22,6 +22,7 @@ import {
   RangeListSecondaryLine,
 } from "@/components/shared/range-list-lines";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -250,7 +251,7 @@ export function StaffTripsMonitorPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={summary.total}
+        resultCount={showTripsSkeleton ? undefined : summary.total}
         resultUnit={{ singular: "trip", plural: "trips" }}
       />
 
@@ -335,7 +336,13 @@ export function StaffTripsMonitorPage() {
         </section>
       ) : null}
 
-      {showTripsSkeleton ? (
+      {tripsQuery.isError ? (
+        <RangeListErrorState
+          title="Couldn't load trips"
+          error={tripsQuery.error}
+          onRetry={() => void tripsQuery.refetch()}
+        />
+      ) : showTripsSkeleton ? (
         <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>

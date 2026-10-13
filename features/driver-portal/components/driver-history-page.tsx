@@ -5,6 +5,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import {
@@ -69,12 +70,18 @@ export function DriverHistoryPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        resultCount={history.length}
+        resultCount={showHistorySkeleton ? undefined : history.length}
         resultUnit={{ singular: "trip", plural: "trips" }}
         className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
 
-      {showHistorySkeleton ? (
+      {tripsQuery.isError ? (
+        <RangeListErrorState
+          title="Couldn't load trips"
+          error={tripsQuery.error}
+          onRetry={() => void tripsQuery.refetch()}
+        />
+      ) : showHistorySkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : history.length === 0 ? (
         <EmptyState

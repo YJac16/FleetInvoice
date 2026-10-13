@@ -30,7 +30,8 @@ describe("DateRangeFilter custom panel", () => {
     const apply = screen.getByRole("button", { name: "Apply" });
 
     fireEvent.change(from, { target: { value: "31/02/2026" } });
-    expect(apply).toBeDisabled();
+    expect(apply).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/valid dates in DD\/MM\/YYYY/i)).toBeTruthy();
 
     fireEvent.click(apply);
     expect(onCustomChange).not.toHaveBeenCalled();

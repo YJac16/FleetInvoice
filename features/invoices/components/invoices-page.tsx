@@ -18,6 +18,7 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -568,28 +569,38 @@ export function InvoicesPage({
       />
 
       {organisationId && canView ? (
-        <div className="mb-4 space-y-4">
+        <>
           <DateRangeFilter
             range={range}
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
             updating={rangeRefreshing}
-            resultCount={filteredInvoices.length}
+            resultCount={
+              showInvoicesSkeleton ? undefined : filteredInvoices.length
+            }
             resultUnit={{ singular: "invoice", plural: "invoices" }}
           />
-          {!showInvoicesSkeleton ? (
-            <InvoiceListFilters
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-            />
-          ) : null}
-        </div>
+          <div className="mb-4">
+            {!showInvoicesSkeleton ? (
+              <InvoiceListFilters
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+              />
+            ) : null}
+          </div>
+        </>
       ) : null}
 
       {!organisationId ? (
         <EmptyState
           title="No organisation"
           description="Select an organisation to view invoices."
+        />
+      ) : invoicesQuery.isError ? (
+        <RangeListErrorState
+          title="Couldn't load invoices"
+          error={invoicesQuery.error}
+          onRetry={() => void invoicesQuery.refetch()}
         />
       ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />

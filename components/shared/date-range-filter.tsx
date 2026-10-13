@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
 import { customRangeApplyDisabledTitle } from "@/lib/date-range/custom-range-apply";
 import { validateCustomRangeDraft } from "@/lib/date-range/custom-range-draft";
@@ -58,8 +60,8 @@ function FilterChipRow({
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const narrow = window.matchMedia("(max-width: 390px)");
-    if (!narrow.matches) return;
+    const belowMd = window.matchMedia("(max-width: 767px)");
+    if (!belowMd.matches) return;
     activeChipRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
@@ -122,13 +124,65 @@ function draftsFromRange(range: ResolvedDateRange) {
   };
 }
 
+function MobileCustomRangeSheet({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-[100] bg-black/50"
+        aria-label="Close custom date range"
+        onClick={onClose}
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-[101] max-h-[min(85vh,32rem)] overflow-y-auto rounded-t-xl border-t bg-background p-3 shadow-xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+        role="presentation"
+      >
+        <p className="mb-3 text-sm font-medium">Custom range</p>
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+}
+
 function CustomRangeFields({
   draftFromText,
   draftToText,
   showFromInvalid,
   showToInvalid,
   toFieldError,
-  applyDisabledTitle,
+  applyHelperText,
   canApply,
   onFromChange,
   onToChange,
@@ -140,46 +194,56 @@ function CustomRangeFields({
   showFromInvalid: boolean;
   showToInvalid: boolean;
   toFieldError: string | null;
-  applyDisabledTitle?: string;
+  applyHelperText?: string;
   canApply: boolean;
   onFromChange: (text: string) => void;
   onToChange: (text: string) => void;
   onApply: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
 }) {
+  const handleApplyClick = () => {
+    if (!canApply) return;
+    onApply();
+  };
+
   return (
     <div
       role="dialog"
       aria-label="Custom date range"
       onKeyDown={onKeyDown}
-      className="flex flex-wrap items-end gap-3"
+      className="flex flex-col gap-3"
     >
-      <SastDateInput
-        id="date-range-from"
-        label="From"
-        text={draftFromText}
-        invalid={showFromInvalid}
-        onTextChange={onFromChange}
-      />
-      <SastDateInput
-        id="date-range-to"
-        label="To"
-        text={draftToText}
-        invalid={showToInvalid}
-        fieldError={toFieldError}
-        onTextChange={onToChange}
-      />
-      <Button
-        type="button"
-        size="sm"
-        className="min-h-11 md:min-h-8"
-        disabled={!canApply}
-        aria-disabled={!canApply}
-        title={applyDisabledTitle}
-        onClick={onApply}
-      >
-        Apply
-      </Button>
+      <div className="flex flex-wrap items-end gap-3">
+        <SastDateInput
+          id="date-range-from"
+          label="From"
+          text={draftFromText}
+          invalid={showFromInvalid}
+          onTextChange={onFromChange}
+        />
+        <SastDateInput
+          id="date-range-to"
+          label="To"
+          text={draftToText}
+          invalid={showToInvalid}
+          fieldError={toFieldError}
+          onTextChange={onToChange}
+        />
+        <Button
+          type="button"
+          size="sm"
+          className="min-h-11 md:min-h-8"
+          aria-disabled={!canApply}
+          onClick={handleApplyClick}
+        >
+          Apply
+        </Button>
+      </div>
+      {!canApply && applyHelperText ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {applyHelperText}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -201,6 +265,7 @@ export function DateRangeFilter({
   resultCount?: number;
   resultUnit?: { singular: string; plural: string };
 }) {
+  const isMobile = useIsMobile();
   const [customPanelOpen, setCustomPanelOpen] = useState(false);
   const [draftFromText, setDraftFromText] = useState(() =>
     isoDateToDisplay(range.from)
@@ -272,7 +337,7 @@ export function DateRangeFilter({
   const toFieldError =
     fieldsTouched && validation.orderError ? validation.orderError : null;
 
-  const applyDisabledTitle = customRangeApplyDisabledTitle(
+  const applyHelperText = customRangeApplyDisabledTitle(
     validation,
     draftFromText,
     draftToText
@@ -292,7 +357,7 @@ export function DateRangeFilter({
       showFromInvalid={showFromInvalid}
       showToInvalid={showToInvalid}
       toFieldError={toFieldError}
-      applyDisabledTitle={applyDisabledTitle}
+      applyHelperText={applyHelperText}
       canApply={validation.canApply}
       onFromChange={(text) => {
         setFieldsTouched(true);
@@ -310,7 +375,7 @@ export function DateRangeFilter({
   return (
     <div
       className={cn(
-        "sticky top-0 z-30 -mx-1 space-y-3 bg-background/95 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/85",
+        "sticky top-0 z-30 -mx-1 bg-background/95 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/85",
         className
       )}
     >
@@ -351,23 +416,15 @@ export function DateRangeFilter({
           </span>
         </p>
       </div>
-      {customPanelOpen ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
-            aria-label="Close custom date range"
-            onClick={closeCustomPanel}
-          />
-          <div
-            className={cn(
-              "relative z-50 mx-1 rounded-lg border bg-muted/20 p-3 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[min(85vh,32rem)] max-md:overflow-y-auto max-md:rounded-t-xl max-md:border-t max-md:bg-background max-md:pb-[max(1rem,env(safe-area-inset-bottom))] max-md:shadow-xl"
-            )}
-          >
-            <p className="mb-3 text-sm font-medium md:hidden">Custom range</p>
-            {customFields}
-          </div>
-        </>
+      {customPanelOpen && !isMobile ? (
+        <div className="mx-1 mt-3 rounded-lg border bg-muted/20 p-3">
+          {customFields}
+        </div>
+      ) : null}
+      {customPanelOpen && isMobile ? (
+        <MobileCustomRangeSheet open onClose={closeCustomPanel}>
+          {customFields}
+        </MobileCustomRangeSheet>
       ) : null}
     </div>
   );

@@ -10,6 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { RangeListErrorState } from "@/components/shared/range-list-error-state";
 import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -261,29 +262,32 @@ export function TripsPage() {
         }
       />
 
-      <div className="mb-4 space-y-4">
-        <DateRangeFilter
-          range={range}
-          onPresetChange={setPreset}
-          onCustomChange={setCustomRange}
-          updating={rangeRefreshing}
-          resultCount={
-            hasSearchFilter ? rows.length : (tripsQuery.data ?? []).length
-          }
-          resultUnit={{ singular: "trip", plural: "trips" }}
-        />
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
+        resultCount={
+          showTripsSkeleton
+            ? undefined
+            : hasSearchFilter
+              ? rows.length
+              : (tripsQuery.data ?? []).length
+        }
+        resultUnit={{ singular: "trip", plural: "trips" }}
+      />
+      <div className="mb-4">
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
       {showTripsSkeleton ? (
         <LoadingSkeleton />
       ) : tripsQuery.isError ? (
-        <EmptyState
+        <RangeListErrorState
           icon={Bus}
           title="Couldn't load trips"
-          description={getErrorMessage(tripsQuery.error)}
-          actionLabel="Retry"
-          onAction={() => void tripsQuery.refetch()}
+          error={tripsQuery.error}
+          onRetry={() => void tripsQuery.refetch()}
         />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
