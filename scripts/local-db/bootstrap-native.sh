@@ -49,6 +49,10 @@ for f in $(ls "$ROOT"/supabase/migrations/*.sql | sort); do
     echo "Skipping $base (WORKOPS_SKIP_MIGRATION_PREFIX)..."
     continue
   fi
+  if [[ -n "${WORKOPS_EXTRA_SKIP_MIGRATIONS:-}" && " ${WORKOPS_EXTRA_SKIP_MIGRATIONS} " == *" ${base} "* ]]; then
+    echo "Skipping $base (WORKOPS_EXTRA_SKIP_MIGRATIONS)..."
+    continue
+  fi
   echo "Applying $base..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 -f "$f"
 done
@@ -175,6 +179,13 @@ if [[ -z "${WORKOPS_SKIP_MIGRATION_PREFIX:-}" && -f "$ROOT/supabase/migrations/0
   echo "Re-applying 00052 after bootstrap broad grants..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
     -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
+fi
+
+if [[ -f "$ROOT/supabase/migrations/00060_supabase_audit_hardening_13_oct.sql ]] \
+  && [[ " ${WORKOPS_EXTRA_SKIP_MIGRATIONS:-} " != *" 00060_supabase_audit_hardening_13_oct.sql "* ]]; then
+  echo "Re-applying 00060 after bootstrap broad grants..."
+  sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
+    -f "$ROOT/supabase/migrations/00060_supabase_audit_hardening_13_oct.sql"
 fi
 
 echo "Native audit DB ready: db=workops_audit host=127.0.0.1 port=${PORT}"

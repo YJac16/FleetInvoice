@@ -19,8 +19,10 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/client";
 import {
   acceptInvitationToken,
+  checkInvitationEmail,
   getInvitationByToken,
   signInWithPassword,
+  signOut,
   signUpWithInvite,
 } from "@/services/auth.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -36,6 +38,7 @@ export function AcceptInviteForm({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [invite, setInvite] = useState<InvitePreview | null>(null);
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
 
   const form = useForm<AcceptInviteValues>({
     resolver: zodResolver(acceptInviteSchema),
@@ -49,6 +52,12 @@ export function AcceptInviteForm({ token }: { token: string }) {
         return;
       }
       try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setSignedInEmail(user?.email?.toLowerCase() ?? null);
+
         const row = await getInvitationByToken(token);
         if (!row) {
           setInvite(null);
@@ -74,27 +83,41 @@ export function AcceptInviteForm({ token }: { token: string }) {
     setSubmitting(true);
     try {
       const supabase = createClient();
+      const normalizedEmail = values.email.trim().toLowerCase();
+
+      const emailOk = await checkInvitationEmail(token, normalizedEmail);
+      if (!emailOk) {
+        toast.error(
+          `That email does not match this invitation. Use the address that received the invite (hint: ${invite.email}).`
+        );
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) {
-        try {
-          await signUpWithInvite({
-            email: values.email,
-            password: values.password,
-            fullName: values.fullName,
-          });
-        } catch {
-          await signInWithPassword(values.email, values.password);
+      if (user) {
+        const sessionEmail = user.email?.toLowerCase() ?? "";
+        if (sessionEmail !== normalizedEmail) {
+          toast.error(
+            `You are signed in as ${sessionEmail}. Sign out and try again with ${invite.email}.`
+          );
+          return;
         }
+      } else {
+        await signUpWithInvite({
+          email: normalizedEmail,
+          password: values.password,
+          fullName: values.fullName,
+        });
 
         const {
           data: { user: signedIn },
         } = await supabase.auth.getUser();
 
         if (!signedIn) {
-          await signInWithPassword(values.email, values.password);
+          await signInWithPassword(normalizedEmail, values.password);
         }
       }
 
@@ -156,6 +179,18 @@ export function AcceptInviteForm({ token }: { token: string }) {
           . Invitation sent to{" "}
           <span className="font-medium text-foreground">{invite.email}</span>.
         </CardDescription>
+        {signedInEmail ? (
+          <p className="text-sm text-muted-foreground">
+            Signed in as {signedInEmail}.{" "}
+            <button
+              type="button"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+              onClick={() => void signOut().then(() => router.refresh())}
+            >
+              Not you? Sign out
+            </button>
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>

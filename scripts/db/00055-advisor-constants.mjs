@@ -3,6 +3,7 @@
 export const INTERNAL_SECURITY_DEFINER_RPCS = [
   "assert_staff_trip_driver",
   "enqueue_driver_notification",
+  "ensure_trip_assignment_vehicle",
   "recalculate_invoice_totals",
   "resolve_invoice_bill_to_company_id",
   "resolve_pay_rate",

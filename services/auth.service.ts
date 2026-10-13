@@ -87,5 +87,18 @@ export async function getInvitationByToken(
     p_token: token,
   });
   if (error) throw error;
-  return normalizeSingleRpcRow<InvitationByToken>(data);
+  return normalizeSingleRpcRow<InvitationByToken>(data, "email");
+}
+
+export async function checkInvitationEmail(
+  token: string,
+  email: string
+): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("check_invitation_email", {
+    p_token: token,
+    p_email: email,
+  });
+  if (error) throw error;
+  return data === true;
 }

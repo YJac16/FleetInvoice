@@ -105,8 +105,10 @@ function presenceSelectCountAs(userId) {
 
 function presenceSelectCountAnon() {
   const res = psqlAsAnon(
-    `SELECT count(*)::text FROM public.driver_presence WHERE organisation_id = '${ORG_A}';`
+    `SELECT count(*)::text FROM public.driver_presence WHERE organisation_id = '${ORG_A}';`,
+    { allowError: true }
   );
+  if (!res.ok) return "denied";
   return res.text.split("\n").pop() ?? "";
 }
 
@@ -327,10 +329,24 @@ function main() {
     "supabase_auth_admin execute"
   );
 
-  const anonCompanies = psqlAsAnon(
-    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}';`
+  const anonCompaniesPriv = psql(
+    `SELECT has_table_privilege('anon', 'public.companies', 'SELECT')::text;`
+  ).text.split("\n").pop();
+  record(
+    "anon-no-select-companies",
+    isFalse(anonCompaniesPriv ?? ""),
+    `has_select=${anonCompaniesPriv}`
   );
-  record("anon-rls-companies-zero", anonCompanies.ok && anonCompanies.text.endsWith("0"), anonCompanies.text);
+
+  const anonCompanies = psqlAsAnon(
+    `SELECT count(*)::text FROM public.companies WHERE organisation_id = '${ORG_A}';`,
+    { allowError: true }
+  );
+  record(
+    "anon-companies-select-denied",
+    !anonCompanies.ok || /permission denied|insufficient privilege/i.test(anonCompanies.text),
+    anonCompanies.text.slice(0, 80)
+  );
 
   const iso = psqlAs(
     ORG_A_ADMIN,

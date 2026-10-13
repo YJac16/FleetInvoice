@@ -70,6 +70,34 @@ $$;
 revoke all on function public.get_invitation_by_token(text) from public;
 grant execute on function public.get_invitation_by_token(text) to anon, authenticated;
 
+create or replace function public.check_invitation_email(p_token text, p_email text)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_invite_email text;
+begin
+  select lower(trim(i.email))
+  into v_invite_email
+  from public.invitations i
+  where i.token = p_token
+    and i.status = 'pending'
+    and i.deleted_at is null
+    and i.expires_at > timezone('utc', now());
+
+  if v_invite_email is null then
+    return false;
+  end if;
+
+  return v_invite_email = lower(trim(p_email));
+end;
+$$;
+
+revoke all on function public.check_invitation_email(text, text) from public;
+grant execute on function public.check_invitation_email(text, text) to anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- 2) Org membership guards on scope helpers
 -- ---------------------------------------------------------------------------
@@ -187,53 +215,49 @@ revoke all on function public.org_entitled_modules(uuid) from public, anon;
 grant execute on function public.org_entitled_modules(uuid) to authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- 3) SECURITY DEFINER EXECUTE — anon/PUBLIC revoke (RLS helper exceptions)
+-- 3) SECURITY DEFINER EXECUTE — explicit client allow-list (see scripts/db/00060-client-rpc-allowlist.mjs)
 -- ---------------------------------------------------------------------------
 
 do $$
 declare
   r record;
   v_args text;
-  v_anon_ok text[] := array['get_invitation_by_token', 'lookup_white_label'];
+  v_authenticated_client text[] := array[
+    'accept_invitation', 'assign_staff_trip', 'assign_trip', 'assign_vehicle_to_driver',
+    'backfill_staff_waybill', 'cancel_staff_trip', 'cancel_trip_seat', 'create_invitation',
+    'current_driver_id', 'current_employee_id', 'declare_driver_no_trip_day', 'driver_serves_company',
+    'end_staff_trip', 'enqueue_notification', 'finalize_payroll_run', 'generate_driver_weekly_invoice',
+    'generate_payroll_run', 'generate_period_invoice', 'generate_trips', 'generate_weekly_fuel_invoice',
+    'get_trip_driver_names', 'has_company_scope', 'has_org_role', 'has_org_role_names',
+    'heartbeat_driver_presence', 'ingest_gps_points', 'is_org_member', 'is_platform_owner',
+    'issue_qr_token', 'list_compliance_missing_data', 'list_compliance_renewals', 'list_my_compliance',
+    'log_fuel_fillup', 'mark_admin_notification_read', 'mark_driver_notification_read',
+    'org_entitled_modules', 'record_manual_boarding', 'request_trip_seat', 'save_driver_self_contact',
+    'scan_qr_token', 'set_invoice_status', 'staff_waybill_billing_readiness', 'start_staff_trip',
+    'advance_staff_trip_en_route', 'transition_trip', 'unassign_vehicle', 'update_draft_invoice_line',
+    'update_invoice_line_area', 'update_my_employee_home', 'update_staff_trip',
+    'upsert_company_with_trip_rate', 'user_organisation_ids', 'vehicle_in_company_scope', 'void_payroll_run'
+  ];
+  v_anon_client text[] := array[
+    'check_invitation_email', 'get_invitation_by_token', 'lookup_white_label'
+  ];
   v_anon_rls_helpers text[] := array[
-    'is_platform_owner',
-    'is_org_member',
-    'has_org_role',
-    'has_org_role_names',
-    'has_company_scope',
-    'user_organisation_ids',
-    'current_driver_id',
-    'current_employee_id',
-    -- vehicle_docs_select on storage.objects calls this for every SELECT attempt
+    'is_platform_owner', 'is_org_member', 'has_org_role', 'has_org_role_names',
+    'has_company_scope', 'user_organisation_ids', 'current_driver_id', 'current_employee_id',
     'compliance_storage_path_allowed'
   ];
   v_service_only text[] := array[
-    'audit_compliance_document_view',
-    'compliance_register_actor_ok',
-    'consume_compliance_scan_quota',
-    'enqueue_compliance_expiry_alerts',
-    'enqueue_compliance_renewals_digests',
-    'enqueue_compliance_storage_purge',
-    'import_drivers_capture',
-    'import_vehicles_capture',
-    'purge_compliance_document_storage',
-    'register_compliance_document',
-    'resolve_trip_line_rate',
-    'restore_driver',
-    'restore_vehicle',
-    'run_compliance_document_retention',
-    'save_driver_capture',
-    'save_vehicle_capture',
-    'soft_delete_compliance_document',
-    'soft_delete_driver',
-    'soft_delete_vehicle',
-    'trim_superseded_compliance_versions',
-    'write_audit_log'
+    'audit_compliance_document_view', 'compliance_register_actor_ok', 'consume_compliance_scan_quota',
+    'enqueue_compliance_expiry_alerts', 'enqueue_compliance_renewals_digests', 'enqueue_compliance_storage_purge',
+    'import_drivers_capture', 'import_vehicles_capture', 'purge_compliance_document_storage',
+    'register_compliance_document', 'resolve_trip_line_rate', 'restore_driver', 'restore_vehicle',
+    'run_compliance_document_retention', 'save_driver_capture', 'save_vehicle_capture',
+    'soft_delete_compliance_document', 'soft_delete_driver', 'soft_delete_vehicle',
+    'trim_superseded_compliance_versions', 'write_audit_log'
   ];
 begin
   for r in
     select
-      p.oid,
       p.proname,
       pg_get_function_identity_arguments(p.oid) as args
     from pg_proc p
@@ -242,30 +266,40 @@ begin
       and p.prosecdef
   loop
     v_args := r.args;
-    execute format('revoke all on function public.%I(%s) from public', r.proname, v_args);
-    execute format('revoke all on function public.%I(%s) from anon', r.proname, v_args);
-
-    if r.proname = any (v_anon_ok) then
-      execute format('grant execute on function public.%I(%s) to anon', r.proname, v_args);
-    elsif r.proname = any (v_anon_rls_helpers) then
-      -- Anon must EXECUTE helpers referenced from RLS policies (auth.uid() null for anon).
-      execute format('grant execute on function public.%I(%s) to anon', r.proname, v_args);
-    end if;
+    execute format(
+      'revoke all on function public.%I(%s) from public, anon, authenticated',
+      r.proname,
+      v_args
+    );
 
     if r.proname = 'handle_new_user' then
+      grant execute on function public.handle_new_user() to postgres;
+      if exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+        grant execute on function public.handle_new_user() to supabase_auth_admin;
+      end if;
       continue;
     end if;
 
+    execute format(
+      'grant execute on function public.%I(%s) to service_role',
+      r.proname,
+      v_args
+    );
+
     if r.proname = any (v_service_only) then
+      continue;
+    end if;
+
+    if r.proname = any (v_authenticated_client) then
       execute format(
-        'revoke all on function public.%I(%s) from authenticated',
+        'grant execute on function public.%I(%s) to authenticated',
         r.proname,
         v_args
       );
-      execute format('grant execute on function public.%I(%s) to service_role', r.proname, v_args);
-    else
-      execute format('grant execute on function public.%I(%s) to authenticated', r.proname, v_args);
-      execute format('grant execute on function public.%I(%s) to service_role', r.proname, v_args);
+    end if;
+
+    if r.proname = any (v_anon_client) or r.proname = any (v_anon_rls_helpers) then
+      execute format('grant execute on function public.%I(%s) to anon', r.proname, v_args);
     end if;
   end loop;
 end;
@@ -693,6 +727,15 @@ $$;
 -- ---------------------------------------------------------------------------
 
 drop policy if exists avatars_select on storage.objects;
+
+drop policy if exists avatars_select_own on storage.objects;
+create policy avatars_select_own on storage.objects
+  for select
+  using (
+    bucket_id = 'avatars'
+    and auth.uid() is not null
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 drop policy if exists org_logos_select on storage.objects;
 create policy org_logos_select on storage.objects
