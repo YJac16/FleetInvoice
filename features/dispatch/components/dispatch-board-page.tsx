@@ -4,7 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import {
+  RangeListPrimaryLine,
+  RangeListSecondaryLine,
+} from "@/components/shared/range-list-lines";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -16,7 +21,6 @@ import {
 } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
 import { useTripsListQuery } from "@/hooks/use-trips-list-query";
-import { StatusBadge } from "@/components/shared/status-badge";
 import {
   Card,
   CardContent,
@@ -25,6 +29,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DispatchMap } from "@/features/dispatch/components/dispatch-map";
+import { tripRouteLabel } from "@/features/trips/lib/trip-display";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import type { TripStatus } from "@/lib/constants";
 import { listGpsLastPositions } from "@/services/gps.service";
@@ -151,6 +156,8 @@ export function DispatchBoardPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
+        resultCount={filteredTrips.length}
+        resultUnit={{ singular: "trip", plural: "trips" }}
       />
 
       <DispatchMap markers={markers} />
@@ -196,6 +203,12 @@ export function DispatchBoardPage() {
             <EmptyState
               title="No trips in this range"
               description="Try a different date range or create trips for this period."
+              action={
+                <DateRangeEmptyActions
+                  range={range}
+                  onPresetChange={setPreset}
+                />
+              }
             />
           ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -216,22 +229,42 @@ export function DispatchBoardPage() {
                         key={trip.id}
                         className="rounded-md border px-2 py-1.5 text-sm"
                       >
-                        <div className="font-medium">
-                          {trip.routes?.name ?? "Trip"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDateTime(trip.planned_start)}
-                        </div>
-                        {seats ? (
-                          <div className="text-xs text-muted-foreground">
-                            {seats.booked}
-                            {seats.capacity != null
-                              ? ` / ${seats.capacity}`
-                              : ""}{" "}
-                            seats
-                          </div>
-                        ) : null}
-                        <StatusBadge status={trip.status} />
+                        {(() => {
+                          const assignment = trip.trip_assignments?.find(
+                            (a) => !a.released_at
+                          );
+                          const driverName =
+                            assignment?.drivers?.full_name ?? "Unassigned";
+                          const vehicleLabel =
+                            assignment?.vehicles?.registration_number ??
+                            assignment?.vehicles?.name;
+                          const seatLine = seats
+                            ? `${seats.booked}${
+                                seats.capacity != null
+                                  ? ` / ${seats.capacity}`
+                                  : ""
+                              } seats`
+                            : null;
+                          const secondary = [
+                            vehicleLabel,
+                            driverName,
+                            seatLine,
+                            trip.status.replace(/_/g, " "),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ");
+                          return (
+                            <>
+                              <RangeListPrimaryLine className="text-sm">
+                                {formatDateTime(trip.planned_start)} ·{" "}
+                                {tripRouteLabel(trip)}
+                              </RangeListPrimaryLine>
+                              <RangeListSecondaryLine className="mt-0.5">
+                                {secondary}
+                              </RangeListSecondaryLine>
+                            </>
+                          );
+                        })()}
                       </div>
                     );
                     }

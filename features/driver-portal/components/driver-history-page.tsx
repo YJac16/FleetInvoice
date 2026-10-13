@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -68,6 +69,8 @@ export function DriverHistoryPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
+        resultCount={history.length}
+        resultUnit={{ singular: "trip", plural: "trips" }}
         className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
 
@@ -77,6 +80,12 @@ export function DriverHistoryPage() {
         <EmptyState
           title="No trips in this range"
           description="Try a different date range or complete a trip to see it here."
+          action={
+            <DateRangeEmptyActions
+              range={range}
+              onPresetChange={setPreset}
+            />
+          }
         />
       ) : (
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>

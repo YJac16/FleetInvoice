@@ -58,6 +58,20 @@ describe("DateRangeFilter custom panel", () => {
     expect(screen.queryByRole("dialog", { name: "Custom date range" })).toBeNull();
   });
 
+  it("shows result count beside the range label when provided", () => {
+    render(
+      <DateRangeFilter
+        range={range}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+        resultCount={12}
+        resultUnit={{ singular: "trip", plural: "trips" }}
+      />
+    );
+
+    expect(screen.getByText(/12 trips/)).toBeTruthy();
+  });
+
   it("applies on Enter when valid and resets drafts on Escape", () => {
     render(
       <DateRangeFilter

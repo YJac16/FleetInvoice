@@ -10,6 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -266,6 +267,10 @@ export function TripsPage() {
           onPresetChange={setPreset}
           onCustomChange={setCustomRange}
           updating={rangeRefreshing}
+          resultCount={
+            hasSearchFilter ? rows.length : (tripsQuery.data ?? []).length
+          }
+          resultUnit={{ singular: "trip", plural: "trips" }}
         />
         <SearchBar value={search} onChange={setSearch} />
       </div>
@@ -287,15 +292,21 @@ export function TripsPage() {
                 icon={Bus}
                 title={emptyState.title}
                 description={emptyState.description}
-                actionLabel={
-                  canManage && emptyState.showGenerateAction
-                    ? "Generate trips"
-                    : undefined
-                }
-                onAction={
-                  canManage && emptyState.showGenerateAction
-                    ? () => setGenerateOpen(true)
-                    : undefined
+                action={
+                  <div className="flex flex-col items-center gap-3">
+                    {canManage && emptyState.showGenerateAction ? (
+                      <Button onClick={() => setGenerateOpen(true)}>
+                        Generate trips
+                      </Button>
+                    ) : null}
+                    <DateRangeEmptyActions
+                      range={range}
+                      onPresetChange={setPreset}
+                      hasExtraFilter={hasSearchFilter}
+                      onClearExtraFilter={() => setSearch("")}
+                      extraFilterClearLabel="Clear search"
+                    />
+                  </div>
                 }
               />
           ) : (

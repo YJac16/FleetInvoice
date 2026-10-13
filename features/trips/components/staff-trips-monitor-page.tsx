@@ -15,7 +15,12 @@ import { useOrg } from "@/components/layout/org-context";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import {
+  RangeListPrimaryLine,
+  RangeListSecondaryLine,
+} from "@/components/shared/range-list-lines";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -245,6 +250,8 @@ export function StaffTripsMonitorPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
+        resultCount={summary.total}
+        resultUnit={{ singular: "trip", plural: "trips" }}
       />
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
@@ -336,6 +343,12 @@ export function StaffTripsMonitorPage() {
           <EmptyState
             title="No trips in this range"
             description="Adjust the date range or create a waybill for this period."
+            action={
+              <DateRangeEmptyActions
+                range={range}
+                onPresetChange={setPreset}
+              />
+            }
           />
         ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -394,17 +407,14 @@ export function StaffTripsMonitorPage() {
                         >
                           <div className="flex items-start justify-between gap-1.5">
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-baseline justify-between gap-1">
-                                <p className="truncate font-medium leading-tight">
-                                  {companyLabel}
-                                </p>
-                                <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                                  {dayjs(trip.planned_start).format("HH:mm")}
-                                </span>
-                              </div>
-                              <p className="truncate text-xs text-muted-foreground">
-                                {trip.area_text}
-                              </p>
+                              <RangeListPrimaryLine className="text-sm">
+                                {dayjs(trip.planned_start).format("HH:mm")} ·{" "}
+                                {companyLabel}
+                              </RangeListPrimaryLine>
+                              <RangeListSecondaryLine className="mt-0.5 truncate">
+                                {trip.area_text ?? "—"} · {driverName} ·{" "}
+                                {staffTripStatusLabel(trip.status)}
+                              </RangeListSecondaryLine>
                               <p className="mt-0.5 text-[10px] text-muted-foreground">
                                 {trip.pax_count ?? 0} pax
                                 {trip.total_km != null

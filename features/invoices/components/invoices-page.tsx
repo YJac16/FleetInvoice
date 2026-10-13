@@ -59,6 +59,7 @@ import {
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { DateRangeEmptyActions } from "@/components/shared/date-range-empty-actions";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import {
@@ -573,6 +574,8 @@ export function InvoicesPage({
             onPresetChange={setPreset}
             onCustomChange={setCustomRange}
             updating={rangeRefreshing}
+            resultCount={filteredInvoices.length}
+            resultUnit={{ singular: "invoice", plural: "invoices" }}
           />
           {!showInvoicesSkeleton ? (
             <InvoiceListFilters
@@ -592,11 +595,26 @@ export function InvoicesPage({
         <LoadingSkeleton rows={5} />
       ) : (
         <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
-          <DataTable
-            columns={columns}
-            data={filteredInvoices}
-            emptyMessage={listEmptyMessage}
-          />
+          {filteredInvoices.length === 0 ? (
+            <EmptyState
+              title={
+                (invoicesQuery.data ?? []).length === 0
+                  ? "No invoices in this range"
+                  : "No invoices match these filters"
+              }
+              description={listEmptyMessage}
+              action={
+                <DateRangeEmptyActions
+                  range={range}
+                  onPresetChange={setPreset}
+                  hasExtraFilter={statusFilter !== "all"}
+                  onClearExtraFilter={() => setStatusFilter("all")}
+                />
+              }
+            />
+          ) : (
+            <DataTable columns={columns} data={filteredInvoices} />
+          )}
         </RangeQueryBody>
       )}
 
