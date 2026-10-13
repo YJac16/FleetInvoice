@@ -2,9 +2,15 @@ import { createClient } from "@/lib/supabase/client";
 import type { StaffTransportCompany } from "@/lib/constants";
 import type { DriverPresence, StaffTrip } from "@/types";
 import { todayDateString } from "@/features/driver-portal/lib/dates";
+import {
+  isMissingRpcError,
+  type WaybillBillingReadiness,
+} from "@/features/trips/lib/waybill-billing-readiness";
 
 const STAFF_TRIP_SELECT =
   "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name))";
+
+const STAFF_TRIP_ADMIN_SELECT = `${STAFF_TRIP_SELECT}, companies:company_id (name)`;
 
 async function getCurrentDriverId(organisationId: string): Promise<string | null> {
   const supabase = createClient();
@@ -72,7 +78,7 @@ export async function listStaffTripsForAdmin(
   const supabase = createClient();
   const { data, error } = await supabase
     .from("trips")
-    .select(STAFF_TRIP_SELECT)
+    .select(STAFF_TRIP_ADMIN_SELECT)
     .eq("organisation_id", organisationId)
     .eq("is_staff_transport", true)
     .is("deleted_at", null)
@@ -80,7 +86,41 @@ export async function listStaffTripsForAdmin(
     .lt("planned_start", `${toExclusive}T00:00:00+02:00`)
     .order("planned_start", { ascending: true });
   if (error) throw error;
-  return (data as StaffTrip[]) ?? [];
+  return ((data ?? []) as unknown as StaffTrip[]);
+}
+
+/**
+ * Creation-time billing check for staff waybills (migration 00058). Uses the same
+ * server-side lookups as completion/invoice sync. Returns null when the RPC is not
+ * deployed yet so the UI fails open (the server-side checks still apply).
+ */
+export async function getStaffWaybillBillingReadiness(
+  organisationId: string,
+  companyId: string,
+  plannedStart: string
+): Promise<WaybillBillingReadiness | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("staff_waybill_billing_readiness", {
+    p_organisation_id: organisationId,
+    p_company_id: companyId,
+    p_planned_start: plannedStart,
+  });
+  if (error) {
+    if (isMissingRpcError(error)) {
+      console.warn("staff_waybill_billing_readiness unavailable", error.message);
+      return null;
+    }
+    throw error;
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { has_trip_rate?: boolean; has_bill_to?: boolean }
+    | null
+    | undefined;
+  if (!row) return null;
+  return {
+    hasTripRate: row.has_trip_rate === true,
+    hasBillTo: row.has_bill_to === true,
+  };
 }
 
 export async function assignStaffTrip(
