@@ -9,7 +9,18 @@ export type ListTenantOptions = {
   includeArchived?: boolean;
   archivedOnly?: boolean;
   orderBy?: string;
+  orderAscending?: boolean;
   select?: string;
+  /** Inclusive lower bound on `planned_start` (timestamptz ISO). */
+  plannedStartGte?: string;
+  /** Exclusive upper bound on `planned_start` (timestamptz ISO). */
+  plannedStartLt?: string;
+  /** Inclusive lower bound on `period_start` (date). */
+  periodStartGte?: string;
+  /** Inclusive upper bound on `period_start` (date). */
+  periodStartLte?: string;
+  /** Inclusive lower bound on `period_end` (date). */
+  periodEndGte?: string;
 };
 
 export async function listTenantRows<T extends SoftDeleteable>(
@@ -23,12 +34,29 @@ export async function listTenantRows<T extends SoftDeleteable>(
       : orderByOrOptions;
 
   const orderBy = options.orderBy ?? "name";
+  const ascending = options.orderAscending ?? true;
   const supabase = createClient();
   let query = supabase
     .from(table)
     .select(options.select ?? "*")
     .eq("organisation_id", organisationId)
-    .order(orderBy);
+    .order(orderBy, { ascending });
+
+  if (options.plannedStartGte) {
+    query = query.gte("planned_start", options.plannedStartGte);
+  }
+  if (options.plannedStartLt) {
+    query = query.lt("planned_start", options.plannedStartLt);
+  }
+  if (options.periodStartGte) {
+    query = query.gte("period_start", options.periodStartGte);
+  }
+  if (options.periodStartLte) {
+    query = query.lte("period_start", options.periodStartLte);
+  }
+  if (options.periodEndGte) {
+    query = query.gte("period_end", options.periodEndGte);
+  }
 
   if (options.archivedOnly) {
     query = query.not("deleted_at", "is", null);

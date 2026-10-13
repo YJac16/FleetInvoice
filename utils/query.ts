@@ -23,7 +23,13 @@ export const queryKeys = {
   routeStops: (orgId: string, routeId: string) =>
     ["route-stops", orgId, routeId] as const,
   schedules: (orgId: string) => ["schedules", orgId] as const,
-  trips: (orgId: string) => ["trips", orgId] as const,
+  trips: (orgId: string, from?: string, toExclusive?: string) =>
+    from && toExclusive
+      ? (["trips", orgId, from, toExclusive] as const)
+      : (["trips", orgId] as const),
+  tripDriverNames: (orgId: string, tripIds: string[]) =>
+    ["trip-driver-names", orgId, tripIds.join(",")] as const,
+  tripsOrgHasAny: (orgId: string) => ["trips-org-has-any", orgId] as const,
   driverTrips: (orgId: string) => ["driver-trips", orgId] as const,
   staffTrips: (orgId: string, from: string, to: string) =>
     ["staff-trips", orgId, from, to] as const,
@@ -47,7 +53,10 @@ export const queryKeys = {
   geofences: (orgId: string) => ["geofences", orgId] as const,
   geofenceEvents: (orgId: string) => ["geofence-events", orgId] as const,
   fuelFillups: (orgId: string) => ["fuel-fillups", orgId] as const,
-  invoices: (orgId: string) => ["invoices", orgId] as const,
+  invoices: (orgId: string, from?: string, to?: string) =>
+    from && to
+      ? (["invoices", orgId, from, to] as const)
+      : (["invoices", orgId] as const),
   invoiceLines: (orgId: string, invoiceId: string) =>
     ["invoice-lines", orgId, invoiceId] as const,
   rateCards: (orgId: string) => ["rate-cards", orgId] as const,

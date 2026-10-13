@@ -10,9 +10,18 @@ import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { useTripsListQuery } from "@/hooks/use-trips-list-query";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
@@ -27,7 +36,8 @@ import {
 import { canTransition } from "@/features/trips/lib/transitions";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useDebounce } from "@/hooks/use-debounce";
-import { cancelTrip, listTrips } from "@/services/trips.service";
+import { resolveTripsListEmptyState } from "@/features/trips/lib/trips-empty-state";
+import { cancelTrip, orgHasAnyTrips } from "@/services/trips.service";
 import type { Trip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
@@ -48,11 +58,30 @@ export function TripsPage() {
   const [assigningTripId, setAssigningTripId] = useState<string | null>(null);
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
+  const rangeHref = usePreservedRangeHref();
 
-  const tripsQuery = useQuery({
-    queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!),
-    enabled: Boolean(organisationId),
+  const tripsQuery = useTripsListQuery(organisationId, range);
+
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
+
+  const hasSearchFilter = debouncedSearch.trim().length > 0;
+  const rangedResultEmpty =
+    !showTripsSkeleton && (tripsQuery.data ?? []).length === 0;
+
+  const orgTripsExistQuery = useQuery({
+    queryKey: organisationId
+      ? queryKeys.tripsOrgHasAny(organisationId)
+      : ["trips-org-has-any", "none"],
+    queryFn: () => orgHasAnyTrips(organisationId!),
+    enabled: Boolean(organisationId) && rangedResultEmpty && !hasSearchFilter,
+    staleTime: 60_000,
+  });
+
+  const emptyState = resolveTripsListEmptyState({
+    hasSearchFilter,
+    orgHasAnyTrips: orgTripsExistQuery.data,
   });
 
   const cancelMutation = useMutation({
@@ -200,7 +229,10 @@ export function TripsPage() {
         actions={
           canManage ? (
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" render={<Link href="/staff-transport" />}>
+              <Button
+                variant="outline"
+                render={<Link href={rangeHref("/staff-transport")} />}
+              >
                 Monitor
               </Button>
               <Button variant="secondary" onClick={() => setAssignStaffOpen(true)}>
@@ -215,22 +247,40 @@ export function TripsPage() {
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 space-y-4">
+        <DateRangeFilter
+          range={range}
+          onPresetChange={setPreset}
+          onCustomChange={setCustomRange}
+          updating={rangeRefreshing}
+        />
         <SearchBar value={search} onChange={setSearch} />
       </div>
 
-      {tripsQuery.isLoading ? (
+      {showTripsSkeleton ? (
         <LoadingSkeleton />
-      ) : rows.length === 0 && !debouncedSearch ? (
+      ) : (
+        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+          {rows.length === 0 ? (
         <EmptyState
           icon={Bus}
-          title="No trips yet"
-          description="Generate trips from a schedule to see them here."
-          actionLabel={canManage ? "Generate trips" : undefined}
-          onAction={canManage ? () => setGenerateOpen(true) : undefined}
+          title={emptyState.title}
+          description={emptyState.description}
+          actionLabel={
+            canManage && emptyState.showGenerateAction
+              ? "Generate trips"
+              : undefined
+          }
+          onAction={
+            canManage && emptyState.showGenerateAction
+              ? () => setGenerateOpen(true)
+              : undefined
+          }
         />
-      ) : (
-        <DataTable columns={columns} data={rows} />
+          ) : (
+            <DataTable columns={columns} data={rows} />
+          )}
+        </RangeQueryBody>
       )}
 
       <AssignStaffTripDialog

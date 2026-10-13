@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
@@ -22,20 +31,26 @@ export function CompanyInvoicesPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("invoices:view");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.invoices(organisationId)
+      ? queryKeys.invoices(organisationId, range.from, range.to)
       : ["invoices", "none"],
-    queryFn: () => listInvoices(organisationId!),
+    queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
+    placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
 
-  const invoices = useMemo(
-    () =>
-      (invoicesQuery.data ?? []).filter((invoice) => invoice.driver_id == null),
-    [invoicesQuery.data]
-  );
+  const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(invoicesQuery);
+
+  const invoices = useMemo(() => {
+    return (invoicesQuery.data ?? []).filter(
+      (invoice) => invoice.driver_id == null
+    );
+  }, [invoicesQuery.data]);
 
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
@@ -111,14 +126,22 @@ export function CompanyInvoicesPage() {
         title="Invoices"
         description="Read-only invoices for your company. Open Print for a browser PDF."
       />
-      {invoicesQuery.isLoading ? (
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
+      />
+      {showInvoicesSkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={invoices}
-          emptyMessage="No invoices for your company yet."
-        />
+        <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
+          <DataTable
+            columns={columns}
+            data={invoices}
+            emptyMessage="No invoices for your company yet."
+          />
+        </RangeQueryBody>
       )}
     </div>
   );

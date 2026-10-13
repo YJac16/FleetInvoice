@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Building2,
@@ -15,9 +15,19 @@ import {
 } from "lucide-react";
 
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { CardGridSkeleton } from "@/components/shared/card-grid-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
@@ -45,6 +55,8 @@ const BROWSE_GROUP_ORDER: NavGroupId[] = [
 export function DashboardPage() {
   const { can, canModule } = useOrg();
   const organisationId = useActiveOrgId();
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
+  const rangeHref = usePreservedRangeHref();
 
   const countsQuery = useQuery({
     queryKey: organisationId
@@ -52,18 +64,26 @@ export function DashboardPage() {
       : ["dashboard", "none"],
     queryFn: () => getDashboardCounts(organisationId!),
     enabled: Boolean(organisationId) && can("dashboard:view"),
+    meta: primaryRouteQueryMeta,
   });
 
   const opsQuery = useQuery({
     queryKey: organisationId
-      ? ["dashboard-ops", organisationId]
+      ? ["dashboard-ops", organisationId, range.from, range.toExclusive]
       : ["dashboard-ops", "none"],
-    queryFn: () => getDashboardOpsSummary(organisationId!),
+    queryFn: () =>
+      getDashboardOpsSummary(organisationId!, range.from, range.toExclusive),
     enabled:
       Boolean(organisationId) &&
       can("dashboard:view") &&
       (can("trips:view") || can("dispatch:view")),
+    placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
+
+  const showOpsSkeleton = useShowListSkeleton(opsQuery);
+  const opsRefreshing = isRangeQueryRefreshing(opsQuery);
+  const showCountsSkeleton = useShowListSkeleton(countsQuery);
 
   if (!organisationId) {
     return (
@@ -85,12 +105,12 @@ export function DashboardPage() {
 
   const quickLinks = [
     {
-      href: "/dispatch",
+      href: rangeHref("/dispatch"),
       label: "Dispatch",
       show: can("dispatch:view") && canModule("gps"),
     },
     {
-      href: "/trips",
+      href: rangeHref("/trips"),
       label: "Trips",
       show: can("trips:view"),
     },
@@ -100,7 +120,7 @@ export function DashboardPage() {
       show: can("attendance:view") && canModule("attendance"),
     },
     {
-      href: "/invoices",
+      href: rangeHref("/invoices"),
       label: "Invoices",
       show: can("invoices:view") && canModule("billing"),
     },
@@ -143,32 +163,44 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      {opsQuery.isLoading ? (
-        <LoadingSkeleton rows={2} />
+      {(can("trips:view") || can("dispatch:view")) && can("dashboard:view") ? (
+        <DateRangeFilter
+          range={range}
+          onPresetChange={setPreset}
+          onCustomChange={setCustomRange}
+          updating={opsRefreshing}
+        />
+      ) : null}
+
+      {showOpsSkeleton ? (
+        <CardGridSkeleton cards={5} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" />
       ) : ops ? (
-        <div>
-          <h2 className="mb-3 font-heading text-lg">Today’s operations</h2>
+        <RangeQueryBody query={opsQuery} refreshing={opsRefreshing}>
+          <div>
+          <h2 className="mb-3 font-heading text-lg">
+            Operations · {formatRangeLabel(range)}
+          </h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               title="In progress"
               value={ops.today_in_progress}
               icon={Bus}
-              href={can("trips:view") ? "/trips" : undefined}
+              href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
               title="Assigned"
               value={ops.today_assigned}
-              href={can("trips:view") ? "/trips" : undefined}
+              href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
               title="Planned"
               value={ops.today_planned}
-              href={can("trips:view") ? "/trips" : undefined}
+              href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
               title="Completed"
               value={ops.today_completed}
-              href={can("trips:view") ? "/trips" : undefined}
+              href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
               title="Unassigned"
@@ -177,19 +209,21 @@ export function DashboardPage() {
               icon={Radar}
               href={
                 can("dispatch:view")
-                  ? "/dispatch"
+                  ? rangeHref("/dispatch")
                   : can("trips:view")
-                    ? "/trips"
+                    ? rangeHref("/trips")
                     : undefined
               }
             />
           </div>
-        </div>
+          </div>
+        </RangeQueryBody>
       ) : null}
 
-      {countsQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
+      {showCountsSkeleton ? (
+        <CardGridSkeleton cards={7} />
       ) : (
+        <RangeQueryBody query={countsQuery}>
         <div>
           <h2 className="mb-3 font-heading text-lg">Organisation</h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -237,6 +271,7 @@ export function DashboardPage() {
             />
           </div>
         </div>
+        </RangeQueryBody>
       )}
 
       {browseGroups.length ? (
@@ -258,7 +293,7 @@ export function DashboardPage() {
                   return (
                     <Link
                       key={item.href}
-                      href={item.href}
+                      href={rangeHref(item.href)}
                       className="flex items-center gap-3 rounded-xl border border-border/80 bg-card px-3 py-3 text-sm transition-colors hover:bg-muted/40"
                     >
                       <Icon className="size-4 shrink-0 text-muted-foreground" />

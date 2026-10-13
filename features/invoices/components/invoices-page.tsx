@@ -1,7 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -49,11 +54,19 @@ import {
 } from "@/features/invoices/components/invoice-list-filters";
 import {
   DEFAULT_INVOICE_LIST_FILTERS,
-  filterAndSortInvoices,
+  compareInvoicesByPeriodEnd,
+  matchesInvoiceStatusFilter,
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
-  type InvoiceWeekFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -276,20 +289,23 @@ export function InvoicesPage({
   const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>(
     DEFAULT_INVOICE_LIST_FILTERS.sortOrder
   );
-  const [weekFilter, setWeekFilter] = useState<InvoiceWeekFilter>(
-    DEFAULT_INVOICE_LIST_FILTERS.weekFilter
-  );
   const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(
     DEFAULT_INVOICE_LIST_FILTERS.statusFilter
   );
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const invoicesQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.invoices(organisationId)
+      ? queryKeys.invoices(organisationId, range.from, range.to)
       : ["invoices", "none"],
-    queryFn: () => listInvoices(organisationId!),
+    queryFn: () => listInvoices(organisationId!, { dateRange: range }),
     enabled: Boolean(organisationId) && canView,
+    placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
+
+  const showInvoicesSkeleton = useShowListSkeleton(invoicesQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(invoicesQuery);
 
   const linesQuery = useQuery({
     queryKey:
@@ -300,15 +316,11 @@ export function InvoicesPage({
     enabled: Boolean(organisationId && selectedId),
   });
 
-  const filteredInvoices = useMemo(
-    () =>
-      filterAndSortInvoices(invoicesQuery.data ?? [], {
-        sortOrder,
-        weekFilter,
-        statusFilter,
-      }),
-    [invoicesQuery.data, sortOrder, weekFilter, statusFilter]
-  );
+  const filteredInvoices = useMemo(() => {
+    return (invoicesQuery.data ?? [])
+      .filter((invoice) => matchesInvoiceStatusFilter(invoice, statusFilter))
+      .sort((a, b) => compareInvoicesByPeriodEnd(a, b, sortOrder));
+  }, [invoicesQuery.data, sortOrder, statusFilter]);
 
   const listEmptyMessage = useMemo(() => {
     if ((invoicesQuery.data ?? []).length === 0) {
@@ -554,14 +566,20 @@ export function InvoicesPage({
         }
       />
 
-      {organisationId && canView && !invoicesQuery.isLoading ? (
-        <div className="mb-4">
-          <InvoiceListFilters
-            weekFilter={weekFilter}
-            statusFilter={statusFilter}
-            onWeekFilterChange={setWeekFilter}
-            onStatusFilterChange={setStatusFilter}
+      {organisationId && canView ? (
+        <div className="mb-4 space-y-4">
+          <DateRangeFilter
+            range={range}
+            onPresetChange={setPreset}
+            onCustomChange={setCustomRange}
+            updating={rangeRefreshing}
           />
+          {!showInvoicesSkeleton ? (
+            <InvoiceListFilters
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -570,14 +588,16 @@ export function InvoicesPage({
           title="No organisation"
           description="Select an organisation to view invoices."
         />
-      ) : invoicesQuery.isLoading ? (
+      ) : showInvoicesSkeleton ? (
         <LoadingSkeleton rows={5} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={filteredInvoices}
-          emptyMessage={listEmptyMessage}
-        />
+        <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
+          <DataTable
+            columns={columns}
+            data={filteredInvoices}
+            emptyMessage={listEmptyMessage}
+          />
+        </RangeQueryBody>
       )}
 
       {selectedId ? (

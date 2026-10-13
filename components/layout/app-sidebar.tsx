@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { usePreservedRangeHref } from "@/hooks/use-preserved-range-href";
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -32,10 +34,11 @@ function NavLink({
   active: boolean;
   onNavigate?: () => void;
 }) {
+  const rangeHref = usePreservedRangeHref();
   const Icon = item.icon;
   return (
     <Link
-      href={item.href}
+      href={rangeHref(item.href)}
       onClick={onNavigate}
       className={cn(
         "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors",

@@ -1,21 +1,30 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+
+import { useSastDayKey } from "@/hooks/use-sast-day-key";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { driverTodayStaffTripRange } from "@/features/driver-portal/lib/driver-today-range";
+import { isInstantInRange, resolveDateRange } from "@/lib/date-range/sast-range";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
 import { Button } from "@/components/ui/button";
 import { EndTripDialog } from "@/features/driver-portal/components/end-trip-dialog";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
 import { StartTripDialog } from "@/features/driver-portal/components/start-trip-dialog";
-import {
-  nowInDriverTz,
-  todayDateString,
-} from "@/features/driver-portal/lib/dates";
+import { nowInDriverTz } from "@/features/driver-portal/lib/dates";
 import {
   canAdvanceStaffTrip,
   canEndStaffTrip,
@@ -43,30 +52,48 @@ import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
 
-function tomorrowDateString(): string {
-  return nowInDriverTz().add(1, "day").format("YYYY-MM-DD");
-}
-
 export function DriverTodayPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const queryClient = useQueryClient();
   const canSelf = can("trips:self");
-  const today = todayDateString();
-  const tomorrow = tomorrowDateString();
+  const sastDayKey = useSastDayKey();
+  const today = sastDayKey;
+  const { from, toExclusive } = useMemo(() => {
+    const noonSast = new Date(`${sastDayKey}T12:00:00+02:00`);
+    return driverTodayStaffTripRange(noonSast);
+  }, [sastDayKey]);
+  const tomorrow = useMemo(() => {
+    return nowInDriverTz()
+      .year(Number(sastDayKey.slice(0, 4)))
+      .month(Number(sastDayKey.slice(5, 7)) - 1)
+      .date(Number(sastDayKey.slice(8, 10)))
+      .add(1, "day")
+      .format("YYYY-MM-DD");
+  }, [sastDayKey]);
   const nowLabel = nowInDriverTz().format("HH:mm");
+  const todayRange = useMemo(
+    () => resolveDateRange("today", null, null, new Date(`${sastDayKey}T12:00:00+02:00`)),
+    [sastDayKey]
+  );
+  const hasTripsToday = (trips: StaffTrip[]) =>
+    trips.some((t) => isInstantInRange(t.planned_start, todayRange));
 
   const [startTarget, setStartTarget] = useState<StaffTrip | null>(null);
   const [endTarget, setEndTarget] = useState<StaffTrip | null>(null);
 
   const tripsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.staffTrips(organisationId, today, tomorrow)
+      ? queryKeys.staffTrips(organisationId, from, toExclusive)
       : ["staff-trips", "none"],
-    queryFn: () => listMyStaffTrips(organisationId!, today, tomorrow),
+    queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
     refetchInterval: 15_000,
+    placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
+
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
 
   const noTripQuery = useQuery({
     queryKey: organisationId
@@ -86,13 +113,13 @@ export function DriverTodayPage() {
     if (!organisationId) return;
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: queryKeys.staffTrips(organisationId, today, tomorrow),
+        queryKey: queryKeys.staffTrips(organisationId, from, toExclusive),
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.noTripDays(organisationId, today, tomorrow),
+        queryKey: queryKeys.noTripDays(organisationId, from, toExclusive),
       }),
       queryClient.invalidateQueries({
-        queryKey: queryKeys.staffTripsAdmin(organisationId, today, tomorrow),
+        queryKey: queryKeys.staffTripsAdmin(organisationId, from, toExclusive),
       }),
     ]);
   };
@@ -186,9 +213,11 @@ export function DriverTodayPage() {
       <div className="relative pl-4">
         <div className="absolute bottom-0 left-[5px] top-0 w-px bg-zinc-800" />
 
-        {tripsQuery.isLoading ? (
+        {showTripsSkeleton ? (
           <LoadingSkeleton rows={2} />
-        ) : active ? (
+        ) : (
+          <RangeQueryBody query={tripsQuery}>
+        {active ? (
           <section className="relative mb-5 space-y-3">
             <div className="relative mb-1">
               <span className="absolute -left-4 top-1 size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
@@ -259,8 +288,8 @@ export function DriverTodayPage() {
           </section>
         ) : null}
 
-        {!tripsQuery.isLoading &&
-        trips.length === 0 &&
+        {!showTripsSkeleton &&
+        !hasTripsToday(trips) &&
         !declaredNoTrip ? (
           <div className="space-y-3 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-4 py-5 text-center">
             <p className="text-sm font-medium text-zinc-300">
@@ -281,7 +310,7 @@ export function DriverTodayPage() {
           </div>
         ) : null}
 
-        {declaredNoTrip && trips.length === 0 ? (
+        {declaredNoTrip && !hasTripsToday(trips) ? (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 text-center">
             <p className="text-sm font-medium text-zinc-300">No trip today</p>
             <p className="mt-1 text-xs text-zinc-500">
@@ -289,6 +318,8 @@ export function DriverTodayPage() {
             </p>
           </div>
         ) : null}
+          </RangeQueryBody>
+        )}
       </div>
 
       <StartTripDialog

@@ -4,9 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
+import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { useTripsListQuery } from "@/hooks/use-trips-list-query";
 import { StatusBadge } from "@/components/shared/status-badge";
 import {
   Card,
@@ -20,7 +29,6 @@ import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import type { TripStatus } from "@/lib/constants";
 import { listGpsLastPositions } from "@/services/gps.service";
 import { listPassengersForTrips } from "@/services/trip-passengers.service";
-import { listTrips } from "@/services/trips.service";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 
@@ -35,6 +43,7 @@ export function DispatchBoardPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canView = can("dispatch:view") || can("gps:view");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const positionsQuery = useQuery({
     queryKey: organisationId
@@ -45,16 +54,18 @@ export function DispatchBoardPage() {
     refetchInterval: 10_000,
   });
 
-  const tripsQuery = useQuery({
-    queryKey: organisationId ? queryKeys.trips(organisationId) : ["trips", "none"],
-    queryFn: () => listTrips(organisationId!),
-    enabled: Boolean(organisationId) && canView,
+  const tripsQuery = useTripsListQuery(organisationId, range, {
+    enabled: canView,
     refetchInterval: 15_000,
   });
 
+  const showTripsSkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
+  const filteredTrips = tripsQuery.data ?? [];
+
   const tripIds = useMemo(
-    () => (tripsQuery.data ?? []).map((t) => t.id),
-    [tripsQuery.data]
+    () => filteredTrips.map((t) => t.id),
+    [filteredTrips]
   );
 
   const passengersQuery = useQuery({
@@ -96,13 +107,13 @@ export function DispatchBoardPage() {
   const tripsByStatus = useMemo(() => {
     const map = new Map<TripStatus, typeof tripsQuery.data>();
     for (const col of KANBAN_COLUMNS) map.set(col.status, []);
-    for (const trip of tripsQuery.data ?? []) {
+    for (const trip of filteredTrips) {
       if (trip.status === "cancelled") continue;
       const list = map.get(trip.status as TripStatus);
       if (list) list.push(trip);
     }
     return map;
-  }, [tripsQuery.data]);
+  }, [filteredTrips]);
 
   if (!canView) {
     return (
@@ -133,6 +144,13 @@ export function DispatchBoardPage() {
       <PageHeader
         title="Dispatch"
         description="Last-known driver positions and trip status. Map refreshes about every 10 seconds."
+      />
+
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
       />
 
       <DispatchMap markers={markers} />
@@ -170,9 +188,16 @@ export function DispatchBoardPage() {
 
       <div>
         <h2 className="mb-3 font-heading text-lg">Trip board</h2>
-        {tripsQuery.isLoading ? (
-          <LoadingSkeleton rows={3} />
+        {showTripsSkeleton ? (
+          <KanbanSkeleton />
         ) : (
+          <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+          {filteredTrips.length === 0 ? (
+            <EmptyState
+              title="No trips in this range"
+              description="Try a different date range or create trips for this period."
+            />
+          ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {KANBAN_COLUMNS.map((col) => (
               <Card key={col.status}>
@@ -215,6 +240,8 @@ export function DispatchBoardPage() {
               </Card>
             ))}
           </div>
+          )}
+          </RangeQueryBody>
         )}
       </div>
     </div>

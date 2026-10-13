@@ -1,13 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import dayjs from "dayjs";
-
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useOrg } from "@/components/layout/org-context";
+import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
+import {
+  isRangeQueryRefreshing,
+  useShowListSkeleton,
+} from "@/hooks/use-list-query-skeleton";
+import { RangeQueryBody } from "@/components/shared/range-query-body";
+import { primaryRouteQueryMeta } from "@/lib/react-query/primary-route-meta";
+import { formatRangeLabel } from "@/lib/date-range/sast-range";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
-import { mondayOfWeek } from "@/features/driver-portal/lib/dates";
 import { completedTrips } from "@/features/driver-portal/lib/trip-labels";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { listMyStaffTrips } from "@/services/staff-trips.service";
@@ -18,16 +24,22 @@ export function DriverHistoryPage() {
   const organisationId = useActiveOrgId();
   const canSelf = can("trips:self");
 
-  const from = dayjs().subtract(30, "day").format("YYYY-MM-DD");
-  const to = dayjs().add(1, "day").format("YYYY-MM-DD");
+  const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
+  const from = range.from;
+  const toExclusive = range.toExclusive;
 
   const tripsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.staffTrips(organisationId, from, to)
+      ? queryKeys.staffTrips(organisationId, from, toExclusive)
       : ["staff-trips", "none"],
-    queryFn: () => listMyStaffTrips(organisationId!, from, to),
+    queryFn: () => listMyStaffTrips(organisationId!, from, toExclusive),
     enabled: Boolean(organisationId) && canSelf,
+    placeholderData: keepPreviousData,
+    meta: primaryRouteQueryMeta,
   });
+
+  const showHistorySkeleton = useShowListSkeleton(tripsQuery);
+  const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
 
   const history = completedTrips(tripsQuery.data ?? []).reverse();
 
@@ -47,23 +59,33 @@ export function DriverHistoryPage() {
           History
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Completed trips (last 30 days)
+          Completed trips · {formatRangeLabel(range)}
         </p>
       </div>
 
-      {tripsQuery.isLoading ? (
+      <DateRangeFilter
+        range={range}
+        onPresetChange={setPreset}
+        onCustomChange={setCustomRange}
+        updating={rangeRefreshing}
+        className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
+      />
+
+      {showHistorySkeleton ? (
         <LoadingSkeleton rows={4} />
       ) : history.length === 0 ? (
         <EmptyState
-          title="No completed trips"
-          description="Finished trips will appear here."
+          title="No trips in this range"
+          description="Try a different date range or complete a trip to see it here."
         />
       ) : (
-        <div className="space-y-2">
-          {history.map((trip) => (
-            <StaffTripCard key={trip.id} trip={trip} compact />
-          ))}
-        </div>
+        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+          <div className="space-y-2">
+            {history.map((trip) => (
+              <StaffTripCard key={trip.id} trip={trip} compact />
+            ))}
+          </div>
+        </RangeQueryBody>
       )}
     </div>
   );
