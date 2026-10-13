@@ -540,7 +540,21 @@ begin
 end;
 $$;
 
-grant select on all tables in schema public to anon;
+grant all on all tables in schema public to anon;
+
+grant all on table public.compliance_alerts_sent to authenticated;
+grant all on table public.compliance_orphan_objects to authenticated;
+grant all on table public.compliance_scan_quota to authenticated;
+grant all on table public.compliance_scan_temp_objects to authenticated;
+grant all on table public.compliance_storage_purge_queue to authenticated;
+
+revoke all on function public.driver_default_vehicle_id(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.driver_default_vehicle_id(uuid, uuid) to service_role;
+
+revoke all on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) from public, anon, authenticated;
+grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) to service_role;
+
+revoke all on function public.guard_company_manager_member_scope() from public, anon, authenticated;
 
 -- 00052 SECURITY DEFINER grants (pre-00060 PostgREST surface)
 -- =============================================================================

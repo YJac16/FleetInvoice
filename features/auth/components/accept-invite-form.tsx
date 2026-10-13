@@ -106,11 +106,19 @@ export function AcceptInviteForm({ token }: { token: string }) {
           return;
         }
       } else {
-        await signUpWithInvite({
-          email: normalizedEmail,
-          password: values.password,
-          fullName: values.fullName,
-        });
+        try {
+          await signUpWithInvite({
+            email: normalizedEmail,
+            password: values.password,
+            fullName: values.fullName,
+          });
+        } catch (signupError) {
+          const signupMessage = getErrorMessage(signupError, "");
+          if (!/already registered|already been registered|user already exists/i.test(signupMessage)) {
+            throw signupError;
+          }
+          await signInWithPassword(normalizedEmail, values.password);
+        }
 
         const {
           data: { user: signedIn },
@@ -185,7 +193,12 @@ export function AcceptInviteForm({ token }: { token: string }) {
             <button
               type="button"
               className="font-medium text-foreground underline-offset-4 hover:underline"
-              onClick={() => void signOut().then(() => router.refresh())}
+              onClick={() =>
+                void signOut().then(() => {
+                  setSignedInEmail(null);
+                  router.refresh();
+                })
+              }
             >
               Not you? Sign out
             </button>

@@ -8,3 +8,4 @@ bash "$ROOT/scripts/local-db/bootstrap-native.sh" >/dev/null
 # Post-00051 baseline (00052 skipped above): snapshot → apply 00052 → rollback → diff
 node "$ROOT/tests/db/00052-snapshot-rollback.test.mjs"
 node "$ROOT/tests/db/migration-00052-security.test.mjs"
+node "$ROOT/tests/db/migration-00060-rls-function-grants.test.mjs"

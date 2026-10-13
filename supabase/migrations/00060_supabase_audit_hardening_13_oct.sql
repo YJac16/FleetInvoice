@@ -224,16 +224,18 @@ declare
   v_args text;
   v_authenticated_client text[] := array[
     'accept_invitation', 'assign_staff_trip', 'assign_trip', 'assign_vehicle_to_driver',
-    'backfill_staff_waybill', 'cancel_staff_trip', 'cancel_trip_seat', 'create_invitation',
+    'backfill_staff_waybill', 'cancel_staff_trip', 'cancel_trip_seat', 'check_invitation_email',
+    'company_user_can_see', 'compliance_storage_path_allowed', 'create_invitation',
     'current_driver_id', 'current_employee_id', 'declare_driver_no_trip_day', 'driver_serves_company',
     'end_staff_trip', 'enqueue_notification', 'finalize_payroll_run', 'generate_driver_weekly_invoice',
     'generate_payroll_run', 'generate_period_invoice', 'generate_trips', 'generate_weekly_fuel_invoice',
-    'get_trip_driver_names', 'has_company_scope', 'has_org_role', 'has_org_role_names',
-    'heartbeat_driver_presence', 'ingest_gps_points', 'is_org_member', 'is_platform_owner',
-    'issue_qr_token', 'list_compliance_missing_data', 'list_compliance_renewals', 'list_my_compliance',
-    'log_fuel_fillup', 'mark_admin_notification_read', 'mark_driver_notification_read',
-    'org_entitled_modules', 'record_manual_boarding', 'request_trip_seat', 'save_driver_self_contact',
-    'scan_qr_token', 'set_invoice_status', 'staff_waybill_billing_readiness', 'start_staff_trip',
+    'get_invitation_by_token', 'get_trip_driver_names', 'has_company_scope', 'has_org_role',
+    'has_org_role_names', 'heartbeat_driver_presence', 'ingest_gps_points', 'is_company_manager',
+    'is_org_member', 'is_platform_owner', 'issue_qr_token', 'list_compliance_missing_data',
+    'list_compliance_renewals', 'list_my_compliance', 'log_fuel_fillup', 'lookup_white_label',
+    'mark_admin_notification_read', 'mark_driver_notification_read', 'org_entitled_modules',
+    'record_manual_boarding', 'request_trip_seat', 'save_driver_self_contact', 'scan_qr_token',
+    'set_invoice_status', 'staff_waybill_billing_readiness', 'start_staff_trip',
     'advance_staff_trip_en_route', 'transition_trip', 'unassign_vehicle', 'update_draft_invoice_line',
     'update_invoice_line_area', 'update_my_employee_home', 'update_staff_trip',
     'upsert_company_with_trip_rate', 'user_organisation_ids', 'vehicle_in_company_scope', 'void_payroll_run'
@@ -301,6 +303,70 @@ begin
     if r.proname = any (v_anon_client) or r.proname = any (v_anon_rls_helpers) then
       execute format('grant execute on function public.%I(%s) to anon', r.proname, v_args);
     end if;
+  end loop;
+end;
+$$;
+
+-- Grant EXECUTE to authenticated for every SECURITY DEFINER function referenced in RLS
+-- (public + storage.objects). Excludes internal helpers that must stay service_role-only.
+do $$
+declare
+  r record;
+  v_rls_exclude text[] := array[
+    'driver_default_vehicle_id',
+    'ensure_trip_assignment_vehicle',
+    'guard_company_manager_member_scope',
+    'handle_new_user'
+  ];
+begin
+  for r in
+    with policy_text as (
+      select coalesce(qual, '') || ' ' || coalesce(with_check, '') as expr
+      from pg_policies
+      where schemaname in ('public', 'storage')
+    ),
+    fn_names as (
+      select distinct (m)[1] as proname
+      from policy_text pt,
+        lateral regexp_matches(pt.expr, '(?:public\.)?([a-z_][a-z0-9_]*)\s*\(', 'gi') as m
+    )
+    select
+      p.proname,
+      pg_get_function_identity_arguments(p.oid) as args
+    from fn_names f
+    join pg_proc p on p.proname = f.proname
+    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+    where p.prosecdef
+      and not (f.proname = any (v_rls_exclude))
+  loop
+    execute format(
+      'grant execute on function public.%I(%s) to authenticated',
+      r.proname,
+      r.args
+    );
+  end loop;
+
+  for r in
+    select
+      p.proname,
+      pg_get_function_identity_arguments(p.oid) as args
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prosecdef
+      and p.proname = any (v_rls_exclude)
+      and p.proname <> 'handle_new_user'
+  loop
+    execute format(
+      'revoke all on function public.%I(%s) from public, anon, authenticated',
+      r.proname,
+      r.args
+    );
+    execute format(
+      'grant execute on function public.%I(%s) to service_role',
+      r.proname,
+      r.args
+    );
   end loop;
 end;
 $$;
