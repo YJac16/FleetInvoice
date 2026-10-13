@@ -4,14 +4,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
 import {
-  applyDateRangeToSearchParams,
-  dateRangeFromSearchParams,
-} from "@/lib/date-range/search-params";
+  buildRangeHref,
+  commitRangeUrlUpdate,
+} from "@/lib/date-range/replace-range-url";
+import { dateRangeFromSearchParams } from "@/lib/date-range/search-params";
 import {
   type DateRangePreset,
   resolveDateRange,
   type ResolvedDateRange,
 } from "@/lib/date-range/sast-range";
+import { nextSupportsHistoryReplaceStateSync } from "@/lib/next/supports-history-url-sync";
 
 export function useDateRangeFilter(defaultPreset: DateRangePreset = "this_week") {
   const router = useRouter();
@@ -25,9 +27,20 @@ export function useDateRangeFilter(defaultPreset: DateRangePreset = "this_week")
 
   const replaceRange = useCallback(
     (next: ResolvedDateRange) => {
-      const params = applyDateRangeToSearchParams(searchParams, next);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      const href = buildRangeHref(pathname, searchParams, next);
+
+      if (typeof window === "undefined") {
+        router.replace(href, { scroll: false });
+        return;
+      }
+
+      commitRangeUrlUpdate(href, {
+        useHistoryReplaceState: nextSupportsHistoryReplaceStateSync(),
+        routerReplace: (url) => router.replace(url, { scroll: false }),
+        historyReplaceState: (state, unused, url) =>
+          window.history.replaceState(state, unused, url),
+        getHistoryState: () => window.history.state,
+      });
     },
     [pathname, router, searchParams]
   );
