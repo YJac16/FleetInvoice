@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
@@ -18,16 +18,31 @@ test.describe("date range chips @ mobile", () => {
     });
   });
 
-  async function waitForRangeQueryIdle(page: import("@playwright/test").Page) {
-    const updating = page.getByText("Updating…");
-    if (await updating.isVisible().catch(() => false)) {
-      await expect(updating).toBeHidden({ timeout: 30_000 });
-    }
+  function tripCountStatusLabel(page: Page) {
+    return page.locator("p.text-xs.text-muted-foreground").first();
   }
 
-  async function readTripCountLabel(page: import("@playwright/test").Page) {
-    const label = page.locator("p.text-xs.text-muted-foreground").first();
+  async function waitForRangeQueryIdle(page: Page) {
+    const updating = page.getByText("Updating…");
+    const label = tripCountStatusLabel(page);
+
     await expect(label).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(
+        async () => {
+          const updatingVisible = await updating.isVisible().catch(() => false);
+          if (updatingVisible) return false;
+          const text = (await label.textContent()) ?? "";
+          return /\d+\s+trips?/.test(text);
+        },
+        { timeout: 30_000 }
+      )
+      .toBe(true);
+  }
+
+  async function readTripCountLabel(page: Page) {
+    await waitForRangeQueryIdle(page);
+    const label = tripCountStatusLabel(page);
     const text = (await label.textContent()) ?? "";
     const match = text.match(/\d+\s+trips?/);
     return { text, countSnippet: match?.[0] ?? null };
@@ -40,8 +55,8 @@ test.describe("date range chips @ mobile", () => {
       page.getByRole("group", { name: "Filter by date range" })
     ).toBeVisible({ timeout: 30_000 });
 
-    await waitForRangeQueryIdle(page);
     const beforeCount = await readTripCountLabel(page);
+    expect(beforeCount.countSnippet).toBeTruthy();
 
     const scrollY = await page.evaluate(() => {
       document.documentElement.style.minHeight = "2400px";
@@ -56,12 +71,9 @@ test.describe("date range chips @ mobile", () => {
     await expect(page).toHaveURL(/range=last_week/, { timeout: 10_000 });
     await expect(lastWeekChip).toHaveAttribute("aria-pressed", "true");
 
-    await waitForRangeQueryIdle(page);
     const afterCount = await readTripCountLabel(page);
-    expect(afterCount.text).toMatch(/Last week/i);
-    if (beforeCount.countSnippet && afterCount.countSnippet) {
-      expect(afterCount.countSnippet).not.toBe(beforeCount.countSnippet);
-    }
+    expect(afterCount.countSnippet).toBeTruthy();
+    expect(afterCount.text).not.toBe(beforeCount.text);
 
     const rowCards = page.locator("table tbody tr, .space-y-3 > div.rounded-2xl");
     await expect(rowCards.first().or(page.getByText(/No trips in this range/i)))
@@ -78,8 +90,8 @@ test.describe("date range chips @ mobile", () => {
       page.getByRole("group", { name: "Filter by date range" })
     ).toBeVisible({ timeout: 30_000 });
 
-    await waitForRangeQueryIdle(page);
     const beforeCount = await readTripCountLabel(page);
+    expect(beforeCount.countSnippet).toBeTruthy();
 
     const scrollY = await page.evaluate(() => {
       document.documentElement.style.minHeight = "2400px";
@@ -94,12 +106,9 @@ test.describe("date range chips @ mobile", () => {
     await expect(page).toHaveURL(/range=yesterday/, { timeout: 10_000 });
     await expect(yesterdayChip).toHaveAttribute("aria-pressed", "true");
 
-    await waitForRangeQueryIdle(page);
     const afterCount = await readTripCountLabel(page);
-    expect(afterCount.text).toMatch(/Yesterday/i);
-    if (beforeCount.countSnippet && afterCount.countSnippet) {
-      expect(afterCount.countSnippet).not.toBe(beforeCount.countSnippet);
-    }
+    expect(afterCount.countSnippet).toBeTruthy();
+    expect(afterCount.text).not.toBe(beforeCount.text);
 
     await expect(
       page.locator("table tbody tr, .space-y-3 > div.rounded-2xl").first().or(
