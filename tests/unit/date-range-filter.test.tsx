@@ -77,6 +77,9 @@ describe("DateRangeFilter custom panel", () => {
     fireEvent.change(to, { target: { value: "01/10/2026" } });
 
     expect(screen.getAllByText(CUSTOM_RANGE_ORDER_ERROR).length).toBe(1);
+
+    const apply = screen.getByRole("button", { name: "Apply" });
+    expect(apply).toHaveAttribute("aria-describedby", "date-range-to-hint");
   });
 
   it("shows result count beside the range label when provided", () => {

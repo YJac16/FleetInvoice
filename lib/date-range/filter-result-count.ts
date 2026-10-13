@@ -1,5 +1,6 @@
 export type RangeFilterCountQuery = {
   isError: boolean;
+  isPlaceholderData: boolean;
 };
 
 export function resolveRangeFilterResultCount(
@@ -9,6 +10,8 @@ export function resolveRangeFilterResultCount(
     count: number;
   }
 ): number | undefined {
-  if (query.isError || !input.listReady) return undefined;
+  if (query.isError || query.isPlaceholderData || !input.listReady) {
+    return undefined;
+  }
   return input.count;
 }

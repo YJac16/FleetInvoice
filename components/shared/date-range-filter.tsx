@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-media-query";
 import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
 import { customRangeApplyDisabledTitle } from "@/lib/date-range/custom-range-apply";
 import { validateCustomRangeDraft } from "@/lib/date-range/custom-range-draft";
+import { computeChipCenterScrollLeft } from "@/lib/date-range/chip-scroll-center";
 import { formatRangeResultCount } from "@/lib/date-range/result-count-label";
 import {
   DATE_RANGE_PRESETS,
@@ -26,6 +27,17 @@ import {
 import { cn } from "@/lib/utils";
 
 const CUSTOM_RANGE_SHEET_TITLE_ID = "custom-range-sheet-title";
+const DATE_RANGE_TO_HINT_ID = "date-range-to-hint";
+
+function mergeButtonRefs(
+  ...refs: (RefObject<HTMLButtonElement | null> | undefined)[]
+) {
+  return (node: HTMLButtonElement | null) => {
+    for (const ref of refs) {
+      if (ref) ref.current = node;
+    }
+  };
+}
 
 function getFocusableElements(root: HTMLElement): HTMLElement[] {
   return Array.from(
@@ -81,10 +93,22 @@ function FilterChipRow({
     if (typeof window.matchMedia !== "function") return;
     const belowMd = window.matchMedia("(max-width: 767px)");
     if (!belowMd.matches) return;
-    activeChipRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
+    const scroller = scrollerRef.current;
+    const chip = activeChipRef.current;
+    if (!scroller || !chip) return;
+
+    const left = computeChipCenterScrollLeft({
+      chipOffsetLeft: chip.offsetLeft,
+      chipOffsetWidth: chip.offsetWidth,
+      scrollerClientWidth: scroller.clientWidth,
+      scrollerScrollWidth: scroller.scrollWidth,
+    });
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    scroller.scrollTo({
+      left,
+      behavior: reducedMotion ? "auto" : "smooth",
     });
   }, [activePreset, customPanelOpen, chipScrollKey]);
 
@@ -118,7 +142,10 @@ function FilterChipRow({
               key={option.value}
               ref={
                 option.value === "custom"
-                  ? customChipRef
+                  ? mergeButtonRefs(
+                      customChipRef,
+                      selected ? activeChipRef : undefined
+                    )
                   : selected
                     ? activeChipRef
                     : undefined
@@ -273,6 +300,12 @@ function CustomRangeFields({
     applyHelperText &&
     !(toFieldError && applyHelperText === toFieldError);
 
+  const applyDescribedBy = visibleHelper
+    ? applyHelperId
+    : !canApply && toFieldError
+      ? DATE_RANGE_TO_HINT_ID
+      : undefined;
+
   const fields = (
     <>
       <div className="flex flex-wrap items-end gap-3">
@@ -299,7 +332,7 @@ function CustomRangeFields({
             !canApply && "cursor-not-allowed opacity-50"
           )}
           aria-disabled={!canApply}
-          aria-describedby={visibleHelper ? applyHelperId : undefined}
+          aria-describedby={applyDescribedBy}
           onClick={handleApplyClick}
         >
           Apply
