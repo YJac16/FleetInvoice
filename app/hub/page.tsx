@@ -12,7 +12,7 @@ export default async function HubPage() {
   }
 
   if (!session.isPlatformOwner && session.memberships.length === 0) {
-    redirect("/awaiting-invite");
+    redirect("/onboarding/create-organisation");
   }
 
   redirect(hubPathForRole(session.activeRole, session.isPlatformOwner));
