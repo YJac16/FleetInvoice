@@ -32,6 +32,9 @@ const P_B = "f1000000-0000-4000-8000-000000000502";
 const TA_A = "f1000000-0000-4000-8000-000000000601";
 const TA_B = "f1000000-0000-4000-8000-000000000602";
 const MEM_DRV_B = "f1000000-0000-4000-8000-000000000701";
+const MEM_DISP = "f1000000-0000-4000-8000-000000000702";
+const TE_A = "f1000000-0000-4000-8000-000000000801";
+const TE_B = "f1000000-0000-4000-8000-000000000802";
 
 const results = [];
 
@@ -91,6 +94,19 @@ insert into auth.users (
   confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
 )
 values
+  ('00000000-0000-0000-0000-000000000000', '${dispatcher}', 'authenticated', 'authenticated',
+   'dispatcher.privacy@audit.test', crypt('TestPassword123!', gen_salt('bf')), now(), now(), now(), '{}', '{"full_name":"Dispatcher Privacy"}')
+on conflict (id) do nothing;
+
+insert into public.organisation_members (id, organisation_id, user_id, role, status)
+values ('${MEM_DISP}', '${ORG_A}', '${dispatcher}', 'dispatcher', 'active')
+on conflict (id) do nothing;
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+)
+values
   ('00000000-0000-0000-0000-000000000000', '${driverBUser}', 'authenticated', 'authenticated',
    'driverb.privacy@audit.test', crypt('TestPassword123!', gen_salt('bf')), now(), now(), now(), '{}', '{"full_name":"Driver B"}')
 on conflict (id) do nothing;
@@ -121,6 +137,12 @@ insert into public.trip_assignments (id, organisation_id, trip_id, driver_id, ve
 values
   ('${TA_A}', '${ORG_A}', '${T_A}', '${driverRowA}', (select id from public.vehicles where organisation_id = '${ORG_A}' limit 1)),
   ('${TA_B}', '${ORG_A}', '${T_B}', '${driverRowB}', (select id from public.vehicles where organisation_id = '${ORG_A}' offset 1 limit 1))
+on conflict (id) do nothing;
+
+insert into public.trip_events (id, organisation_id, trip_id, event_type, notes)
+values
+  ('${TE_A}', '${ORG_A}', '${T_A}', 'completed', 'Trip A event'),
+  ('${TE_B}', '${ORG_A}', '${T_B}', 'completed', 'Trip B event')
 on conflict (id) do nothing;
 `);
 
@@ -156,5 +178,21 @@ expectCount("DISP-trips", dispatcher, "trips", `organisation_id = '${ORG_A}'`, 2
 expectCount("SUP-trips", supervisorA, "trips", `organisation_id = '${ORG_A}'`, 2);
 
 expectCount("ADMIN-passengers", adminA, "trip_passengers", `organisation_id = '${ORG_A}'`, 2);
+
+expectCount("DRV-A-assignments", driverA, "trip_assignments", `organisation_id = '${ORG_A}'`, 1);
+expectCount("DRV-B-assignments", driverBUser, "trip_assignments", `organisation_id = '${ORG_A}'`, 1);
+record(
+  "DRV-A-not-TA-B",
+  psqlAs(driverA, `select count(*)::text from public.trip_assignments where id = '${TA_B}';`) === "0",
+  "other driver assignment hidden"
+);
+
+expectCount("DRV-A-events", driverA, "trip_events", `organisation_id = '${ORG_A}'`, 1);
+expectCount("DRV-B-events", driverBUser, "trip_events", `organisation_id = '${ORG_A}'`, 1);
+record(
+  "DRV-A-not-TE-B",
+  psqlAs(driverA, `select count(*)::text from public.trip_events where id = '${TE_B}';`) === "0",
+  "other driver trip event hidden"
+);
 
 console.log(`\n${results.filter((r) => r.pass).length}/${results.length} checks passed`);

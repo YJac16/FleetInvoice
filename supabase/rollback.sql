@@ -821,10 +821,54 @@ grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid
 revoke all on function public.guard_company_manager_member_scope() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- 00061 driver trip RLS privacy revert
+-- 00061 driver trip RLS privacy revert (policies before helper drop)
 -- ---------------------------------------------------------------------------
 
-drop function if exists public.trip_assigned_to_current_driver(uuid);
+drop policy if exists trip_events_select on public.trip_events;
+create policy trip_events_select on public.trip_events
+  for select
+  using (
+    public.is_platform_owner()
+    or (
+      case
+        when public.is_company_manager(organisation_id) then
+          exists (
+            select 1
+            from public.trips t
+            where t.id = trip_events.trip_id
+              and t.deleted_at is null
+              and public.company_user_can_see(t.organisation_id, t.company_id)
+          )
+        else
+          organisation_id in (select public.user_organisation_ids())
+      end
+    )
+  );
+
+drop policy if exists trip_assignments_select on public.trip_assignments;
+create policy trip_assignments_select on public.trip_assignments
+  for select
+  using (
+    deleted_at is null
+    and (
+      public.is_platform_owner()
+      or driver_id = public.current_driver_id(organisation_id)
+      or (
+        case
+          when public.is_company_manager(organisation_id) then
+            exists (
+              select 1
+              from public.trips t
+              where t.id = trip_assignments.trip_id
+                and t.deleted_at is null
+                and public.company_user_can_see(t.organisation_id, t.company_id)
+            )
+          else
+            organisation_id in (select public.user_organisation_ids())
+        end
+      )
+    )
+  );
 
 drop policy if exists trips_select on public.trips;
 create policy trips_select on public.trips
@@ -882,5 +926,7 @@ create policy trip_passengers_select on public.trip_passengers
     )
     or employee_id = public.current_employee_id(organisation_id)
   );
+
+drop function if exists public.trip_assigned_to_current_driver(uuid);
 
 COMMIT;
