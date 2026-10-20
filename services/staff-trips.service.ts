@@ -8,7 +8,7 @@ import {
 } from "@/features/trips/lib/waybill-billing-readiness";
 
 const STAFF_TRIP_SELECT =
-  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name))";
+  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)";
 
 const STAFF_TRIP_ADMIN_SELECT = `${STAFF_TRIP_SELECT}, companies:company_id (name)`;
 
@@ -64,6 +64,11 @@ export async function listMyStaffTrips(
             !t.deleted_at &&
             t.is_staff_transport &&
             t.status !== "cancelled" &&
+            !(
+              t.submitted_by_driver &&
+              !t.approved_at &&
+              !t.rejected_reason?.trim()
+            ) &&
             inDateRange(t.planned_start, from, toExclusive)
         )
     )

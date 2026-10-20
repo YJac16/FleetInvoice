@@ -31,6 +31,9 @@ export const queryKeys = {
     ["trip-driver-names", orgId, tripIds.join(",")] as const,
   tripsOrgHasAny: (orgId: string) => ["trips-org-has-any", orgId] as const,
   driverTrips: (orgId: string) => ["driver-trips", orgId] as const,
+  driverSubmissions: (orgId: string) => ["driver-submissions", orgId] as const,
+  pendingDriverSubmissions: (orgId: string) =>
+    ["pending-driver-submissions", orgId] as const,
   staffTrips: (orgId: string, from: string, to: string) =>
     ["staff-trips", orgId, from, to] as const,
   staffTripsAdmin: (orgId: string, from: string, to: string) =>
