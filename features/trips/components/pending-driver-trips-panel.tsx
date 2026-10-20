@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AdminManualTripDialog } from "@/features/trips/components/admin-manual-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
 import {
   approveDriverTrip,
@@ -41,6 +42,7 @@ export function PendingDriverTripsPanel({
   const [rejectTarget, setRejectTarget] = useState<StaffTrip | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [editTrip, setEditTrip] = useState<StaffTrip | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const query = useQuery({
@@ -107,8 +109,11 @@ export function PendingDriverTripsPanel({
 
   return (
     <div className="space-y-4">
-      {trips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => setManualOpen(true)}>
+          Create trip manually
+        </Button>
+        {trips.length > 0 ? (
           <Button
             size="sm"
             disabled={selected.size === 0 || bulkApproveMutation.isPending}
@@ -116,8 +121,8 @@ export function PendingDriverTripsPanel({
           >
             Approve selected ({selected.size})
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {trips.length === 0 ? (
         <EmptyState
@@ -191,6 +196,14 @@ export function PendingDriverTripsPanel({
         organisationId={organisationId}
         trip={editTrip}
         onSaved={invalidate}
+        variant="pending"
+      />
+
+      <AdminManualTripDialog
+        open={manualOpen}
+        onOpenChange={setManualOpen}
+        organisationId={organisationId}
+        onCreated={invalidate}
       />
 
       <AlertDialog

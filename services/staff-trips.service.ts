@@ -188,6 +188,10 @@ export async function updateStaffTrip(
     staffCompany?: StaffTransportCompany | null;
     areaText?: string;
     paxCount?: number;
+    totalKm?: number;
+    notes?: string;
+    vehicleId?: string;
+    editReason: string;
   }
 ): Promise<StaffTrip> {
   const supabase = createClient();
@@ -198,6 +202,10 @@ export async function updateStaffTrip(
     p_staff_company: fields.staffCompany ?? null,
     p_area_text: fields.areaText ?? null,
     p_pax_count: fields.paxCount ?? null,
+    p_total_km: fields.totalKm ?? null,
+    p_notes: fields.notes ?? null,
+    p_vehicle_id: fields.vehicleId ?? null,
+    p_edit_reason: fields.editReason,
   });
   if (error) throw error;
   return data as StaffTrip;

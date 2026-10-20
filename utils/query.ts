@@ -34,6 +34,8 @@ export const queryKeys = {
   driverSubmissions: (orgId: string) => ["driver-submissions", orgId] as const,
   pendingDriverSubmissions: (orgId: string) =>
     ["pending-driver-submissions", orgId] as const,
+  tripAudit: (tripId: string) => ["trip-audit", tripId] as const,
+  tripBillingOverride: (tripId: string) => ["trip-billing-override", tripId] as const,
   staffTrips: (orgId: string, from: string, to: string) =>
     ["staff-trips", orgId, from, to] as const,
   staffTripsAdmin: (orgId: string, from: string, to: string) =>

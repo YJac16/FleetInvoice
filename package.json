@@ -20,6 +20,7 @@
     "test:company-portal-rls": "bash tests/rls/run-company-portal-phase1.sh",
     "test:driver-trip-privacy-rls": "bash tests/rls/run-driver-trip-privacy.sh",
     "test:driver-self-entry": "node tests/db/driver-self-entry-invoice.test.mjs",
+    "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --local > types/database.ts",

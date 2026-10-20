@@ -825,6 +825,27 @@ revoke all on function public.guard_company_manager_member_scope() from public, 
 -- Migrations 00061–00063: use supabase/rollback-00061-00063.sql (separate transaction).
 =======
 -- ---------------------------------------------------------------------------
+-- 00063 driver trip admin audit / override revert (re-apply 00062 function bodies)
+-- ---------------------------------------------------------------------------
+
+drop function if exists public.admin_create_staff_trip(
+  uuid, uuid, timestamptz, text, text, uuid, int, uuid, numeric, text, boolean
+);
+drop function if exists public.clear_trip_billing_override(uuid, text);
+drop function if exists public.set_trip_billing_override(uuid, numeric, text);
+drop function if exists public.assert_staff_trip_invoice_editable(uuid);
+drop function if exists public.staff_can_manage_trips(uuid);
+drop function if exists public.log_trip_audit(uuid, uuid, text, text, text, text);
+
+drop table if exists public.trip_audit;
+drop table if exists public.trip_billing_overrides;
+drop table if exists public.trip_driver_submission_snapshots;
+
+drop function if exists public.update_staff_trip(
+  uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text
+);
+
+-- ---------------------------------------------------------------------------
 -- 00062 driver self-entry revert (re-apply 00051 sync if billing behaviour regresses)
 -- ---------------------------------------------------------------------------
 
