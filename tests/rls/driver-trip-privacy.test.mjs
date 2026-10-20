@@ -117,7 +117,10 @@ on conflict (id) do nothing;
 
 insert into public.drivers (id, organisation_id, profile_id, full_name, status)
 values ('${driverRowB}', '${ORG_A}', '${driverBUser}', 'Driver B Privacy', 'active')
-on conflict (id) do nothing;
+on conflict (id) do update set
+  profile_id = excluded.profile_id,
+  full_name = excluded.full_name,
+  status = excluded.status;
 
 insert into public.trips (
   id, organisation_id, company_id, route_id, is_staff_transport, area_text, planned_start, status
