@@ -140,14 +140,31 @@ DO $$ BEGIN
   -- 00050 PR A function hardening (bootstrap broad grant must not reopen anon/public)
   REVOKE EXECUTE ON FUNCTION public.resolve_trip_line_rate(uuid, uuid, date)
     FROM PUBLIC, anon, authenticated;
-  REVOKE EXECUTE ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean) FROM PUBLIC, anon;
-  GRANT EXECUTE ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean) TO authenticated;
-  REVOKE EXECUTE ON FUNCTION public.update_staff_trip(
-    uuid, timestamptz, uuid, public.staff_transport_company, text, int
-  ) FROM PUBLIC, anon;
-  GRANT EXECUTE ON FUNCTION public.update_staff_trip(
-    uuid, timestamptz, uuid, public.staff_transport_company, text, int
-  ) TO authenticated;
+  REVOKE ALL ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean)
+    FROM PUBLIC, anon, authenticated;
+  GRANT EXECUTE ON FUNCTION public.sync_staff_trip_invoice_line(uuid, boolean) TO service_role;
+  IF to_regprocedure(
+    'public.update_staff_trip(uuid, timestamp with time zone, uuid, staff_transport_company, text, integer, numeric, text, uuid, text)'
+  ) IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.update_staff_trip(
+      uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text
+    ) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.update_staff_trip(
+      uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text
+    ) TO authenticated;
+  END IF;
+  IF to_regprocedure('public.set_trip_billing_override(uuid, numeric, text)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.set_trip_billing_override(uuid, numeric, text) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.set_trip_billing_override(uuid, numeric, text) TO authenticated;
+  END IF;
+  IF to_regprocedure('public.clear_trip_billing_override(uuid, text)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.clear_trip_billing_override(uuid, text) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.clear_trip_billing_override(uuid, text) TO authenticated;
+  END IF;
+  IF to_regprocedure('public.trip_assigned_to_current_driver(uuid)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.trip_assigned_to_current_driver(uuid) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.trip_assigned_to_current_driver(uuid) TO authenticated;
+  END IF;
   REVOKE EXECUTE ON FUNCTION public.assign_staff_trip(
     uuid, uuid, timestamptz, text, int, uuid, public.staff_transport_company, uuid
   ) FROM PUBLIC, anon;
@@ -179,19 +196,6 @@ if [[ -z "${WORKOPS_SKIP_MIGRATION_PREFIX:-}" && -f "$ROOT/supabase/migrations/0
   echo "Re-applying 00052 after bootstrap broad grants..."
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
     -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
-fi
-
-if [[ -f "$ROOT/supabase/migrations/00060_supabase_audit_hardening_13_oct.sql" ]]; then
-  apply_00060=true
-  if [[ -n "${WORKOPS_EXTRA_SKIP_MIGRATIONS:-}" ]] \
-    && [[ "${WORKOPS_EXTRA_SKIP_MIGRATIONS}" == *00060_supabase_audit_hardening_13_oct.sql* ]]; then
-    apply_00060=false
-  fi
-  if [[ "$apply_00060" == true ]]; then
-    echo "Re-applying 00060 after bootstrap broad grants..."
-    sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
-      -f "$ROOT/supabase/migrations/00060_supabase_audit_hardening_13_oct.sql"
-  fi
 fi
 
 echo "Native audit DB ready: db=workops_audit host=127.0.0.1 port=${PORT}"

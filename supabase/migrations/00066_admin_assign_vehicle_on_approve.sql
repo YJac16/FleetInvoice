@@ -2,6 +2,10 @@
 -- 00066 — Driver submissions have no vehicle; admin assigns on approval
 -- =============================================================================
 
+drop function if exists public.submit_driver_trip(
+  uuid, timestamptz, text, text, uuid, int, numeric, text
+);
+
 create or replace function public.submit_driver_trip(
   p_organisation_id uuid,
   p_planned_start timestamptz,

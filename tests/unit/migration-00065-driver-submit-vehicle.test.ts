@@ -17,12 +17,11 @@ describe("migration 00065 driver submit assigned vehicle", () => {
     expect(sql).not.toContain("p_vehicle_id uuid");
   });
 
-  it("requires vehicle on approval (superseded by 00066 with explicit param)", () => {
-    expect(sql).toMatch(/Assign a vehicle on this trip before approval/);
+  it("uses driver_default_vehicle_id for assigned vehicle on submit", () => {
+    expect(sql).toMatch(/driver_default_vehicle_id/);
   });
 
   it("reverts driver-wide vehicle picker RLS from 00064", () => {
-    expect(sql).toMatch(/Reverts driver-wide vehicle picker RLS from 00064/);
-    expect(sql).not.toContain("and status = 'active'\n      )");
+    expect(sql).toMatch(/drop policy if exists vehicles_select on public\.vehicles/);
   });
 });
