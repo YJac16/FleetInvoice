@@ -24,5 +24,7 @@ describe("migration 00061 driver trip RLS privacy", () => {
     expect(sql).toMatch(/trip_assigned_to_current_driver\(id\)/);
     expect(sql).toMatch(/create policy trip_passengers_select/);
     expect(sql).toMatch(/trip_assigned_to_current_driver\(trip_id\)/);
+    expect(sql).toMatch(/create policy trip_assignments_select/);
+    expect(sql).toMatch(/create policy trip_events_select/);
   });
 });

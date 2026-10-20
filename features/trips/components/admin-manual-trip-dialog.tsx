@@ -84,8 +84,12 @@ export function AdminManualTripDialog({
         notes,
         markCompleted,
       }),
-    onSuccess: () => {
-      toast.success(markCompleted ? "Trip created and invoiced" : "Trip created");
+    onSuccess: (result) => {
+      if (result.duplicateWarning) {
+        toast.warning("Trip created — a similar trip exists within 45 minutes.");
+      } else {
+        toast.success(markCompleted ? "Trip created and invoiced" : "Trip created");
+      }
       onOpenChange(false);
       onCreated();
     },

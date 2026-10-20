@@ -92,7 +92,7 @@ export async function adminCreateStaffTrip(params: {
   totalKm: number;
   notes?: string;
   markCompleted: boolean;
-}): Promise<string> {
+}): Promise<{ tripId: string; duplicateWarning: boolean }> {
   const supabase = createClient();
   const plannedStart = `${params.date}T${params.time}:00+02:00`;
   const { data, error } = await supabase.rpc("admin_create_staff_trip", {
@@ -109,5 +109,35 @@ export async function adminCreateStaffTrip(params: {
     p_mark_completed: params.markCompleted,
   });
   if (error) throw error;
-  return data as string;
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { trip_id: string; duplicate_warning: boolean }
+    | null
+    | undefined;
+  if (!row?.trip_id) throw new Error("Trip was not created");
+  return {
+    tripId: row.trip_id,
+    duplicateWarning: Boolean(row.duplicate_warning),
+  };
+}
+
+export async function checkDriverTripDuplicateWarning(params: {
+  organisationId: string;
+  driverId: string;
+  companyId: string;
+  date: string;
+  time: string;
+  pickup: string;
+  dropoff: string;
+}): Promise<boolean> {
+  const supabase = createClient();
+  const area = `${params.pickup.trim()} → ${params.dropoff.trim()}`;
+  const { data, error } = await supabase.rpc("driver_trip_duplicate_warning", {
+    p_organisation_id: params.organisationId,
+    p_driver_id: params.driverId,
+    p_company_id: params.companyId,
+    p_planned_start: `${params.date}T${params.time}:00+02:00`,
+    p_route_label: area,
+  });
+  if (error) throw error;
+  return data === true;
 }

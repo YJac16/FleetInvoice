@@ -96,6 +96,7 @@ export function StaffTripsMonitorPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("trips:manage");
+  const canAdminEdit = can("trips:admin_edit");
   const canViewGps = can("gps:view") || can("dispatch:view") || canManage;
   const queryClient = useQueryClient();
 
@@ -446,7 +447,7 @@ export function StaffTripsMonitorPage() {
                                   {isPlayback ? "Hide" : "Path"}
                                 </Button>
                               ) : null}
-                              {canManage && trip.status === "completed" ? (
+                              {canAdminEdit && trip.status === "completed" ? (
                                 <Button
                                   size="xs"
                                   variant="ghost"
