@@ -174,6 +174,17 @@ if (Number.parseFloat(rateAfter).toFixed(2) !== "123.45") {
   console.log("PASS override-beats-rate-card");
 }
 
+const markerRow = psqlAdmin(
+  `select price_overridden::text || '|' || coalesce(override_reason, '')
+   from public.invoice_lines where trip_id = '${tripId}'::uuid;`
+);
+if (markerRow !== "true|test override") {
+  console.log("FAIL invoice-line-override-marker", markerRow);
+  failed = 1;
+} else {
+  console.log("PASS invoice-line-override-marker");
+}
+
 psqlAs(
   adminUser,
   `select public.update_staff_trip(

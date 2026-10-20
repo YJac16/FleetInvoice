@@ -354,6 +354,8 @@ export type InvoiceLine = {
   quantity: number;
   unit_price: number;
   amount: number;
+  price_overridden?: boolean;
+  override_reason?: string | null;
   created_at: string;
 };
 

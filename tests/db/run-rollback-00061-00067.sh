@@ -10,6 +10,7 @@ SKIP_POST_00060=(
   00065_driver_submit_assigned_vehicle.sql
   00066_admin_assign_vehicle_on_approve.sql
   00067_revoke_anon_driver_admin_rpcs.sql
+  00068_invoice_line_override_marker_audit_immutable.sql
 )
 export WORKOPS_EXTRA_SKIP_MIGRATIONS="${SKIP_POST_00060[*]}"
 
@@ -88,7 +89,7 @@ bash "$ROOT/scripts/local-db/bootstrap-native.sh" >/dev/null
 relock_00055_internal_rpcs workops_audit
 dump_function_grants workops_audit "$GRANTS_REF"
 
-echo "Bootstrap full stack, rollback 00061–00063, smoke checks..."
+echo "Bootstrap full stack, pending driver fixture, rollback 00061–00067, smoke checks..."
 unset WORKOPS_EXTRA_SKIP_MIGRATIONS
 bash "$ROOT/scripts/local-db/bootstrap-native.sh" >/dev/null
 
@@ -102,11 +103,71 @@ DRIVER_USER="a0000000-0000-4000-8000-000000000012"
 DRIVER_ROW="a0000000-0000-4000-8000-000000000201"
 COMP="e5000000-0000-4000-8000-000000000002"
 VEH="f5000000-0000-4000-8000-000000000001"
+WCL="e5000000-0000-4000-8000-000000000001"
+
+psql_auth() {
+  local user_id="$1"
+  local sql="$2"
+  psql -q -h 127.0.0.1 -U "$PGUSER" -d "$DB" -v ON_ERROR_STOP=1 -tA <<SQL
+BEGIN;
+SET LOCAL ROLE authenticated;
+SET LOCAL request.jwt.claim.sub = '$user_id';
+$sql
+COMMIT;
+SQL
+}
+
+sudo -u postgres psql -q -d "$DB" -v ON_ERROR_STOP=1 <<SQL
+insert into public.companies (id, organisation_id, name, status)
+values
+  ('${WCL}', '${ORG}', 'WCL Trading CC', 'active'),
+  ('${COMP}', '${ORG}', 'Springbok Atlas', 'active')
+on conflict (id) do update set name = excluded.name, status = excluded.status;
+
+insert into public.rate_cards (organisation_id, company_id, name, line_type, unit, unit_amount, effective_from)
+select '${ORG}', '${COMP}', 'Rollback smoke rate', 'trip', 'fixed', 440, date '2026-08-01'
+where not exists (
+  select 1 from public.rate_cards rc
+  where rc.organisation_id = '${ORG}' and rc.company_id = '${COMP}' and rc.deleted_at is null
+);
+
+insert into public.vehicles (id, organisation_id, company_id, name, registration_number, vehicle_type, status)
+values ('${VEH}', '${ORG}', '${COMP}', 'Rollback Van', 'RBK-001', 'van', 'active')
+on conflict (id) do update set organisation_id = excluded.organisation_id, company_id = excluded.company_id;
+
+update public.organisations
+set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('invoice_bill_to_company_id', '${WCL}')
+where id = '${ORG}';
+SQL
+
+PENDING_TRIP=$(psql_auth "$DRIVER_USER" "select trip_id::text from public.submit_driver_trip(
+  '${ORG}'::uuid,
+  timestamptz '2026-09-23 08:00:00+02',
+  'Pending pickup',
+  'Pending dropoff',
+  '${COMP}'::uuid,
+  2,
+  12.5,
+  'rollback fixture'
+) limit 1;")
+
+PENDING_VEHICLE=$(sudo -u postgres psql -q -d "$DB" -tA -c \
+  "select coalesce(ta.vehicle_id::text, '') from public.trip_assignments ta
+   where ta.trip_id = '${PENDING_TRIP}'::uuid and ta.released_at is null limit 1;")
+PENDING_AMOUNT=$(sudo -u postgres psql -q -d "$DB" -tA -c \
+  "select coalesce((select il.unit_price::text from public.invoice_lines il where il.trip_id = '${PENDING_TRIP}'::uuid limit 1), '');")
+
+if [[ -z "$PENDING_VEHICLE" && -z "$PENDING_AMOUNT" ]]; then
+  echo "PASS pre-rollback-pending-driver-submit null_vehicle null_amount trip=$PENDING_TRIP"
+else
+  echo "FAIL pre-rollback-pending-driver-submit vehicle=$PENDING_VEHICLE amount=$PENDING_AMOUNT"
+  exit 1
+fi
 
 sudo -u postgres psql -q -d "$DB" -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/rollback-restore-pre-driver-self-entry.sql"
 sudo -u postgres psql -q -d "$DB" -v ON_ERROR_STOP=1 \
-  -f "$ROOT/supabase/rollback-00061-00063.sql"
+  -f "$ROOT/supabase/rollback-00061-00067.sql"
 relock_00055_internal_rpcs "$DB"
 
 dump_function_grants "$DB" "$GRANTS_TEST"
@@ -134,42 +195,6 @@ if [[ "$PARITY_FAIL" -eq 0 ]]; then
 else
   exit 1
 fi
-
-WCL="e5000000-0000-4000-8000-000000000001"
-sudo -u postgres psql -q -d "$DB" -v ON_ERROR_STOP=1 <<SQL
-insert into public.companies (id, organisation_id, name, status)
-values
-  ('${WCL}', '${ORG}', 'WCL Trading CC', 'active'),
-  ('${COMP}', '${ORG}', 'Springbok Atlas', 'active')
-on conflict (id) do update set name = excluded.name, status = excluded.status;
-
-insert into public.rate_cards (organisation_id, company_id, name, line_type, unit, unit_amount, effective_from)
-select '${ORG}', '${COMP}', 'Rollback smoke rate', 'trip', 'fixed', 440, date '2026-08-01'
-where not exists (
-  select 1 from public.rate_cards rc
-  where rc.organisation_id = '${ORG}' and rc.company_id = '${COMP}' and rc.deleted_at is null
-);
-
-insert into public.vehicles (id, organisation_id, company_id, name, registration_number, vehicle_type, status)
-values ('${VEH}', '${ORG}', '${COMP}', 'Rollback Van', 'RBK-001', 'van', 'active')
-on conflict (id) do update set organisation_id = excluded.organisation_id, company_id = excluded.company_id;
-
-update public.organisations
-set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('invoice_bill_to_company_id', '${WCL}')
-where id = '${ORG}';
-SQL
-
-psql_auth() {
-  local user_id="$1"
-  local sql="$2"
-  psql -q -h 127.0.0.1 -U "$PGUSER" -d "$DB" -v ON_ERROR_STOP=1 -tA <<SQL
-BEGIN;
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claim.sub = '$user_id';
-$sql
-COMMIT;
-SQL
-}
 
 TRIP=$(psql_auth "$ADMIN" "select public.backfill_staff_waybill(
   '$ORG'::uuid, '$DRIVER_ROW'::uuid, timestamptz '2026-09-24 10:00:00+02',

@@ -1,11 +1,80 @@
 -- =============================================================================
--- Rollback migrations 00061–00063 (separate transaction from rollback.sql / 00060)
--- Restores pre-00063 billing RPCs before dropping 00063/00062 objects.
+-- Rollback migrations 00061–00067 (+ 00068 when present)
+-- Separate transaction from rollback.sql / 00060.
+-- Apply supabase/rollback-restore-pre-driver-self-entry.sql first
+-- (see tests/db/run-rollback-00061-00067.sh).
+--
+-- Migration decisions (00064–00067):
+--   00064 — REVERT: restore vehicles_select (00057); drop 00066 approve signature.
+--           staff_can_manage_trips / duplicate RPC / audit RLS superseded by 00063 drop.
+--   00065 — REVERT: submit_driver_trip without vehicle param removed in 00062 section.
+--   00066 — REVERT: approve_driver_trip(uuid, uuid) dropped before 00062 section.
+--   00067 — KEEP until RPC drop: anon EXECUTE revokes are moot once functions drop.
+--
+-- Audit rows (trip_audit, snapshots, billing overrides):
+--   DROP — tables removed in 00063 revert (no archive; destructive rollback).
 -- =============================================================================
 
 BEGIN;
 
--- Apply supabase/rollback-restore-pre-driver-self-entry.sql first (see tests/db/run-rollback-00061-00063.sh).
+-- Apply supabase/rollback-restore-pre-driver-self-entry.sql first (see runner).
+
+-- 00068 revert (when migration applied)
+drop trigger if exists trip_audit_no_update on public.trip_audit;
+drop trigger if exists trip_audit_no_delete on public.trip_audit;
+drop function if exists public.trip_audit_reject_mutation();
+
+alter table public.invoice_lines
+  drop column if exists override_reason,
+  drop column if exists price_overridden;
+
+-- 00066 revert — approval requires vehicle param; drop before 00062/00063 function drops
+drop function if exists public.approve_driver_trip(uuid, uuid);
+
+-- 00064 revert — driver-visible fleet list policy (pre-00064 / 00057)
+drop policy if exists vehicles_select on public.vehicles;
+create policy vehicles_select on public.vehicles
+  for select
+  using (
+    deleted_at is null
+    and (
+      public.is_platform_owner()
+      or public.has_org_role_names(
+        organisation_id,
+        array['organisation_admin','manager','dispatcher','supervisor']
+      )
+      or exists (
+        select 1 from public.driver_vehicle_assignments a
+        where a.vehicle_id = vehicles.id
+          and a.driver_id = public.current_driver_id(vehicles.organisation_id)
+          and a.ends_on is null
+          and a.deleted_at is null
+      )
+      or exists (
+        select 1 from public.trip_assignments ta
+        where ta.vehicle_id = vehicles.id
+          and ta.driver_id = public.current_driver_id(vehicles.organisation_id)
+          and ta.released_at is null
+          and ta.deleted_at is null
+      )
+      or (
+        organisation_id in (select public.user_organisation_ids())
+        and not public.has_org_role_names(
+          organisation_id,
+          array['driver']
+        )
+        and (
+          case
+            when public.is_company_manager(organisation_id) then
+              false
+            else
+              company_id is null
+              or public.has_company_scope(organisation_id, company_id)
+          end
+        )
+      )
+    )
+  );
 
 revoke all on function public.sync_staff_trip_invoice_line(uuid, boolean) from public, anon, authenticated;
 grant execute on function public.sync_staff_trip_invoice_line(uuid, boolean) to service_role;
@@ -38,7 +107,6 @@ drop function if exists public.update_staff_trip(
 
 -- 00062 revert
 drop function if exists public.reject_driver_trip(uuid, text);
-drop function if exists public.approve_driver_trip(uuid, uuid);
 drop function if exists public.approve_driver_trip(uuid);
 drop function if exists public.suggest_driver_trip_vehicle(uuid);
 drop function if exists public.submit_driver_trip(

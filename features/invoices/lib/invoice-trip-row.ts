@@ -103,7 +103,7 @@ export function buildTripPrintRow(
       company: parsed.company,
       pax: resolvePax(parsed.pax, paxCount),
       area: parsed.area,
-      amount: formatZarAmount(line.amount),
+      amount: formatLineAmount(line),
       lineType: line.line_type,
     };
   }
@@ -128,9 +128,18 @@ export function buildTripPrintRow(
     company,
     pax: resolvePax(null, paxCount),
     area,
-    amount: formatZarAmount(line.amount),
+    amount: formatLineAmount(line),
     lineType: line.line_type,
   };
+}
+
+function formatLineAmount(line: InvoiceLine): string {
+  const base = formatZarAmount(line.amount);
+  if (line.price_overridden) {
+    const reason = line.override_reason?.trim();
+    return reason ? `${base} (override: ${reason})` : `${base} (override)`;
+  }
+  return base;
 }
 
 export function buildNonTripPrintRow(
@@ -144,7 +153,7 @@ export function buildNonTripPrintRow(
     company: "—",
     pax: "—",
     area: line.description,
-    amount: formatZarAmount(line.amount),
+    amount: formatLineAmount(line),
     lineType: line.line_type,
   };
 }
