@@ -19,7 +19,6 @@ export type SubmitDriverTripInput = {
 export type SubmitDriverTripResult = {
   tripId: string;
   duplicateWarning: boolean;
-  needsVehicle: boolean;
 };
 
 function plannedStartIso(date: string, time: string): string {
@@ -42,15 +41,23 @@ export async function submitDriverTrip(
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as
-    | { trip_id: string; duplicate_warning: boolean; needs_vehicle: boolean }
+    | { trip_id: string; duplicate_warning: boolean }
     | null
     | undefined;
   if (!row?.trip_id) throw new Error("Trip was not created");
   return {
     tripId: row.trip_id,
     duplicateWarning: Boolean(row.duplicate_warning),
-    needsVehicle: Boolean(row.needs_vehicle),
   };
+}
+
+export async function suggestDriverTripVehicle(tripId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("suggest_driver_trip_vehicle", {
+    p_trip_id: tripId,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
 }
 
 export async function listMyDriverSubmissions(
@@ -113,10 +120,14 @@ export async function countPendingDriverSubmissions(
   return rows.filter((t) => !t.rejected_reason?.trim()).length;
 }
 
-export async function approveDriverTrip(tripId: string): Promise<void> {
+export async function approveDriverTrip(
+  tripId: string,
+  vehicleId: string
+): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("approve_driver_trip", {
     p_trip_id: tripId,
+    p_vehicle_id: vehicleId,
   });
   if (error) throw error;
 }

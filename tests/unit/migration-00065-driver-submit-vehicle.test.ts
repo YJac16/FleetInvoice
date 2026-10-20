@@ -12,14 +12,12 @@ const sql = readFileSync(
 );
 
 describe("migration 00065 driver submit assigned vehicle", () => {
-  it("drops client vehicle param and uses driver_default_vehicle_id", () => {
+  it("drops client vehicle param from submit_driver_trip", () => {
     expect(sql).toMatch(/drop function if exists public\.submit_driver_trip/);
-    expect(sql).toMatch(/driver_default_vehicle_id\(p_organisation_id, v_driver_id\)/);
     expect(sql).not.toContain("p_vehicle_id uuid");
-    expect(sql).toMatch(/needs_vehicle boolean/);
   });
 
-  it("requires vehicle on approval", () => {
+  it("requires vehicle on approval (superseded by 00066 with explicit param)", () => {
     expect(sql).toMatch(/Assign a vehicle on this trip before approval/);
   });
 

@@ -60,11 +60,7 @@ export function DriverLogTripPage() {
         notes,
       }),
     onSuccess: (result) => {
-      if (result.needsVehicle) {
-        toast.warning(
-          "Submitted — no vehicle is assigned to you. An admin must set a vehicle before approval."
-        );
-      } else if (result.duplicateWarning) {
+      if (result.duplicateWarning) {
         toast.warning(
           "Submitted — a similar trip (same window, company or driver, and route) already exists."
         );
@@ -87,7 +83,7 @@ export function DriverLogTripPage() {
       <div>
         <h1 className="text-lg font-semibold text-white">Log a trip</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Your assigned vehicle is applied automatically. Rate card applies after admin approval.
+          An admin assigns the vehicle when approving. Rate card applies after approval.
         </p>
       </div>
 
@@ -194,8 +190,7 @@ export function DriverLogTripPage() {
         </div>
 
         <p className="text-xs text-zinc-500">
-          Vehicle comes from your current driver–vehicle assignment. If none is set, an admin will
-          assign one before approving.
+          You do not choose a vehicle here — that happens during admin approval.
         </p>
 
         <div className="flex flex-col gap-2 pt-2">

@@ -12,6 +12,7 @@ export const AUTHENTICATED_CLIENT_RPCS = [
   "compliance_storage_path_allowed",
   "admin_create_staff_trip",
   "approve_driver_trip",
+  "suggest_driver_trip_vehicle",
   "assign_staff_trip",
   "assign_trip",
   "assign_vehicle_to_driver",
