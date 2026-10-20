@@ -12,7 +12,6 @@ export type SubmitDriverTripInput = {
   dropoff: string;
   companyId: string;
   paxCount: number;
-  vehicleId: string;
   totalKm: number;
   notes?: string;
 };
@@ -20,6 +19,7 @@ export type SubmitDriverTripInput = {
 export type SubmitDriverTripResult = {
   tripId: string;
   duplicateWarning: boolean;
+  needsVehicle: boolean;
 };
 
 function plannedStartIso(date: string, time: string): string {
@@ -37,19 +37,19 @@ export async function submitDriverTrip(
     p_dropoff: input.dropoff,
     p_company_id: input.companyId,
     p_pax_count: input.paxCount,
-    p_vehicle_id: input.vehicleId,
     p_total_km: input.totalKm,
     p_notes: input.notes ?? null,
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as
-    | { trip_id: string; duplicate_warning: boolean }
+    | { trip_id: string; duplicate_warning: boolean; needs_vehicle: boolean }
     | null
     | undefined;
   if (!row?.trip_id) throw new Error("Trip was not created");
   return {
     tripId: row.trip_id,
     duplicateWarning: Boolean(row.duplicate_warning),
+    needsVehicle: Boolean(row.needs_vehicle),
   };
 }
 

@@ -98,6 +98,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   platform_owner: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "trips:admin_edit",
     "organisations:view",
     "organisations:manage",
     "subscriptions:view",

@@ -20,9 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminManualTripDialog } from "@/features/trips/components/admin-manual-trip-dialog";
+import { ApproveDriverTripDialog } from "@/features/trips/components/approve-driver-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
 import {
-  approveDriverTrip,
   listPendingDriverSubmissions,
   rejectDriverTrip,
 } from "@/services/driver-submitted-trips.service";
@@ -34,16 +34,18 @@ import { queryKeys } from "@/utils/query";
 export function PendingDriverTripsPanel({
   organisationId,
   canManage,
+  canAdminister,
 }: {
   organisationId: string;
   canManage: boolean;
+  canAdminister: boolean;
 }) {
   const queryClient = useQueryClient();
   const [rejectTarget, setRejectTarget] = useState<StaffTrip | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [editTrip, setEditTrip] = useState<StaffTrip | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [approveTrip, setApproveTrip] = useState<StaffTrip | null>(null);
 
   const query = useQuery({
     queryKey: [...queryKeys.pendingDriverSubmissions(organisationId), "list"],
@@ -57,29 +59,6 @@ export function PendingDriverTripsPanel({
     });
     void queryClient.invalidateQueries({ queryKey: queryKeys.trips(organisationId) });
   };
-
-  const approveMutation = useMutation({
-    mutationFn: (tripId: string) => approveDriverTrip(tripId),
-    onSuccess: () => {
-      toast.success("Trip approved");
-      invalidate();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const bulkApproveMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        await approveDriverTrip(id);
-      }
-    },
-    onSuccess: () => {
-      toast.success("Selected trips approved");
-      setSelected(new Set());
-      invalidate();
-    },
-    onError: (err) => toast.error(getErrorMessage(err)),
-  });
 
   const rejectMutation = useMutation({
     mutationFn: () => rejectDriverTrip(rejectTarget!.id, rejectReason),
@@ -110,16 +89,9 @@ export function PendingDriverTripsPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => setManualOpen(true)}>
-          Create trip manually
-        </Button>
-        {trips.length > 0 ? (
-          <Button
-            size="sm"
-            disabled={selected.size === 0 || bulkApproveMutation.isPending}
-            onClick={() => bulkApproveMutation.mutate([...selected])}
-          >
-            Approve selected ({selected.size})
+        {canAdminister ? (
+          <Button size="sm" variant="outline" onClick={() => setManualOpen(true)}>
+            Create trip manually
           </Button>
         ) : null}
       </div>
@@ -131,26 +103,12 @@ export function PendingDriverTripsPanel({
         />
       ) : (
         <ul className="space-y-3">
-          {trips.map((trip) => {
-            const checked = selected.has(trip.id);
-            return (
+          {trips.map((trip) => (
               <li
                 key={trip.id}
                 className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={checked}
-                      onChange={(e) => {
-                        const next = new Set(selected);
-                        if (e.target.checked) next.add(trip.id);
-                        else next.delete(trip.id);
-                        setSelected(next);
-                      }}
-                    />
                     <div>
                       <p className="font-medium">
                         {trip.companies?.name ?? "Company"} · {trip.pax_count ?? 0} pax
@@ -162,31 +120,34 @@ export function PendingDriverTripsPanel({
                       {trip.total_km != null ? (
                         <p className="text-muted-foreground">{trip.total_km} km</p>
                       ) : null}
+                      <p className="mt-1 text-muted-foreground">
+                        Vehicle assigned on approval
+                      </p>
                     </div>
-                  </label>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setEditTrip(trip)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => approveMutation.mutate(trip.id)}
-                      disabled={approveMutation.isPending}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setRejectTarget(trip)}
-                    >
-                      Reject
-                    </Button>
+                    {canAdminister ? (
+                      <Button size="sm" variant="outline" onClick={() => setEditTrip(trip)}>
+                        Edit
+                      </Button>
+                    ) : null}
+                    {canAdminister ? (
+                      <Button size="sm" onClick={() => setApproveTrip(trip)}>
+                        Approve
+                      </Button>
+                    ) : null}
+                    {canAdminister ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setRejectTarget(trip)}
+                      >
+                        Reject
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </li>
-            );
-          })}
+          ))}
         </ul>
       )}
 
@@ -204,6 +165,14 @@ export function PendingDriverTripsPanel({
         onOpenChange={setManualOpen}
         organisationId={organisationId}
         onCreated={invalidate}
+      />
+
+      <ApproveDriverTripDialog
+        open={Boolean(approveTrip)}
+        onOpenChange={(open) => !open && setApproveTrip(null)}
+        organisationId={organisationId}
+        trip={approveTrip}
+        onApproved={invalidate}
       />
 
       <AlertDialog

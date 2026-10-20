@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 /**
- * Driver trip admin audit + billing override (00063).
- * Static checks always run; integration checks need local Postgres bootstrap.
+ * Driver trip admin audit + billing override (00063/00064).
+ * Requires: bash scripts/local-db/bootstrap-native.sh
  */
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const sql = readFileSync(
-  join(root, "supabase/migrations/00063_driver_trip_admin_audit_override.sql"),
+  join(root, "supabase/migrations/00064_driver_trip_admin_hardening.sql"),
   "utf8"
 );
 
 const staticChecks = [
-  ["trip_audit table", /create table if not exists public\.trip_audit/],
-  ["override in sync", /from public\.trip_billing_overrides bo/],
-  ["snapshot on submit", /insert into public\.trip_driver_submission_snapshots/],
-  ["set_trip_billing_override", /function public\.set_trip_billing_override/],
+  ["trip_status cast on admin create", /::public\.trip_status/],
+  ["duplicate 45min window", /45 \* 60/],
+  ["block unapproved start", /Driver submission must be approved/],
+  ["approve audit", /submission_status/],
 ];
 
 let failed = 0;
@@ -28,13 +28,15 @@ for (const [name, pattern] of staticChecks) {
   if (!pass) failed = 1;
 }
 
-const pgCheck = spawnSync("which", ["psql"], { encoding: "utf8" });
-const hasPg = pgCheck.status === 0;
-
-if (!hasPg) {
-  console.log("SKIP integration (psql not available)");
-  process.exit(failed);
+function requirePsql() {
+  const pgCheck = spawnSync("which", ["psql"], { encoding: "utf8" });
+  if (pgCheck.status !== 0) {
+    console.error("FAIL integration — psql not available (required)");
+    process.exit(1);
+  }
 }
+
+requirePsql();
 
 const PG = {
   database: process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit",
@@ -42,11 +44,13 @@ const PG = {
   auditPassword: process.env.WORKOPS_AUDIT_PG_PASSWORD ?? "audit_rls_test",
 };
 
-const ORG_A = "a0000000-0000-4000-8000-000000000001";
-const adminA = "a0000000-0000-4000-8000-000000000011";
-const driverA = "a0000000-0000-4000-8000-000000000201";
-const SPRINGBOK = "e5000000-0000-4000-8000-000000000002";
-const VEHICLE_A = "f5000000-0000-4000-8000-000000000001";
+const ORG = "d9000000-0000-4000-8000-000000000001";
+const adminUser = "d9000000-0000-4000-8000-000000000011";
+const driverUser = "d9000000-0000-4000-8000-000000000012";
+const driverRow = "d9000000-0000-4000-8000-000000000201";
+const companyId = "d9000000-0000-4000-8000-000000000301";
+const vehicleId = "d9000000-0000-4000-8000-000000000401";
+const billTo = "e5000000-0000-4000-8000-000000000001";
 
 function psqlAdmin(body) {
   const res = spawnSync(
@@ -86,62 +90,97 @@ const bootstrap = spawnSync("bash", [join(root, "scripts/local-db/bootstrap-nati
   stdio: "pipe",
 });
 if (bootstrap.status !== 0) {
-  console.log("SKIP integration (bootstrap failed)");
-  process.exit(failed);
+  console.error("FAIL integration — bootstrap-native.sh failed");
+  console.error(bootstrap.stderr || bootstrap.stdout);
+  process.exit(1);
 }
 
-const tripId = psqlAs(
-  adminA,
-  `select public.backfill_staff_waybill(
-    '${ORG_A}'::uuid,
-    '${driverA}'::uuid,
-    timestamptz '2026-09-24 10:00:00+02',
-    'Audit test route',
-    2,
-    '${SPRINGBOK}'::uuid,
-    null,
-    null,
-    null,
-    '${VEHICLE_A}'::uuid
-  );`
-).out;
+psqlAdmin(`
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '${adminUser}', 'authenticated', 'authenticated',
+   'audit-admin@driver-trip.test', crypt('TestPassword123!', gen_salt('bf')), now(), now(), now(), '{}', '{}'),
+  ('00000000-0000-0000-0000-000000000000', '${driverUser}', 'authenticated', 'authenticated',
+   'audit-driver@driver-trip.test', crypt('TestPassword123!', gen_salt('bf')), now(), now(), now(), '{}', '{}')
+on conflict (id) do nothing;
 
-const rateBefore = psqlAdmin(
-  `select unit_price::text from public.invoice_lines where trip_id = '${tripId}'::uuid;`
+insert into public.organisations (id, name, slug, status)
+values ('${ORG}', 'Driver Trip Audit Org', 'driver-trip-audit', 'active')
+on conflict (id) do update set name = excluded.name;
+
+insert into public.organisation_members (organisation_id, user_id, role, status)
+values
+  ('${ORG}', '${adminUser}', 'organisation_admin', 'active'),
+  ('${ORG}', '${driverUser}', 'driver', 'active')
+on conflict do nothing;
+
+insert into public.drivers (id, organisation_id, profile_id, full_name, status)
+values ('${driverRow}', '${ORG}', '${driverUser}', 'Audit Driver', 'active')
+on conflict (id) do update set profile_id = excluded.profile_id;
+
+insert into public.companies (id, organisation_id, name, status)
+values
+  ('${companyId}', '${ORG}', 'Audit Co', 'active'),
+  ('${billTo}', '${ORG}', 'WCL Trading CC', 'active')
+on conflict (id) do nothing;
+
+insert into public.rate_cards (organisation_id, company_id, name, line_type, unit, unit_amount, effective_from)
+select '${ORG}', '${companyId}', 'Audit rate', 'trip', 'fixed', 440, date '2026-08-01'
+where not exists (
+  select 1 from public.rate_cards rc
+  where rc.organisation_id = '${ORG}' and rc.company_id = '${companyId}' and rc.deleted_at is null
 );
 
+insert into public.vehicles (id, organisation_id, name, registration_number, status, vehicle_type)
+values ('${vehicleId}', '${ORG}', 'Audit Van', 'AUD-001', 'active', 'other')
+on conflict (id) do nothing;
+
+update public.organisations
+set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('invoice_bill_to_company_id', '${billTo}')
+where id = '${ORG}';
+`);
+
+const tripId = psqlAs(
+  adminUser,
+  `select (public.backfill_staff_waybill(
+    '${ORG}'::uuid,
+    '${driverRow}'::uuid,
+    timestamptz '2026-09-24 10:00:00+02',
+    'Dup route A → B',
+    1,
+    '${companyId}'::uuid,
+    null,
+    null,
+    null,
+    '${vehicleId}'::uuid
+  ))::text;`
+).out;
+
 psqlAs(
-  adminA,
-  `select public.set_trip_billing_override(
-    '${tripId}'::uuid,
-    123.45,
-    'Founder test override'
-  );`
+  adminUser,
+  `select public.set_trip_billing_override('${tripId}'::uuid, 123.45, 'test override');`
 );
 
 const rateAfter = psqlAdmin(
   `select unit_price::text from public.invoice_lines where trip_id = '${tripId}'::uuid;`
 );
-
-const overrideWins = rateAfter === "123.45";
-console.log(overrideWins ? "PASS override-beats-rate-card" : "FAIL override-beats-rate-card", {
-  rateBefore,
-  rateAfter,
-});
-if (!overrideWins) failed = 1;
+if (Number.parseFloat(rateAfter).toFixed(2) !== "123.45") {
+  console.log("FAIL override-beats-rate-card", rateAfter);
+  failed = 1;
+} else {
+  console.log("PASS override-beats-rate-card");
+}
 
 psqlAs(
-  adminA,
+  adminUser,
   `select public.update_staff_trip(
     '${tripId}'::uuid,
     timestamptz '2026-09-24 11:00:00+02',
-    null,
-    null,
-    'Updated area',
-    3,
-    null,
-    null,
-    null,
+    null, null, 'Updated area', 3,
+    null, null, null,
     'Admin correction'
   );`
 );
@@ -149,20 +188,23 @@ psqlAs(
 const auditCount = psqlAdmin(
   `select count(*)::text from public.trip_audit where trip_id = '${tripId}'::uuid;`
 );
-const hasAudit = Number(auditCount) >= 2;
-console.log(hasAudit ? "PASS audit-rows-on-edit" : "FAIL audit-rows-on-edit", { auditCount });
-if (!hasAudit) failed = 1;
+if (Number(auditCount) < 2) {
+  console.log("FAIL audit-rows-on-edit", auditCount);
+  failed = 1;
+} else {
+  console.log("PASS audit-rows-on-edit");
+}
 
-const driverSelect = psqlAs(
-  driverA,
+const driverAudit = psqlAs(
+  driverUser,
   `select count(*)::text from public.trip_audit;`,
   { allowError: true }
 );
-const driverBlocked = !driverSelect.ok || driverSelect.out === "0";
-console.log(
-  driverBlocked ? "PASS driver-no-trip-audit-select" : "FAIL driver-no-trip-audit-select",
-  driverSelect.text.slice(0, 80)
-);
-if (!driverBlocked) failed = 1;
+if (driverAudit.ok && driverAudit.out !== "0") {
+  console.log("FAIL driver-no-trip-audit-select", driverAudit.out);
+  failed = 1;
+} else {
+  console.log("PASS driver-no-trip-audit-select");
+}
 
 process.exit(failed);

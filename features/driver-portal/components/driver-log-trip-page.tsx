@@ -19,10 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
 import { listActiveCompanies } from "@/services/companies.service";
-import { listVehicles } from "@/services/vehicles.service";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 
@@ -39,19 +37,12 @@ export function DriverLogTripPage() {
   const [dropoff, setDropoff] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [pax, setPax] = useState("1");
-  const [vehicleId, setVehicleId] = useState("");
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
     queryFn: () => listActiveCompanies(organisationId!),
-    enabled: Boolean(organisationId) && canSelf,
-  });
-
-  const vehiclesQuery = useQuery({
-    queryKey: organisationId ? queryKeys.vehicles(organisationId) : ["vehicles", "none"],
-    queryFn: () => listVehicles(organisationId!),
     enabled: Boolean(organisationId) && canSelf,
   });
 
@@ -65,14 +56,17 @@ export function DriverLogTripPage() {
         dropoff,
         companyId,
         paxCount: Number(pax),
-        vehicleId,
         totalKm: Number(km),
         notes,
       }),
     onSuccess: (result) => {
-      if (result.duplicateWarning) {
+      if (result.needsVehicle) {
         toast.warning(
-          "Submitted — a similar trip (same date, time and route) already exists."
+          "Submitted — no vehicle is assigned to you. An admin must set a vehicle before approval."
+        );
+      } else if (result.duplicateWarning) {
+        toast.warning(
+          "Submitted — a similar trip (same window, company or driver, and route) already exists."
         );
       } else {
         toast.success("Trip submitted for approval");
@@ -93,7 +87,7 @@ export function DriverLogTripPage() {
       <div>
         <h1 className="text-lg font-semibold text-white">Log a trip</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Rate card applies after admin approval.
+          Your assigned vehicle is applied automatically. Rate card applies after admin approval.
         </p>
       </div>
 
@@ -191,26 +185,6 @@ export function DriverLogTripPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-zinc-300">Vehicle</Label>
-          <Select
-            value={vehicleId}
-            onValueChange={(value) => setVehicleId(value ?? "")}
-            required
-          >
-            <SelectTrigger className="border-zinc-700 bg-zinc-900">
-              <SelectValue placeholder="Select vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              {(vehiclesQuery.data ?? []).map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {formatVehicleOptionLabel(v.registration_number, v.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
           <Label className="text-zinc-300">Notes</Label>
           <Textarea
             value={notes}
@@ -219,7 +193,10 @@ export function DriverLogTripPage() {
           />
         </div>
 
-        <p className="text-xs text-zinc-500">Rate card applies once approved.</p>
+        <p className="text-xs text-zinc-500">
+          Vehicle comes from your current driver–vehicle assignment. If none is set, an admin will
+          assign one before approving.
+        </p>
 
         <div className="flex flex-col gap-2 pt-2">
           <Button
