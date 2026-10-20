@@ -26,6 +26,7 @@ export type Permission =
   | "schedules:manage"
   | "trips:view"
   | "trips:manage"
+  | "trips:admin_edit"
   | "trips:self"
   | "reports:view"
   | "settings:view"
@@ -113,6 +114,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   organisation_admin: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "trips:admin_edit",
     "users:view",
     "users:manage",
     "settings:manage",
@@ -124,6 +126,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   manager: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    "trips:admin_edit",
     "users:view",
     "attendance:view",
     "attendance:manage",

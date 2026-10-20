@@ -50,6 +50,7 @@ export function TripsPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("trips:manage");
+  const canAdministerDriverTrips = can("trips:admin_edit");
   const canViewAttendance = can("attendance:view") || can("trips:view");
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -292,6 +293,7 @@ export function TripsPage() {
         <PendingDriverTripsPanel
           organisationId={organisationId}
           canManage={canManage}
+          canAdminister={canAdministerDriverTrips}
         />
       ) : null}
 
