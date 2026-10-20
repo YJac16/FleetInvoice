@@ -116,6 +116,13 @@ describe("permissions", () => {
     expect(hasPermission("supervisor", "attendance:manage")).toBe(true);
   });
 
+  it("limits trips:admin_edit to organisation_admin and manager", () => {
+    expect(hasPermission("organisation_admin", "trips:admin_edit")).toBe(true);
+    expect(hasPermission("manager", "trips:admin_edit")).toBe(true);
+    expect(hasPermission("dispatcher", "trips:admin_edit")).toBe(false);
+    expect(hasPermission("supervisor", "trips:admin_edit")).toBe(false);
+  });
+
   it("keeps trips:manage for dispatcher and manager", () => {
     expect(hasPermission("dispatcher", "trips:manage")).toBe(true);
     expect(hasPermission("manager", "trips:manage")).toBe(true);

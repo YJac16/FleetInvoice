@@ -354,6 +354,8 @@ export type InvoiceLine = {
   quantity: number;
   unit_price: number;
   amount: number;
+  price_overridden?: boolean;
+  override_reason?: string | null;
   created_at: string;
 };
 
@@ -530,6 +532,10 @@ export type StaffTrip = Trip & {
   waybill_confirmed_at: string | null;
   staff_started_at: string | null;
   staff_completed_at: string | null;
+  submitted_by_driver?: boolean;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejected_reason?: string | null;
 };
 
 export type DriverInboxNotification = {

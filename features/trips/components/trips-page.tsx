@@ -25,6 +25,8 @@ import { useTripsListQuery } from "@/hooks/use-trips-list-query";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
+import { PendingDriverTripsPanel } from "@/features/trips/components/pending-driver-trips-panel";
+import { countPendingDriverSubmissions } from "@/services/driver-submitted-trips.service";
 import { AssignTripDialog } from "@/features/trips/components/assign-trip-dialog";
 import { GenerateTripsDialog } from "@/features/trips/components/generate-trips-dialog";
 import { TripLocationsDialog } from "@/features/trips/components/trip-locations-dialog";
@@ -48,6 +50,7 @@ export function TripsPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("trips:manage");
+  const canAdministerDriverTrips = can("trips:admin_edit");
   const canViewAttendance = can("attendance:view") || can("trips:view");
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -58,10 +61,23 @@ export function TripsPage() {
   const [assigningTripId, setAssigningTripId] = useState<string | null>(null);
   const [passengersTrip, setPassengersTrip] = useState<Trip | null>(null);
   const [locationsTrip, setLocationsTrip] = useState<Trip | null>(null);
+  const [tripsTab, setTripsTab] = useState<"scheduled" | "driver_pending">(
+    "scheduled"
+  );
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
 
   const tripsQuery = useTripsListQuery(organisationId, range);
+
+  const pendingDriverCountQuery = useQuery({
+    queryKey: organisationId
+      ? [...queryKeys.pendingDriverSubmissions(organisationId), "count"]
+      : ["pending-driver-count", "none"],
+    queryFn: () => countPendingDriverSubmissions(organisationId!),
+    enabled: Boolean(organisationId) && canManage,
+    refetchInterval: 60_000,
+  });
+  const pendingDriverCount = pendingDriverCountQuery.data ?? 0;
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
   const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
@@ -247,41 +263,79 @@ export function TripsPage() {
         }
       />
 
-      <div className="mb-4 space-y-4">
-        <DateRangeFilter
-          range={range}
-          onPresetChange={setPreset}
-          onCustomChange={setCustomRange}
-          updating={rangeRefreshing}
-        />
-        <SearchBar value={search} onChange={setSearch} />
-      </div>
+      {canManage ? (
+        <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-3">
+          <Button
+            type="button"
+            size="sm"
+            variant={tripsTab === "scheduled" ? "default" : "outline"}
+            onClick={() => setTripsTab("scheduled")}
+          >
+            Scheduled trips
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={tripsTab === "driver_pending" ? "default" : "outline"}
+            onClick={() => setTripsTab("driver_pending")}
+          >
+            Pending driver trips
+            {pendingDriverCount > 0 ? (
+              <span className="ml-2 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs">
+                {pendingDriverCount}
+              </span>
+            ) : null}
+          </Button>
+        </div>
+      ) : null}
 
-      {showTripsSkeleton ? (
-        <LoadingSkeleton />
-      ) : (
-        <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
-          {rows.length === 0 ? (
-        <EmptyState
-          icon={Bus}
-          title={emptyState.title}
-          description={emptyState.description}
-          actionLabel={
-            canManage && emptyState.showGenerateAction
-              ? "Generate trips"
-              : undefined
-          }
-          onAction={
-            canManage && emptyState.showGenerateAction
-              ? () => setGenerateOpen(true)
-              : undefined
-          }
+      {tripsTab === "driver_pending" && canManage ? (
+        <PendingDriverTripsPanel
+          organisationId={organisationId}
+          canManage={canManage}
+          canAdminister={canAdministerDriverTrips}
         />
+      ) : null}
+
+      {tripsTab === "scheduled" ? (
+        <>
+          <div className="mb-4 space-y-4">
+            <DateRangeFilter
+              range={range}
+              onPresetChange={setPreset}
+              onCustomChange={setCustomRange}
+              updating={rangeRefreshing}
+            />
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+
+          {showTripsSkeleton ? (
+            <LoadingSkeleton />
           ) : (
-            <DataTable columns={columns} data={rows} />
+            <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={Bus}
+                  title={emptyState.title}
+                  description={emptyState.description}
+                  actionLabel={
+                    canManage && emptyState.showGenerateAction
+                      ? "Generate trips"
+                      : undefined
+                  }
+                  onAction={
+                    canManage && emptyState.showGenerateAction
+                      ? () => setGenerateOpen(true)
+                      : undefined
+                  }
+                />
+              ) : (
+                <DataTable columns={columns} data={rows} />
+              )}
+            </RangeQueryBody>
           )}
-        </RangeQueryBody>
-      )}
+        </>
+      ) : null}
 
       <AssignStaffTripDialog
         open={assignStaffOpen}

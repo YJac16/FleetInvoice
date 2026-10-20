@@ -459,7 +459,11 @@ psqlAs(
     '${COMP_B}'::uuid,
     null,
     null,
-    null
+    null,
+    null,
+    null,
+    null,
+    'PR A company switch test'
   );`
 );
 const switchAmount = psqlAdmin(

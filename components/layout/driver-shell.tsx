@@ -6,10 +6,11 @@ import type { ReactNode } from "react";
 import {
   CalendarDays,
   CircleUser,
-  Clock,
   FileText,
   Home,
+  ListChecks,
   LogOut,
+  PenLine,
 } from "lucide-react";
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
@@ -28,9 +29,9 @@ import { cn } from "@/lib/utils";
 
 const DRIVER_TABS = [
   { href: "/driver", label: "Today", icon: Home, exact: true },
+  { href: "/driver/log", label: "Log", icon: PenLine },
+  { href: "/driver/submissions", label: "Mine", icon: ListChecks },
   { href: "/driver/week", label: "Week", icon: CalendarDays },
-  { href: "/driver/history", label: "History", icon: Clock },
-  { href: "/driver/documents", label: "Docs", icon: FileText },
   { href: "/driver/profile", label: "Profile", icon: CircleUser },
 ] as const;
 

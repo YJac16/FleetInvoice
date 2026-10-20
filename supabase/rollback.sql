@@ -821,6 +821,6 @@ grant execute on function public.ensure_trip_assignment_vehicle(uuid, uuid, uuid
 revoke all on function public.guard_company_manager_member_scope() from public, anon, authenticated;
 
 -- Migration 00061: use supabase/rollback-00061.sql (separate transaction).
--- Migrations 00061–00063: use supabase/rollback-00061-00063.sql (separate transaction).
+-- Migrations 00061–00067 (+00068): use supabase/rollback-00061-00067.sql (separate transaction).
 
 COMMIT;
