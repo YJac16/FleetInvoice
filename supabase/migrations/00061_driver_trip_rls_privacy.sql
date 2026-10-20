@@ -7,7 +7,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
@@ -23,7 +23,7 @@ as $$
   );
 $$;
 
-revoke all on function public.trip_assigned_to_current_driver(uuid) from public;
+revoke all on function public.trip_assigned_to_current_driver(uuid) from public, anon;
 grant execute on function public.trip_assigned_to_current_driver(uuid) to authenticated;
 
 comment on function public.trip_assigned_to_current_driver(uuid) is
@@ -186,3 +186,6 @@ create policy trip_events_select on public.trip_events
       end
     )
   );
+
+create index if not exists trip_assignments_trip_id_driver_id_idx
+  on public.trip_assignments (trip_id, driver_id);

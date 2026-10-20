@@ -16,8 +16,13 @@ const PG = {
 };
 
 const ORG_A = "a0000000-0000-4000-8000-000000000001";
+const ORG_B = "b0000000-0000-4000-8000-000000000001";
+const platformOwner = "f0000000-0000-4000-8000-000000000001";
 const adminA = "a0000000-0000-4000-8000-000000000011";
+const adminB = "b0000000-0000-4000-8000-000000000011";
 const driverA = "a0000000-0000-4000-8000-000000000012";
+const employeeA = "a0000000-0000-4000-8000-000000000013";
+const companyMgrA = "a0000000-0000-4000-8000-000000000014";
 const driverBUser = "a0000000-0000-4000-8000-000000000019";
 const dispatcher = "d1000000-0000-4000-8000-000000000024";
 const supervisorA = "a0000000-0000-4000-8000-000000000018";
@@ -130,10 +135,22 @@ values
   ('${T_B}', '${ORG_A}', '${C2}', null, true, 'Route B', '2026-11-01T09:00:00Z', 'completed')
 on conflict (id) do nothing;
 
+insert into public.employees (id, organisation_id, company_id, full_name, email, profile_id, status)
+values (
+  'a0000000-0000-4000-8000-000000000302',
+  '${ORG_A}',
+  '${C2}',
+  'Org A Employee Two',
+  'employee2.a@audit.test',
+  null,
+  'active'
+)
+on conflict (id) do nothing;
+
 insert into public.trip_passengers (id, organisation_id, trip_id, employee_id, status)
 values
-  ('${P_A}', '${ORG_A}', '${T_A}', (select id from public.employees where organisation_id = '${ORG_A}' limit 1), 'confirmed'),
-  ('${P_B}', '${ORG_A}', '${T_B}', (select id from public.employees where organisation_id = '${ORG_A}' limit 1), 'confirmed')
+  ('${P_A}', '${ORG_A}', '${T_A}', 'a0000000-0000-4000-8000-000000000301', 'confirmed'),
+  ('${P_B}', '${ORG_A}', '${T_B}', 'a0000000-0000-4000-8000-000000000302', 'confirmed')
 on conflict (id) do nothing;
 
 insert into public.trip_assignments (id, organisation_id, trip_id, driver_id, vehicle_id)
@@ -196,6 +213,38 @@ record(
   "DRV-A-not-TE-B",
   psqlAs(driverA, `select count(*)::text from public.trip_events where id = '${TE_B}';`) === "0",
   "other driver trip event hidden"
+);
+
+expectCount("PLATFORM-trips", platformOwner, "trips", `organisation_id = '${ORG_A}'`, 2);
+expectCount("PLATFORM-passengers", platformOwner, "trip_passengers", `organisation_id = '${ORG_A}'`, 2);
+expectCount("PLATFORM-assignments", platformOwner, "trip_assignments", `organisation_id = '${ORG_A}'`, 2);
+expectCount("PLATFORM-events", platformOwner, "trip_events", `organisation_id = '${ORG_A}'`, 2);
+
+expectCount("CMGR-trips", companyMgrA, "trips", `organisation_id = '${ORG_A}'`, 1);
+expectCount("CMGR-passengers", companyMgrA, "trip_passengers", `organisation_id = '${ORG_A}'`, 1);
+expectCount("CMGR-assignments", companyMgrA, "trip_assignments", `organisation_id = '${ORG_A}'`, 1);
+expectCount("CMGR-events", companyMgrA, "trip_events", `organisation_id = '${ORG_A}'`, 1);
+record(
+  "CMGR-not-TB",
+  psqlAs(companyMgrA, `select count(*)::text from public.trips where id = '${T_B}';`) === "0",
+  "company manager scoped to other company trip hidden"
+);
+
+expectCount("EMP-passengers", employeeA, "trip_passengers", `organisation_id = '${ORG_A}'`, 1);
+record(
+  "EMP-not-other-passenger",
+  psqlAs(employeeA, `select count(*)::text from public.trip_passengers where id = '${P_B}';`) === "0",
+  "employee does not see other passenger rows"
+);
+
+const crossTenantTables = ["trips", "trip_passengers", "trip_assignments", "trip_events"];
+for (const table of crossTenantTables) {
+  expectCount(`CROSS-B-${table}`, adminB, table, `organisation_id = '${ORG_A}'`, 0);
+}
+record(
+  "CROSS-B-not-TA",
+  psqlAs(adminB, `select count(*)::text from public.trips where id = '${T_A}';`) === "0",
+  "org B admin cannot read org A trip by id"
 );
 
 console.log(`\n${results.filter((r) => r.pass).length}/${results.length} checks passed`);

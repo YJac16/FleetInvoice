@@ -107,6 +107,8 @@ create policy trip_passengers_select on public.trip_passengers
     or employee_id = public.current_employee_id(organisation_id)
   );
 
+drop index if exists public.trip_assignments_trip_id_driver_id_idx;
+
 drop function if exists public.trip_assigned_to_current_driver(uuid);
 
 COMMIT;
