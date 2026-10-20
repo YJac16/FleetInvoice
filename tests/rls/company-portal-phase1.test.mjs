@@ -29,6 +29,9 @@ const cm1 = "a0000000-0000-4000-8000-000000000014";
 const supervisorA = "a0000000-0000-4000-8000-000000000018";
 const cmB = "b0000000-0000-4000-8000-000000000014";
 const driverRow = "a0000000-0000-4000-8000-000000000201";
+const driverRowB = "a0000000-0000-4000-8000-000000000202";
+const driverBUser = "a0000000-0000-4000-8000-000000000019";
+const MEM_DRV_B = "f1000000-0000-4000-8000-000000000702";
 const C1 = "a0000000-0000-4000-8000-000000000101";
 const C2 = "a0000000-0000-4000-8000-000000000102";
 const B1 = "b0000000-0000-4000-8000-000000000101";
@@ -272,8 +275,25 @@ insert into public.trip_assignments (
 )
 values
   ('${TA_C1}', '${ORG_A}', '${T_C1}', '${driverRow}', '${V_C1}'),
-  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRow}', '${V_C2}'),
+  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRowB}', '${V_C2}'),
   ('${TA_BLANK}', '${ORG_A}', '${T_BLANK}', '${driverRow}', '${V_BLANK}')
+on conflict (id) do nothing;
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '${driverBUser}', 'authenticated', 'authenticated',
+   'driverb.phase1@audit.test', crypt('TestPassword123!', gen_salt('bf')), now(), now(), now(), '{}', '{"full_name":"Driver B"}')
+on conflict (id) do nothing;
+
+insert into public.organisation_members (id, organisation_id, user_id, role, status)
+values ('${MEM_DRV_B}', '${ORG_A}', '${driverBUser}', 'driver', 'active')
+on conflict (id) do nothing;
+
+insert into public.drivers (id, organisation_id, profile_id, full_name, status)
+values ('${driverRowB}', '${ORG_A}', '${driverBUser}', 'Phase1 Driver B', 'active')
 on conflict (id) do nothing;
 
 insert into public.trip_events (id, organisation_id, trip_id, event_type)
@@ -396,10 +416,16 @@ expectCount("DRIVER-lines", driverA, "invoice_lines", "true", 0);
 expectCount("DRIVER-drivers", driverA, "drivers", "true", 1);
 expectCount("DRIVER-vehicles", driverA, "vehicles", "true", 3);
 expectCount("DRIVER-fuel", driverA, "fuel_fillups", "true", 2);
-expectCount("DRIVER-trips", driverA, "trips", "true", 3);
+expectCount("DRIVER-trips", driverA, "trips", "true", 2);
 expectCount("DRIVER-rates-org", driverA, "rate_cards", "company_id is null", 0);
 expectCount("DRIVER-rates-company", driverA, "rate_cards", "company_id is not null", 2);
-expectCount("DRIVER-passengers", driverA, "trip_passengers", "true", 3);
+expectCount("DRIVER-passengers", driverA, "trip_passengers", "true", 2);
+record(
+  "DRIVER-not-other-trip",
+  psqlAs(driverA, `select count(*)::text from public.trips where id = '${T_C2}';`) === "0",
+  "cannot read other driver trip"
+);
+expectCount("DRIVER-B-trips", driverBUser, "trips", `organisation_id = '${ORG_A}'`, 1);
 expectCount("DRIVER-qr", driverA, "qr_tokens", "true", 2);
 
 expectCount("EMP-invoices", employeeA, "invoices", "true", 0);
