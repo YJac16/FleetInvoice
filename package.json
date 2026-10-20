@@ -18,6 +18,7 @@
     "test:admin-capture-rls": "bash tests/rls/run-admin-capture-rls.sh",
     "test:compliance-auth-boundary": "bash tests/rls/run-compliance-auth-boundary.sh",
     "test:company-portal-rls": "bash tests/rls/run-company-portal-phase1.sh",
+    "test:driver-trip-privacy-rls": "bash tests/rls/run-driver-trip-privacy.sh",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
     "db:types": "supabase gen types typescript --local > types/database.ts",
