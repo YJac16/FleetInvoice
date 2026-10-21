@@ -3,7 +3,7 @@ export async function sendInvoiceEmail(input: {
   invoiceId: string;
   to: string;
   cc?: string;
-  printUrl: string;
+  portal?: "ops" | "company";
 }): Promise<{ message: string }> {
   const response = await fetch("/api/invoices/send", {
     method: "POST",
