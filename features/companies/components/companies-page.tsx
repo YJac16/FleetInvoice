@@ -86,6 +86,7 @@ function CompanyForm({
       contact_email: initial?.contact_email ?? "",
       contact_phone: initial?.contact_phone ?? "",
       address: initial?.address ?? "",
+      vat_number: initial?.vat_number ?? "",
       status: initial?.status ?? "active",
       default_trip_rate_zar: "",
       trip_rate_effective_from: defaultEffectiveFromDate(),
@@ -105,6 +106,7 @@ function CompanyForm({
             contact_email: emptyToNull(values.contact_email),
             contact_phone: emptyToNull(values.contact_phone),
             address: emptyToNull(values.address),
+            vat_number: emptyToNull(values.vat_number),
             status: values.status,
           },
           tripRate,
@@ -126,6 +128,12 @@ function CompanyForm({
         label="Contact phone"
       />
       <TextAreaField control={form.control} name="address" label="Address" />
+      <TextField
+        control={form.control}
+        name="vat_number"
+        label="VAT number"
+        placeholder="Printed on tax invoices"
+      />
       <SelectField
         control={form.control}
         name="status"

@@ -23,9 +23,7 @@ const driverAId = "a0000000-0000-4000-8000-000000000201";
 const employeeA = "a0000000-0000-4000-8000-000000000013";
 const cmA = "a0000000-0000-4000-8000-000000000014";
 const adminB = "b0000000-0000-4000-8000-000000000011";
-const driverBUser = "b0000000-0000-4000-8000-000000000012";
 const V1 = "a0000000-0000-4000-8000-000000000601";
-const V2 = "a0000000-0000-4000-8000-000000000602";
 
 const results = [];
 
@@ -291,7 +289,7 @@ record("S12", renewals === "0", `license_disk renewals=${renewals}`);
 
 // S13 / R-retention: count-based superseded retention (current + 1 previous)
 const retBase = `${ORG_A}/drivers/${driverAId}/ret-prdp`;
-for (const [suffix, path] of [
+for (const [, path] of [
   ["v1", `${retBase}-v1.jpg`],
   ["v2", `${retBase}-v2.jpg`],
   ["v3", `${retBase}-v3.jpg`],

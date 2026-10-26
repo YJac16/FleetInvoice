@@ -42,7 +42,7 @@ export function LocationInput({
     enabled: Boolean(organisationId),
   });
 
-  const locations = locationsQuery.data ?? [];
+  const locations = useMemo(() => locationsQuery.data ?? [], [locationsQuery.data]);
   const selectedPlaces = useMemo(() => splitAreaPlaces(value), [value]);
 
   const suggestions = useMemo(

@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import {
   CalendarDays,
   CircleUser,
-  FileText,
   Home,
   ListChecks,
   LogOut,

@@ -14,9 +14,16 @@ const bodySchema = z.object({
   organisationId: z.string().uuid(),
   invoiceId: z.string().uuid(),
   to: z.string().min(1),
-  cc: z.string().optional(),
-  printUrl: z.string().url(),
+  cc: z.string().max(1000).optional(),
 });
+
+/** Max invoice emails one user may send per hour (stops the route being used as a mail relay). */
+const SEND_LIMIT_PER_HOUR = 30;
+
+/** Link for the customer: built here so callers cannot inject an arbitrary URL. */
+function buildPrintUrl(invoiceId: string): string {
+  return `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/company/invoices/${invoiceId}/print`;
+}
 
 export async function POST(request: Request) {
   if (!isEmailDeliveryConfigured()) {
@@ -37,12 +44,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = bodySchema.safeParse(await request.json());
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { organisationId, invoiceId, to, cc, printUrl } = parsed.data;
+  const { organisationId, invoiceId, to, cc } = parsed.data;
+  const printUrl = buildPrintUrl(invoiceId);
 
   const toCheck = validateEmailList(to, { required: true });
   if (toCheck.error) {
@@ -64,7 +72,8 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (invoiceError) {
-    return NextResponse.json({ error: invoiceError.message }, { status: 500 });
+    console.error("invoice.send lookup failed", invoiceError.code);
+    return NextResponse.json({ error: "Could not load invoice" }, { status: 500 });
   }
   if (!invoice) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -92,7 +101,25 @@ export async function POST(request: Request) {
     .eq("id", organisationId)
     .maybeSingle();
   if (orgError) {
-    return NextResponse.json({ error: orgError.message }, { status: 500 });
+    console.error("invoice.send organisation lookup failed", orgError.code);
+    return NextResponse.json({ error: "Could not load organisation" }, { status: 500 });
+  }
+
+  const admin = createServiceClient();
+  if (admin) {
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count } = await admin
+      .from("audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("actor_id", user.id)
+      .eq("action", "invoice.email_sent")
+      .gte("created_at", since);
+    if ((count ?? 0) >= SEND_LIMIT_PER_HOUR) {
+      return NextResponse.json(
+        { error: "Too many invoice emails sent in the last hour. Try again later." },
+        { status: 429 }
+      );
+    }
   }
 
   const printSettings = parseInvoicePrintSettings({
@@ -125,7 +152,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createServiceClient();
   if (admin) {
     try {
       await admin.rpc("write_audit_log", {
@@ -138,6 +164,7 @@ export async function POST(request: Request) {
           cc: ccEmails,
           print_url: printUrl,
         },
+        p_actor: user.id,
       });
     } catch {
       // best-effort audit

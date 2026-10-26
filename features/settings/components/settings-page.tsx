@@ -29,6 +29,8 @@ import {
 import {
   invoicePrintSettingsFromOrganisation,
   invoicePrintSettingsToOrganisationSettings,
+  DEFAULT_VAT_RATE,
+  parseVatRate,
 } from "@/features/settings/lib/invoice-print-settings-form";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
@@ -58,6 +60,11 @@ const invoicePrintFormSchema = z.object({
   contact_email: z.string(),
   vehicle_reg: z.string(),
   driver_label: z.string(),
+  vat_number: z.string().max(20),
+  vat_rate: z
+    .string()
+    .refine((v) => parseVatRate(v) !== null, "Enter a rate between 0 and 100"),
+  number_prefix: z.string().max(10),
 });
 
 type InvoicePrintFormValues = z.infer<typeof invoicePrintFormSchema>;
@@ -77,6 +84,9 @@ const EMPTY_INVOICE_PRINT: InvoicePrintFormValues = {
   contact_email: "",
   vehicle_reg: "",
   driver_label: "",
+  vat_number: "",
+  vat_rate: DEFAULT_VAT_RATE,
+  number_prefix: "INV",
 };
 
 export function SettingsPage() {
@@ -352,6 +362,36 @@ export function SettingsPage() {
                       label="Email"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm font-medium">VAT and numbering</p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <TextField
+                      control={invoiceForm.control}
+                      name="vat_number"
+                      label="VAT number"
+                      placeholder="Leave blank if not VAT registered"
+                    />
+                    <TextField
+                      control={invoiceForm.control}
+                      name="vat_rate"
+                      label="VAT rate (%)"
+                      placeholder="15"
+                    />
+                    <TextField
+                      control={invoiceForm.control}
+                      name="number_prefix"
+                      label="Invoice number prefix"
+                      placeholder="INV"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    With a VAT number, invoices print as tax invoices and VAT
+                    is added to drafts. Issued invoices keep the rate they were
+                    issued with. Numbers are assigned in order when an invoice
+                    is issued.
+                  </p>
                 </div>
 
                 <div className="space-y-4">

@@ -53,7 +53,7 @@ export function EmployeeBookPage() {
     enabled: Boolean(organisationId) && canSelf,
   });
 
-  const seats = seatsQuery.data ?? [];
+  const seats = useMemo(() => seatsQuery.data ?? [], [seatsQuery.data]);
 
   const seatByTrip = useMemo(() => {
     const map = new Map<string, (typeof seats)[number]>();

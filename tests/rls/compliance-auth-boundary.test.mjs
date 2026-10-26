@@ -47,9 +47,6 @@ function psqlAs(userId, sql) {
   return psqlRaw(sql, { userId }).out.split("\n").filter(Boolean).at(-1) ?? "";
 }
 
-function psqlAsExpectFail(userId, sql) {
-  return psqlRaw(sql, { userId, allowError: true }).ok === false;
-}
 
 function psqlAdmin(sql) {
   const res = spawnSync(

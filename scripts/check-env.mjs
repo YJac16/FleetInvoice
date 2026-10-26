@@ -168,15 +168,6 @@ async function main() {
     console.log("OK  NEXT_PUBLIC_MAPBOX_TOKEN");
   }
 
-  if (isBlank(env.STRIPE_SECRET_KEY)) {
-    warnings.push(
-      "STRIPE_SECRET_KEY empty — plan assign still works; Checkout/Portal disabled"
-    );
-    console.log("WARN STRIPE_SECRET_KEY not set");
-  } else {
-    console.log("OK  STRIPE_SECRET_KEY");
-  }
-
   if (warnings.length) {
     console.log("\nWarnings:");
     for (const w of warnings) console.log(" -", w);

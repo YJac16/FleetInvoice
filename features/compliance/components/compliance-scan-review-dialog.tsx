@@ -67,7 +67,6 @@ export function ComplianceScanReviewDialog({
   const initialFields = useMemo(() => {
     return fieldMappings.map((mapping) => {
       const suggestion = suggestions[mapping.scanKey] ?? null;
-      const lowConfidence = (suggestion?.confidence ?? 0) < 0.85;
       const invalid = warnings.some((w) => w.includes(mapping.scanKey));
       const showSuggestion = Boolean(suggestion?.value) && !invalid;
       return {

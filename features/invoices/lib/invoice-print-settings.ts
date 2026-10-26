@@ -29,6 +29,8 @@ export type InvoicePrintSettings = {
   vehicle_reg?: string;
   /** Own line above REG NO: `DRIVER: {label}` when set; otherwise derived from trip assignments */
   driver_label?: string;
+  /** Supplier VAT number; when set the document prints as a TAX INVOICE. */
+  vat_number?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -201,6 +203,11 @@ export function parseInvoicePrintSettings(
       ? invoiceRecord.vehicle_reg
       : undefined);
 
+  const vatNumber =
+    invoiceRecord && typeof invoiceRecord.vat_number === "string" && invoiceRecord.vat_number.trim()
+      ? invoiceRecord.vat_number.trim()
+      : undefined;
+
   if (!invoiceRecord && !printRecord) {
     return {
       supplier: { name: organisation.name },
@@ -215,5 +222,6 @@ export function parseInvoicePrintSettings(
     contact,
     vehicle_reg: vehicleReg,
     driver_label: driverLabel,
+    vat_number: vatNumber,
   };
 }

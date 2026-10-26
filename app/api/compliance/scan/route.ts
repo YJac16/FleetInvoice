@@ -128,7 +128,12 @@ export async function POST(request: Request) {
       bytes = loaded.bytes;
       tempPath = loaded.path;
     } else if (parsed.data.document_id) {
-      const loaded = await loadRetainedDocumentBytes(admin, parsed.data.document_id);
+      const loaded = await loadRetainedDocumentBytes(
+        admin,
+        parsed.data.document_id,
+        orgId,
+        parsed.data.subject_id
+      );
       if (!loaded) {
         return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
@@ -142,14 +147,16 @@ export async function POST(request: Request) {
       parsed.data.doc_type ?? parsed.data.subject_kind,
       bytes
     );
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("timeout")), SCAN_TIMEOUT_MS);
+      timer = setTimeout(() => reject(new Error("timeout")), SCAN_TIMEOUT_MS);
     });
 
     let raw;
     try {
       raw = await Promise.race([extractPromise, timeout]);
     } catch {
+      clearTimeout(timer);
       await recordScanEvent({
         admin,
         organisationId: orgId,
@@ -168,6 +175,7 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
+    clearTimeout(timer);
 
     const { data: vehicle } = await admin
       .from("vehicles")
@@ -273,12 +281,17 @@ async function loadTempScanBytes(
 
 async function loadRetainedDocumentBytes(
   admin: NonNullable<ReturnType<typeof createServiceClient>>,
-  documentId: string
+  documentId: string,
+  orgId: string,
+  subjectId: string
 ): Promise<{ bytes: Uint8Array; path: string } | null> {
+  // Scope by org and subject: the caller was only authorised for this org's subject.
   const { data: dd } = await admin
     .from("driver_documents")
     .select("storage_path")
     .eq("id", documentId)
+    .eq("organisation_id", orgId)
+    .eq("driver_id", subjectId)
     .is("deleted_at", null)
     .maybeSingle();
   if (dd?.storage_path) return downloadObject(admin, dd.storage_path);
@@ -287,6 +300,8 @@ async function loadRetainedDocumentBytes(
     .from("vehicle_documents")
     .select("storage_path")
     .eq("id", documentId)
+    .eq("organisation_id", orgId)
+    .eq("vehicle_id", subjectId)
     .is("deleted_at", null)
     .maybeSingle();
   if (!vd?.storage_path) return null;

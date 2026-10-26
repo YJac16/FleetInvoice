@@ -26,6 +26,14 @@ const bodySchema = z.object({
  * this route supports partners / non-browser clients with a user session cookie.
  */
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const json = await request.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
@@ -35,21 +43,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { data, error } = await supabase.rpc("ingest_gps_points", {
     p_organisation_id: parsed.data.organisationId,
     p_points: parsed.data.points,
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // P0001 = a message raised on purpose by the RPC (safe to show); anything else stays generic.
+    const message = error.code === "P0001" ? error.message : "Could not record GPS points";
+    if (error.code !== "P0001") console.error("gps.ingest failed", error.code);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   return NextResponse.json({ inserted: data as number });

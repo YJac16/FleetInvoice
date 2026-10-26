@@ -5,6 +5,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isPublicBearerApiPath } from "../auth/cron-public-paths";
 import { env, isSupabaseConfigured } from "../env";
 
+const WL_COOKIE = "workops_wl";
+
+/** Host the white-label cookie was resolved for; lets us skip the lookup on later requests. */
+function readWhiteLabelHost(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { host?: unknown };
+    return typeof parsed.host === "string" ? parsed.host : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -17,7 +30,6 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith("/auth") ||
       pathname.startsWith("/invite") ||
       pathname.startsWith("/compliance-specimen") ||
-      pathname.startsWith("/api/webhooks/") ||
       isPublicBearerApiPath(pathname);
     if (process.env.NODE_ENV === "production" && !isPublic) {
       return new NextResponse("Service unavailable", { status: 503 });
@@ -57,11 +69,13 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/invite") ||
     pathname.startsWith("/compliance-specimen");
-  const isPublicApiRoute =
-    isPublicBearerApiPath(pathname) ||
-    pathname.startsWith("/api/webhooks/stripe");
+  const isPublicApiRoute = isPublicBearerApiPath(pathname);
 
   if (!user && !isPublicAuthRoute && !isPublicApiRoute && pathname !== "/") {
+    // API callers get a JSON 401, not an HTML login redirect.
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
@@ -83,19 +97,27 @@ export async function updateSession(request: NextRequest) {
     const host = (request.headers.get("host") ?? "")
       .split(":")[0]
       .toLowerCase();
-    if (host && !host.includes("localhost") && !host.endsWith(".vercel.app")) {
+    const cachedHost = readWhiteLabelHost(request.cookies.get(WL_COOKIE)?.value);
+    if (
+      host &&
+      !host.includes("localhost") &&
+      !host.endsWith(".vercel.app") &&
+      cachedHost !== host &&
+      !pathname.startsWith("/api/")
+    ) {
       const { data } = await supabase.rpc("lookup_white_label", {
         p_hostname: host,
       });
       const row = Array.isArray(data) ? data[0] : data;
       if (row?.organisation_id) {
         const payload = JSON.stringify({
+          host,
           organisation_id: row.organisation_id,
           logo_url: row.logo_url,
           primary_color: row.primary_color,
           accent_color: row.accent_color,
         });
-        supabaseResponse.cookies.set("workops_wl", payload, {
+        supabaseResponse.cookies.set(WL_COOKIE, payload, {
           path: "/",
           sameSite: "lax",
           maxAge: 60 * 60 * 24,

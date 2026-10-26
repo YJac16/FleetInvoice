@@ -17,7 +17,6 @@ function samplePlan(overrides: Partial<Plan> = {}): Plan {
     code: "growth",
     name: "Growth",
     description: "Everything in Starter",
-    stripe_price_id: null,
     is_active: true,
     sort_order: 20,
     currency: "ZAR",

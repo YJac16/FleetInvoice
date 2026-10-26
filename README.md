@@ -25,8 +25,8 @@ lib/            env, auth, permissions, supabase, notifications
 hooks/          shared React hooks
 types/          domain types
 utils/          pure helpers
-database/       SQL migrations (canonical)
-supabase/       mirrored migrations for CLI workflows
+database/       seeds and diagnostics (non-prod)
+supabase/       SQL migrations (canonical; applied with the Supabase CLI)
 docs/           architecture, ADRs, runbooks
 tests/          unit + RLS harness
 ```
@@ -57,11 +57,16 @@ cp .env.example .env.local
 
 See [`docs/runbooks/env-checklist.md`](docs/runbooks/env-checklist.md).
 
-3. Apply database migrations in the Supabase SQL editor (in order):
+3. Apply database migrations to your Supabase project with the CLI:
 
-- `database/migrations/00001_workops_foundation.sql`
-- `database/migrations/00002_phase0_hardening.sql`
-- `database/migrations/00003_phase2_master_data.sql`
+```bash
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push
+```
+
+All migrations live in `supabase/migrations/` and run in filename order.
+Numbers 00028, 00053, 00054 and 00056 are intentionally unused (dropped
+during review); nothing is missing.
 
 4. Create Storage bucket `vehicle-docs` (see env checklist) for vehicle document uploads.
 

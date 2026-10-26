@@ -23,15 +23,11 @@ import type { PlanWithModules } from "@/types";
 type PlanCardProps = {
   plan: PlanWithModules;
   isCurrent: boolean;
-  onCheckout?: () => void;
-  checkoutEnabled?: boolean;
 };
 
 export function PlanCard({
   plan,
   isCurrent,
-  onCheckout,
-  checkoutEnabled = false,
 }: PlanCardProps) {
   const recommended = isRecommendedPlan(plan.code);
   const price = formatZarFromCents(plan.monthly_price_cents);
@@ -89,10 +85,6 @@ export function PlanCard({
         {isCurrent ? (
           <Button size="sm" variant="outline" disabled>
             Current plan
-          </Button>
-        ) : checkoutEnabled && onCheckout ? (
-          <Button size="sm" variant={recommended ? "default" : "outline"} onClick={onCheckout}>
-            Start checkout
           </Button>
         ) : (
           <p className="text-xs text-muted-foreground">

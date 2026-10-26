@@ -1,5 +1,6 @@
 "use client";
 
+import { formatZarAmount } from "@/features/invoices/lib/invoice-print-format";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   keepPreviousData,
@@ -351,6 +352,14 @@ export function InvoicesPage({
   const columns = useMemo<ColumnDef<Invoice, unknown>[]>(
     () => [
       {
+        id: "number",
+        header: "Invoice no.",
+        cell: ({ row }) =>
+          row.original.invoice_number ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
         id: "company",
         header: "Bill to",
         cell: ({ row }) =>
@@ -377,8 +386,13 @@ export function InvoicesPage({
       {
         accessorKey: "total",
         header: "Total",
-        cell: ({ row }) =>
-          `${row.original.currency} ${row.original.total}`,
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {row.original.currency === "ZAR"
+              ? formatZarAmount(row.original.total)
+              : `${row.original.currency} ${Number(row.original.total).toFixed(2)}`}
+          </span>
+        ),
       },
       {
         id: "actions",
@@ -513,7 +527,7 @@ export function InvoicesPage({
         },
       },
     ],
-    [canEditDraftLines, organisationId, queryClient, selectedId]
+    [canEditDraftLines, canManage, organisationId, queryClient, selectedId]
   );
 
   const lineTableData = useMemo(

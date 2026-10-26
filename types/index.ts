@@ -77,6 +77,8 @@ export type Company = {
   contact_email: string | null;
   contact_phone: string | null;
   address: string | null;
+  /** Customer VAT number, printed on tax invoices. */
+  vat_number?: string | null;
   status: EntityStatus;
   created_by: string | null;
   created_at: string;
@@ -327,7 +329,14 @@ export type Invoice = {
   period_end: string;
   status: InvoiceStatus;
   currency: string;
+  /** e.g. INV-00012; set when the invoice is first issued. */
+  invoice_number?: string | null;
+  invoice_seq?: number | null;
   subtotal: number;
+  /** Percent, frozen once issued (0 when the org is not VAT registered). */
+  vat_rate?: number;
+  vat_amount?: number;
+  /** subtotal + vat_amount */
   total: number;
   notes: string | null;
   generated_by: string | null;
@@ -713,7 +722,6 @@ export type Plan = {
   code: string;
   name: string;
   description: string | null;
-  stripe_price_id: string | null;
   is_active: boolean;
   sort_order: number;
   currency: string;
@@ -744,8 +752,6 @@ export type Subscription = {
   status: SubscriptionStatus;
   current_period_start: string | null;
   current_period_end: string | null;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
   cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;

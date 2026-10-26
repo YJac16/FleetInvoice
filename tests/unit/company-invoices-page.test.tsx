@@ -1,3 +1,4 @@
+import { formatZarAmount } from "@/features/invoices/lib/invoice-print-format";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import React, { type ReactNode } from "react";
@@ -86,7 +87,7 @@ describe("CompanyInvoicesPage", () => {
 
   it("lists read-only non-driver invoices and hides manage controls", async () => {
     renderPage();
-    expect(await screen.findByText("ZAR 1500")).toBeInTheDocument();
+    expect(await screen.findByText(formatZarAmount(1500))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Print" })).toHaveAttribute(
       "href",
       "/company/invoices/inv-client/print"

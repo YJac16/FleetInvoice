@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
 import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { driverValuesToPayload } from "@/features/drivers/components/driver-capture-form";
 import { saveDriverCapture } from "@/services/capture.service";
 import { listMembers } from "@/services/users.service";
 import type { Driver } from "@/types";

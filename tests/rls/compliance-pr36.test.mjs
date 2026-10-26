@@ -5,11 +5,12 @@
  * Run: WORKOPS_AUDIT_PG_DATABASE=workops_audit node tests/rls/compliance-pr36.test.mjs
  */
 import { spawnSync } from "node:child_process";
-import { writeFileSync, readFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "../..");
 
 const PG = {
   host: process.env.WORKOPS_AUDIT_PG_HOST ?? "127.0.0.1",
@@ -23,18 +24,14 @@ const ORG_A = "a0000000-0000-4000-8000-000000000001";
 const ORG_B = "b0000000-0000-4000-8000-000000000001";
 const adminA = "a0000000-0000-4000-8000-000000000011";
 const adminA2 = "a0000000-0000-4000-8000-000000000017";
-const managerA = "a0000000-0000-4000-8000-000000000016";
 const driverAUser = "a0000000-0000-4000-8000-000000000012";
 const driverA2User = "a0000000-0000-4000-8000-000000000015";
 const driverAId = "a0000000-0000-4000-8000-000000000201";
 const driverA2Id = "a0000000-0000-4000-8000-000000000202";
 const employeeA = "a0000000-0000-4000-8000-000000000013";
 const cmA = "a0000000-0000-4000-8000-000000000014";
-const adminB = "b0000000-0000-4000-8000-000000000011";
-const driverBUser = "b0000000-0000-4000-8000-000000000012";
 const V1 = "a0000000-0000-4000-8000-000000000601";
 const V2 = "a0000000-0000-4000-8000-000000000602";
-const V3 = "a0000000-0000-4000-8000-000000000603";
 const CO_A1 = "a0000000-0000-4000-8000-000000000101";
 
 const results = [];
@@ -53,9 +50,9 @@ try {
       "ON_ERROR_STOP=1",
       "-q",
       "-f",
-      "/workspace/supabase/migrations/00032_driver_vehicle_compliance.sql",
+      join(ROOT, "supabase/migrations/00032_driver_vehicle_compliance.sql"),
       "-f",
-      "/workspace/supabase/migrations/00033_driver_notification_compliance_expiry.sql",
+      join(ROOT, "supabase/migrations/00033_driver_notification_compliance_expiry.sql"),
     ],
     { encoding: "utf8" }
   );
@@ -77,9 +74,9 @@ try {
       "ON_ERROR_STOP=1",
       "-q",
       "-f",
-      "/workspace/supabase/migrations/00034_compliance_security_hardening.sql",
+      join(ROOT, "supabase/migrations/00034_compliance_security_hardening.sql"),
       "-f",
-      "/workspace/supabase/migrations/00034_compliance_security_hardening.sql",
+      join(ROOT, "supabase/migrations/00034_compliance_security_hardening.sql"),
     ],
     { encoding: "utf8" }
   );
@@ -617,7 +614,7 @@ if (otherNote) {
     delete from public.admin_inbox_notifications where subject_kind = 'driver_license' and subject_id = '${driverAId}';
     update public.drivers set license_expires_on = '${expiredDate}'::date where id = '${driverAId}';
   `);
-  const run1 = psqlService(`select public.enqueue_compliance_expiry_alerts()::text;`);
+  psqlService(`select public.enqueue_compliance_expiry_alerts()::text;`);
   const expiredRows1 = psqlAdmin(
     `select count(*)::text from public.compliance_alerts_sent where subject_kind = 'driver_license' and subject_id = '${driverAId}' and milestone = 'expired' and expires_on = '${expiredDate}'::date;`
   );
@@ -694,6 +691,6 @@ if (otherNote) {
 }
 
 // Write evidence file
-const reportPath = "/workspace/tests/rls/compliance-pr36-results.json";
+const reportPath = join(ROOT, "tests/rls/compliance-pr36-results.json");
 writeFileSync(reportPath, JSON.stringify({ ranAt: new Date().toISOString(), results }, null, 2));
 console.log(`\nWrote ${reportPath}`);

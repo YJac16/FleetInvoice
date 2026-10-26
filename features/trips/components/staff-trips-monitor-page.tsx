@@ -160,7 +160,7 @@ export function StaffTripsMonitorPage() {
     return map;
   }, [presenceQuery.data]);
 
-  const trips = tripsQuery.data ?? [];
+  const trips = useMemo(() => tripsQuery.data ?? [], [tripsQuery.data]);
   const grouped = groupByStatus(trips);
 
   const liveMarkers = useMemo(

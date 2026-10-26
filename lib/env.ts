@@ -16,9 +16,6 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().min(1).optional(),
   NEXT_PUBLIC_MAPBOX_TOKEN: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse({
@@ -41,14 +38,23 @@ const parsed = envSchema.safeParse({
   NEXT_PUBLIC_MAPBOX_TOKEN: emptyToUndefined(
     process.env.NEXT_PUBLIC_MAPBOX_TOKEN
   ),
-  STRIPE_SECRET_KEY: emptyToUndefined(process.env.STRIPE_SECRET_KEY),
-  STRIPE_WEBHOOK_SECRET: emptyToUndefined(process.env.STRIPE_WEBHOOK_SECRET),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: emptyToUndefined(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ),
 });
 
-export const env = parsed.success
+function invalidEnvKeys(): string[] {
+  if (parsed.success) return [];
+  return [...new Set(parsed.error.issues.map((issue) => String(issue.path[0])))];
+}
+
+if (!parsed.success) {
+  // Name the bad keys (never their values) so a misconfigured deploy is obvious.
+  const message = `Invalid environment variables: ${invalidEnvKeys().join(", ")}`;
+  if (process.env.NODE_ENV === "production" && typeof window === "undefined") {
+    throw new Error(message);
+  }
+  console.error(message);
+}
+
+export const env: z.infer<typeof envSchema> = parsed.success
   ? parsed.data
   : {
       NEXT_PUBLIC_SUPABASE_URL: undefined,
@@ -60,10 +66,17 @@ export const env = parsed.success
       RESEND_API_KEY: undefined,
       RESEND_FROM_EMAIL: undefined,
       NEXT_PUBLIC_MAPBOX_TOKEN: undefined,
-      STRIPE_SECRET_KEY: undefined,
-      STRIPE_WEBHOOK_SECRET: undefined,
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined,
     };
+
+if (
+  process.env.VERCEL_ENV === "production" &&
+  typeof window === "undefined" &&
+  env.NEXT_PUBLIC_APP_URL.includes("localhost")
+) {
+  console.error(
+    "NEXT_PUBLIC_APP_URL is not set for production; invite and invoice links will point at localhost."
+  );
+}
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(
@@ -80,8 +93,4 @@ export function isEmailDeliveryConfigured(): boolean {
 
 export function isMapboxConfigured(): boolean {
   return Boolean(env.NEXT_PUBLIC_MAPBOX_TOKEN);
-}
-
-export function isStripeConfigured(): boolean {
-  return Boolean(env.STRIPE_SECRET_KEY);
 }

@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { driverImportSchema } from "@/features/import/schemas/import-schemas";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
-import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import {
   createDriver,
   createDriversBulk,
@@ -89,11 +88,12 @@ export function DriversPage() {
     queryFn: () => listOpenDriverVehicleAssignments(organisationId!),
     enabled: Boolean(organisationId),
   });
+  type AssignmentRow = NonNullable<typeof assignmentsQuery.data>[number];
 
   const assignmentByDriver = useMemo(() => {
     const map = new Map<
       string,
-      NonNullable<typeof assignmentsQuery.data>[number]
+      AssignmentRow
     >();
     for (const row of assignmentsQuery.data ?? []) {
       map.set(row.driver_id, row);

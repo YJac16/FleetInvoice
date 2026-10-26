@@ -113,7 +113,20 @@ async function upsertCompanyWithOptionalTripRate(
     p_trip_rate_notes: tripRate?.notes ?? null,
   });
   if (error) throw error;
-  return data as Company;
+  const saved = data as Company;
+
+  if (company.vat_number !== undefined && saved?.id) {
+    const { data: updated, error: vatError } = await supabase
+      .from("companies")
+      .update({ vat_number: company.vat_number })
+      .eq("id", saved.id)
+      .eq("organisation_id", organisationId)
+      .select("*")
+      .single();
+    if (vatError) throw vatError;
+    return updated as Company;
+  }
+  return saved;
 }
 
 export function createCompanyWithOptionalTripRate(

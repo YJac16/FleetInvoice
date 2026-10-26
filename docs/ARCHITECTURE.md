@@ -163,10 +163,9 @@ packages/ (future monorepo)
   domain/                 # Shared types/validators for web + mobile
   config/                 # ESLint/TS configs
 database/
-  migrations/             # Canonical SQL â€” ordered, immutable once applied
-  seeds/                  # Non-prod seeds only
+  seeds/                  # Non-prod seeds and diagnostics only
 supabase/
-  migrations/             # CLI mirror of database/migrations
+  migrations/             # Canonical SQL, ordered, immutable once applied
   functions/              # Edge Functions
 docs/                     # ADRs, runbooks, API contracts
 tests/
@@ -177,7 +176,7 @@ tests/
 - `app/` stays thin â†’ routes never become god-files
 - `features/` isolate modules â†’ Phase 6 GPS cannot rewrite Phase 1 auth
 - `services/` centralize data access â†’ one place for org scoping and soft-delete filters
-- `database/` is source of truth â†’ app never â€œinventsâ€ schema
+- `supabase/migrations/` is source of truth â†’ app never â€œinventsâ€ schema
 - Future `packages/` enables mobile/customer apps without copy-paste
 
 ---
@@ -438,7 +437,7 @@ tests/
 
 ### Phase 9 — Customer portal, analytics, subscriptions, white-label, AI
 - **Objectives:** Multi-sided SaaS platform
-- **Features (shipped MVP):** Subscriptions + module entitlements + optional Stripe; expanded company hub; white-label host → theme
+- **Features (shipped MVP):** Subscriptions + module entitlements (manual plan assignment, no Stripe); expanded company hub; white-label host → theme
 - **DB:** `00013` plans/subscriptions/entitlements; `00014` white_label_configs
 - **Deferred:** Usage analytics dashboards; AI schedule/report assist + `ai_runs`
 - **Complexity:** XL | **Depends on:** Phase 8 commercial model
@@ -488,9 +487,9 @@ Each expansion **plugs into** organisation tenancy + permissions + outbox + audi
 
 ## Immediate next step
 
-**P0 production hardening tooling is shipped** (ADR [`0011`](./adr/0011-p0-production-hardening.md)); operator go-live: [`retail-go-live.md`](./runbooks/retail-go-live.md); first Vercel project **`workops`**: [`vercel-deploy.md`](./runbooks/vercel-deploy.md). **P1 invoice print is shipped** (ADR [`0012`](./adr/0012-p1-invoice-print.md)). **Phase 9a–9c tooling is in the repo** (ADRs [`0013`](./adr/0013-phase9-subscriptions.md), [`0014`](./adr/0014-phase9-white-label.md)) — apply migrations `00013`–`00014` on WorkOps Supabase and paste Stripe/Vercel secrets for live self-serve.
+**P0 production hardening tooling is shipped** (ADR [`0011`](./adr/0011-p0-production-hardening.md)); operator go-live: [`retail-go-live.md`](./runbooks/retail-go-live.md); first Vercel project **`workops`**: [`vercel-deploy.md`](./runbooks/vercel-deploy.md). **P1 invoice print is shipped** (ADR [`0012`](./adr/0012-p1-invoice-print.md)). **Phase 9a–9c tooling is in the repo** (ADRs [`0013`](./adr/0013-phase9-subscriptions.md), [`0014`](./adr/0014-phase9-white-label.md)) — apply migrations `00013`–`00014` on WorkOps Supabase and set Vercel secrets.
 
-**Next:** Operator finish Vercel env + Auth URLs + cron; apply Phase 9 SQL; optional Stripe live keys. P3 (AI, integrations, SSO) remains backlog.
+**Next:** Operator finish Vercel env + Auth URLs + cron; apply Phase 9 SQL. P3 (AI, integrations, SSO) remains backlog.
 
 ### Retail readiness roadmap (remaining)
 
@@ -500,7 +499,7 @@ Each expansion **plugs into** organisation tenancy + permissions + outbox + audi
 | **P0** | RLS SQL gates + Playwright smoke | **Smoke scaffold shipped** — extend with `E2E_*` creds |
 | **P1** | Billing polish (invoice PDF/print, company portal UX) | **Shipped** — HTML print / browser PDF |
 | **P1** | GPS ops readiness (retention/partitions; Mapbox URL restrict; optional Realtime) | Scale (deferred) |
-| **P2** | Phase 9 subscriptions / entitlements / feature gating | **Shipped in app** — apply `00013` + Stripe keys |
+| **P2** | Phase 9 subscriptions / entitlements / feature gating | **Shipped in app** — apply `00013` |
 | **P2** | Customer portal (beyond invite-only company_manager) | **Shipped** — hub summary + reports link |
 | **P2** | White-label / custom domain | **Shipped in app** — apply `00014` + DNS |
 | **P3** | Analytics / AI assist (suggest-only, human confirm) | Differentiation |

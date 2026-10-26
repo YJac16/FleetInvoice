@@ -14,7 +14,6 @@ Complete these on the **deployment host** before selling managed or self-serve r
 | `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Server only (`CRON_SECRET` required for Vercel Cron) |
 | `RESEND_API_KEY` + `RESEND_FROM_EMAIL` | Verified sending domain |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Restrict by URL in Mapbox |
-| Phase 9: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | After subscriptions live |
 
 ## 2. Supabase Auth
 
@@ -36,9 +35,9 @@ npm run test:e2e:smoke
 
 Apply Phase 9 SQL on **WorkOps** Supabase (`tggxnvombexvxblsntsm`) in the SQL editor:
 
-1. `database/migrations/00013_phase9_subscriptions.sql`
-2. `database/migrations/00014_phase9_white_label.sql`
-3. `database/migrations/00016_membership_three_tiers.sql` (idempotent; live already has `membership_three_tiers`)
+1. `supabase/migrations/00013_phase9_subscriptions.sql`
+2. `supabase/migrations/00014_phase9_white_label.sql`
+3. `supabase/migrations/00016_membership_three_tiers.sql` (idempotent; live already has `membership_three_tiers`)
 
 Then run `tests/rls/phase9_checks.sql`. Do **not** apply these to UniCab/other projects.
 

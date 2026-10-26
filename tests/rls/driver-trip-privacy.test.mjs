@@ -3,11 +3,7 @@
  * Driver trip + passenger RLS privacy (00061).
  */
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "../..");
 
 const PG = {
   database: process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit",
@@ -16,7 +12,6 @@ const PG = {
 };
 
 const ORG_A = "a0000000-0000-4000-8000-000000000001";
-const ORG_B = "b0000000-0000-4000-8000-000000000001";
 const platformOwner = "f0000000-0000-4000-8000-000000000001";
 const adminA = "a0000000-0000-4000-8000-000000000011";
 const adminB = "b0000000-0000-4000-8000-000000000011";

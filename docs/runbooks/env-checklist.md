@@ -48,22 +48,22 @@ Full outbox/cron steps: [`notifications-cron.md`](./notifications-cron.md).
 
 Apply in order:
 
-1. `database/migrations/00001_workops_foundation.sql`
-2. `database/migrations/00002_phase0_hardening.sql`
-3. `database/migrations/00003_phase2_master_data.sql`
-4. `database/migrations/00004_phase3_routes_scheduling.sql`
-5. `database/migrations/00005_phase4_trip_status_enum.sql` — **commit this on its own** (separate SQL Editor run); Postgres forbids using a newly added enum value in the same transaction that added it
-6. `database/migrations/00006_phase4_driver_portal.sql`
-7. `database/migrations/00007_phase5_fuel_and_invoices.sql`
-8. `database/migrations/00008_phase6_employee_qr_attendance.sql`
-9. `database/migrations/00009_phase7_gps_and_dispatch.sql`
-10. `database/migrations/00010_phase8_invoice_enums.sql` — **commit alone** (new enum labels)
-11. `database/migrations/00011_phase8_billing.sql`
-12. `database/migrations/00012_phase8_payroll.sql`
-13. `database/migrations/00013_phase9_subscriptions.sql`
-14. `database/migrations/00014_phase9_white_label.sql`
-15. `database/migrations/00015_phase10_hub_ux.sql`
-16. `database/migrations/00016_membership_three_tiers.sql`
+1. `supabase/migrations/00001_workops_foundation.sql`
+2. `supabase/migrations/00002_phase0_hardening.sql`
+3. `supabase/migrations/00003_phase2_master_data.sql`
+4. `supabase/migrations/00004_phase3_routes_scheduling.sql`
+5. `supabase/migrations/00005_phase4_trip_status_enum.sql` — **commit this on its own** (separate SQL Editor run); Postgres forbids using a newly added enum value in the same transaction that added it
+6. `supabase/migrations/00006_phase4_driver_portal.sql`
+7. `supabase/migrations/00007_phase5_fuel_and_invoices.sql`
+8. `supabase/migrations/00008_phase6_employee_qr_attendance.sql`
+9. `supabase/migrations/00009_phase7_gps_and_dispatch.sql`
+10. `supabase/migrations/00010_phase8_invoice_enums.sql` — **commit alone** (new enum labels)
+11. `supabase/migrations/00011_phase8_billing.sql`
+12. `supabase/migrations/00012_phase8_payroll.sql`
+13. `supabase/migrations/00013_phase9_subscriptions.sql`
+14. `supabase/migrations/00014_phase9_white_label.sql`
+15. `supabase/migrations/00015_phase10_hub_ux.sql`
+16. `supabase/migrations/00016_membership_three_tiers.sql`
 17. Promote platform owner via `database/seed.example.sql`
 
 Optional for Phase 7 dispatcher map:

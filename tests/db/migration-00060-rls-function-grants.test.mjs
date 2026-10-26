@@ -4,8 +4,6 @@
  * by authenticated (and anon where pre-login RPCs apply). Run after 00060 apply.
  */
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { INTERNAL_SECURITY_DEFINER_RPCS } from "../../scripts/db/00055-advisor-constants.mjs";
 

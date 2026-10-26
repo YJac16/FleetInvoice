@@ -12,7 +12,7 @@
 | [adr/0010-phase8-reports.md](./adr/0010-phase8-reports.md) | Phase 8 operational reports & CSV exports |
 | [adr/0011-p0-production-hardening.md](./adr/0011-p0-production-hardening.md) | P0 env check, outbox cron, smoke/RLS gates |
 | [adr/0012-p1-invoice-print.md](./adr/0012-p1-invoice-print.md) | P1 invoice HTML print / browser PDF |
-| [adr/0013-phase9-subscriptions.md](./adr/0013-phase9-subscriptions.md) | Phase 9a plans, entitlements, Stripe |
+| [adr/0013-phase9-subscriptions.md](./adr/0013-phase9-subscriptions.md) | Phase 9a plans, entitlements (Stripe since removed) |
 | [adr/0014-phase9-white-label.md](./adr/0014-phase9-white-label.md) | Phase 9c white-label hostnames |
 | [runbooks/env-checklist.md](./runbooks/env-checklist.md) | Environment & secrets checklist (incl. P0 retail) |
 | [runbooks/notifications-cron.md](./runbooks/notifications-cron.md) | Outbox drain / cron for production |

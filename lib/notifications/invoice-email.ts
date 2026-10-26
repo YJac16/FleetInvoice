@@ -19,16 +19,22 @@ export function buildInvoiceEmailContent(input: {
   );
   const total = formatZarAmount(input.invoice.total);
 
-  const subject = `Invoice — ${companyName} — ${servicePeriod}`;
+  const invoiceNumber = input.invoice.invoice_number ?? null;
+  const vatAmount = Number(input.invoice.vat_amount ?? 0);
+  const subject = invoiceNumber
+    ? `Invoice ${invoiceNumber} — ${companyName} — ${servicePeriod}`
+    : `Invoice — ${companyName} — ${servicePeriod}`;
 
   const text = [
     `Hello,`,
     ``,
     `Please find your invoice from ${input.supplierName}.`,
     ``,
+    ...(invoiceNumber ? [`Invoice number: ${invoiceNumber}`] : []),
     `Company: ${companyName}`,
     `Invoice date: ${invoiceDate}`,
     `Service period: ${servicePeriod}`,
+    ...(vatAmount > 0 ? [`VAT: ${formatZarAmount(vatAmount)}`] : []),
     `Total: ${total}`,
     ``,
     `View and print the invoice:`,
@@ -41,9 +47,11 @@ export function buildInvoiceEmailContent(input: {
     <p>Hello,</p>
     <p>Please find your invoice from <strong>${escapeHtml(input.supplierName)}</strong>.</p>
     <table style="border-collapse:collapse;margin:16px 0">
+      ${invoiceNumber ? `<tr><td style="padding:4px 12px 4px 0;color:#666">Invoice number</td><td>${escapeHtml(invoiceNumber)}</td></tr>` : ""}
       <tr><td style="padding:4px 12px 4px 0;color:#666">Company</td><td>${escapeHtml(companyName)}</td></tr>
       <tr><td style="padding:4px 12px 4px 0;color:#666">Invoice date</td><td>${escapeHtml(invoiceDate)}</td></tr>
       <tr><td style="padding:4px 12px 4px 0;color:#666">Service period</td><td>${escapeHtml(servicePeriod)}</td></tr>
+      ${vatAmount > 0 ? `<tr><td style="padding:4px 12px 4px 0;color:#666">VAT</td><td>${escapeHtml(formatZarAmount(vatAmount))}</td></tr>` : ""}
       <tr><td style="padding:4px 12px 4px 0;color:#666">Total</td><td><strong>${escapeHtml(total)}</strong></td></tr>
     </table>
     <p><a href="${escapeHtml(input.printUrl)}">View and print invoice</a></p>

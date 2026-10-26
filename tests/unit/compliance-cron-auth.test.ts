@@ -147,7 +147,7 @@ describe("middleware bearer API passthrough", () => {
     }
   });
 
-  it("redirects subpaths that are not exactly allowlisted", async () => {
+  it("rejects API subpaths that are not exactly allowlisted with 401", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const { updateSession } = await import("@/lib/supabase/middleware");
 
@@ -157,8 +157,8 @@ describe("middleware bearer API passthrough", () => {
     ]) {
       const req = new NextRequest(new URL(`http://localhost${path}`));
       const res = await updateSession(req);
-      expect(res.status).toBe(307);
-      expect(res.headers.get("location")).toContain("/login");
+      expect(res.status).toBe(401);
+      expect(res.headers.get("location")).toBeNull();
     }
   });
 

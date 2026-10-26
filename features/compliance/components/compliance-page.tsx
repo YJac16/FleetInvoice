@@ -80,7 +80,7 @@ export function CompliancePage() {
   });
 
   const rows = useMemo(() => renewalsQuery.data ?? [], [renewalsQuery.data]);
-  const missing = missingQuery.data ?? [];
+  const missing = useMemo(() => missingQuery.data ?? [], [missingQuery.data]);
 
   const missingSummary = useMemo(() => {
     const drivers = new Set(

@@ -33,7 +33,6 @@ Do **not** use framework preset **Other** — set **Next.js** (CLI-created proje
 | `NOTIFICATIONS_PROCESS_SECRET` | Optional alias; cron uses `CRON_SECRET` |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Verified domain |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | URL-restrict in Mapbox |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Phase 9a |
 
 ## 3. Cron
 

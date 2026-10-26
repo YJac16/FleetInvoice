@@ -9,6 +9,7 @@ export const companySchema = z.object({
   contact_email: z.union([z.email("Enter a valid email"), z.literal("")]).optional(),
   contact_phone: z.string().optional(),
   address: z.string().optional(),
+  vat_number: z.string().max(20).optional(),
   status: z.enum(ENTITY_STATUSES),
   default_trip_rate_zar: z.string().optional(),
   trip_rate_effective_from: z.string().optional(),

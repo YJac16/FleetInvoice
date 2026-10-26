@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { isRangeQueryRefreshing } from "@/hooks/use-list-query-skeleton";
 import { cn } from "@/lib/utils";
 
-export function RangeQueryBody<TData>({
+export function RangeQueryBody({
   query,
   refreshing: refreshingProp,
   children,

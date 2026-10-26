@@ -4,10 +4,6 @@
  * Requires: bash scripts/local-db/bootstrap-native.sh
  */
 import { spawnSync } from "node:child_process";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PG = {
   database: process.env.WORKOPS_AUDIT_PG_DATABASE ?? "workops_audit",

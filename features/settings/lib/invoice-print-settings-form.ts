@@ -15,7 +15,15 @@ export type InvoicePrintSettingsFormValues = {
   contact_email: string;
   vehicle_reg: string;
   driver_label: string;
+  /** Supplier VAT number. When set, VAT is added to invoices. */
+  vat_number: string;
+  /** Percent, e.g. "15". */
+  vat_rate: string;
+  /** Invoice number prefix, e.g. "INV" → INV-00012. */
+  number_prefix: string;
 };
+
+export const DEFAULT_VAT_RATE = "15";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -62,7 +70,24 @@ export function invoicePrintSettingsFromOrganisation(
     driver_label:
       readString(printRecord, "driver_label") ||
       readString(invoiceRecord, "driver_label"),
+    vat_number: readString(invoiceRecord, "vat_number"),
+    vat_rate:
+      typeof invoiceRecord.vat_rate === "number"
+        ? String(invoiceRecord.vat_rate)
+        : readString(invoiceRecord, "vat_rate") || DEFAULT_VAT_RATE,
+    number_prefix: readString(invoiceRecord, "number_prefix") || "INV",
   };
+}
+
+/** Prefix as the database will use it: letters and digits only, upper case. */
+export function normaliseInvoiceNumberPrefix(value: string): string {
+  return value.replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "INV";
+}
+
+export function parseVatRate(value: string): number | null {
+  const n = Number(value.trim());
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(n * 100) / 100;
 }
 
 function trimOrUndefined(value: string): string | undefined {
@@ -132,18 +157,27 @@ export function invoicePrintSettingsToOrganisationSettings(
       : {}),
   };
 
-  if (Object.keys(supplier).length > 0) {
-    next.invoice = {
-      ...(isRecord(next.invoice) ? next.invoice : {}),
-      supplier,
-      ...(trimOrUndefined(values.driver_label)
-        ? { driver_label: values.driver_label.trim() }
-        : {}),
-      ...(trimOrUndefined(values.vehicle_reg)
-        ? { vehicle_reg: values.vehicle_reg.trim() }
-        : {}),
-    };
-  }
+  const vatNumber = values.vat_number.trim();
+  const tax: Record<string, unknown> = {
+    vat_registered: vatNumber.length > 0,
+    vat_rate: parseVatRate(values.vat_rate) ?? Number(DEFAULT_VAT_RATE),
+    number_prefix: normaliseInvoiceNumberPrefix(values.number_prefix),
+    ...(vatNumber ? { vat_number: vatNumber } : {}),
+  };
+
+  const existingInvoice = isRecord(next.invoice) ? { ...next.invoice } : {};
+  delete existingInvoice.vat_number;
+  next.invoice = {
+    ...existingInvoice,
+    ...(Object.keys(supplier).length > 0 ? { supplier } : {}),
+    ...(trimOrUndefined(values.driver_label)
+      ? { driver_label: values.driver_label.trim() }
+      : {}),
+    ...(trimOrUndefined(values.vehicle_reg)
+      ? { vehicle_reg: values.vehicle_reg.trim() }
+      : {}),
+    ...tax,
+  };
 
   if (Object.keys(invoicePrint).length > 0) {
     next.invoice_print = invoicePrint;

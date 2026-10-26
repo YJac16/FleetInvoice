@@ -7,7 +7,6 @@ import {
 } from "@/features/locations/lib/location-match";
 import type { ServiceLocation } from "@/features/locations/lib/location-match";
 import {
-  parseEmailList,
   validateEmailList,
 } from "@/lib/notifications/email-addresses";
 import { buildInvoiceEmailContent } from "@/lib/notifications/invoice-email";

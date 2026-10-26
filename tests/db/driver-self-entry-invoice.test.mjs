@@ -12,10 +12,6 @@ const sql62 = readFileSync(
   join(root, "supabase/migrations/00062_driver_self_entry_trips.sql"),
   "utf8"
 );
-const sql65 = readFileSync(
-  join(root, "supabase/migrations/00065_driver_submit_assigned_vehicle.sql"),
-  "utf8"
-);
 const sql66 = readFileSync(
   join(root, "supabase/migrations/00066_admin_assign_vehicle_on_approve.sql"),
   "utf8"

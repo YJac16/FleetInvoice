@@ -113,6 +113,11 @@ export function InvoicePrintView({
   const companyName = company?.name ?? invoice.companies?.name ?? "—";
   const companyAddress = company?.address?.trim();
   const companyPhone = company?.contact_phone?.trim();
+  const companyVatNumber = company?.vat_number?.trim();
+  const vatAmount = Number(invoice.vat_amount ?? 0);
+  const vatRate = Number(invoice.vat_rate ?? 0);
+  const isTaxInvoice = Boolean(printSettings.vat_number) || vatAmount > 0;
+  const documentTitle = isTaxInvoice ? "TAX INVOICE" : "INVOICE";
 
   return (
     <div className="invoice-print-root invoice-print-flow mx-auto max-w-3xl px-4 py-6 print:max-w-none print:p-0">
@@ -141,12 +146,21 @@ export function InvoicePrintView({
             {organisation.logo_url ? (
               <p className="text-base font-semibold">{supplier.name}</p>
             ) : null}
-            {supplier.address_lines?.map((line) => (
-              <p key={line}>{line}</p>
+            {supplier.address_lines?.map((line, index) => (
+              <p key={`${index}-${line}`}>{line}</p>
             ))}
             {supplier.phone ? <p>{supplier.phone}</p> : null}
+            {printSettings.vat_number ? (
+              <p>VAT No: {printSettings.vat_number}</p>
+            ) : null}
           </div>
           <div className="space-y-1 sm:text-right">
+            <p className="text-lg font-semibold tracking-wide">{documentTitle}</p>
+            <p>
+              <span className="font-medium">Invoice No:</span>{" "}
+              {invoice.invoice_number ??
+                (invoice.status === "draft" ? "DRAFT" : "—")}
+            </p>
             <p>
               <span className="font-medium">Date:</span> {invoiceDate}
             </p>
@@ -160,9 +174,12 @@ export function InvoicePrintView({
           <p className="text-xs font-semibold tracking-wide">INVOICE TO</p>
           <p className="text-base font-semibold">{companyName}</p>
           {companyAddress ? (
-            companyAddress.split(/\n+/).map((line) => <p key={line}>{line}</p>)
+            companyAddress
+              .split(/\n+/)
+              .map((line, index) => <p key={`${index}-${line}`}>{line}</p>)
           ) : null}
           {companyPhone ? <p>{companyPhone}</p> : null}
+          {companyVatNumber ? <p>VAT No: {companyVatNumber}</p> : null}
           {coverMeta.length > 0 ? (
             <div className="space-y-0.5 pt-1 text-xs uppercase tracking-wide">
               {coverMeta.map((line) => (
@@ -205,7 +222,7 @@ export function InvoicePrintView({
         <table className="mt-6 hidden w-full border-collapse text-sm md:table print:table">
           <thead>
             <tr className="border-b border-black/30 text-left text-xs uppercase">
-              <th className="w-10 py-2 pr-2 font-semibold">N0.</th>
+              <th className="w-10 py-2 pr-2 font-semibold">NO.</th>
               <th className="py-2 pr-2 font-semibold">DATE</th>
               <th className="py-2 pr-2 font-semibold">TIME</th>
               <th className="py-2 pr-2 font-semibold">COMPANY</th>
@@ -241,12 +258,22 @@ export function InvoicePrintView({
 
         <footer className="mt-4 space-y-6">
           <div className="flex justify-end border-t border-black/20 pt-3">
-            <p className="text-base font-semibold">
-              Total:{" "}
-              <span className="ml-6 tabular-nums">
+            <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-1 text-right">
+              {isTaxInvoice ? (
+                <>
+                  <dt>Subtotal (excl. VAT):</dt>
+                  <dd className="tabular-nums">{formatZarAmount(invoice.subtotal)}</dd>
+                  <dt>VAT ({vatRate}%):</dt>
+                  <dd className="tabular-nums">{formatZarAmount(vatAmount)}</dd>
+                </>
+              ) : null}
+              <dt className="text-base font-semibold">
+                {isTaxInvoice ? "Total (incl. VAT):" : "Total:"}
+              </dt>
+              <dd className="text-base font-semibold tabular-nums">
                 {formatZarAmount(invoice.total)}
-              </span>
-            </p>
+              </dd>
+            </dl>
           </div>
 
           {banking &&

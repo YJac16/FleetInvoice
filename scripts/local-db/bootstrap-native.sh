@@ -183,6 +183,17 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.upsert_company_with_trip_rate(
     uuid, text, uuid, text, text, text, text, text, public.entity_status, numeric, date, text, text
   ) TO authenticated;
+  -- 00059/00060 internal helpers stay service_role-only (bootstrap broad grant must not reopen)
+  IF to_regprocedure('public.ensure_trip_assignment_vehicle(uuid, uuid, uuid)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.ensure_trip_assignment_vehicle(uuid, uuid, uuid)
+      FROM PUBLIC, anon, authenticated;
+    GRANT EXECUTE ON FUNCTION public.ensure_trip_assignment_vehicle(uuid, uuid, uuid) TO service_role;
+  END IF;
+  -- 00069 invoice VAT/number trigger and its counter table are internal
+  IF to_regprocedure('public.invoices_apply_vat_and_number()') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.invoices_apply_vat_and_number() FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON public.invoice_number_counters FROM anon, authenticated;
+  END IF;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.driver_documents TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_orphan_objects TO service_role;
   GRANT SELECT, INSERT, UPDATE, DELETE ON public.compliance_scan_events TO service_role;

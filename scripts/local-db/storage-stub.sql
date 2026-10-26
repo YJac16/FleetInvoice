@@ -27,6 +27,8 @@ create table if not exists storage.objects (
 );
 
 alter table storage.objects owner to supabase_storage_admin;
+-- Hosted Supabase has RLS on storage.objects; mirror it so storage policies are actually tested.
+alter table storage.objects enable row level security;
 
 create or replace function storage.foldername(name text)
 returns text[]

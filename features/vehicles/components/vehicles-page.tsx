@@ -75,11 +75,12 @@ export function VehiclesPage() {
     queryFn: () => listOpenDriverVehicleAssignments(organisationId!),
     enabled: Boolean(organisationId),
   });
+  type AssignmentRow = NonNullable<typeof assignmentsQuery.data>[number];
 
   const assignmentByVehicle = useMemo(() => {
     const map = new Map<
       string,
-      NonNullable<typeof assignmentsQuery.data>[number]
+      AssignmentRow
     >();
     for (const row of assignmentsQuery.data ?? []) {
       map.set(row.vehicle_id, row);

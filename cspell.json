@@ -42,7 +42,6 @@
     ".next/**",
     "package-lock.json",
     "**/*.tsbuildinfo",
-    "database/migrations/**",
     "supabase/migrations/**"
   ]
 }

@@ -21,6 +21,15 @@ const eslintConfig = [
       "scripts/**",
     ],
   },
+  {
+    rules: {
+      // Allow intentionally unused names when prefixed with "_" (e.g. mock args).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

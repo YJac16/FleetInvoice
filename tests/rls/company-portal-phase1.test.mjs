@@ -29,7 +29,8 @@ const cm1 = "a0000000-0000-4000-8000-000000000014";
 const supervisorA = "a0000000-0000-4000-8000-000000000018";
 const cmB = "b0000000-0000-4000-8000-000000000014";
 const driverRow = "a0000000-0000-4000-8000-000000000201";
-const driverRowB = "a0000000-0000-4000-8000-000000000202";
+// Not 0202: that id belongs to the compliance seed driver (another user).
+const driverRowB = "a0000000-0000-4000-8000-000000000209";
 const driverBUser = "a0000000-0000-4000-8000-000000000019";
 const MEM_DRV_B = "f1000000-0000-4000-8000-000000000702";
 const C1 = "a0000000-0000-4000-8000-000000000101";
@@ -270,15 +271,6 @@ values
   ('${QR_C2}', '${ORG_A}', '${T_C2}', '${E_C2}', 'phase1-qr-c2', '2026-12-01T00:00:00Z')
 on conflict (id) do nothing;
 
-insert into public.trip_assignments (
-  id, organisation_id, trip_id, driver_id, vehicle_id
-)
-values
-  ('${TA_C1}', '${ORG_A}', '${T_C1}', '${driverRow}', '${V_C1}'),
-  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRowB}', '${V_C2}'),
-  ('${TA_BLANK}', '${ORG_A}', '${T_BLANK}', '${driverRow}', '${V_BLANK}')
-on conflict (id) do nothing;
-
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
@@ -294,6 +286,15 @@ on conflict (id) do nothing;
 
 insert into public.drivers (id, organisation_id, profile_id, full_name, status)
 values ('${driverRowB}', '${ORG_A}', '${driverBUser}', 'Phase1 Driver B', 'active')
+on conflict (id) do nothing;
+
+insert into public.trip_assignments (
+  id, organisation_id, trip_id, driver_id, vehicle_id
+)
+values
+  ('${TA_C1}', '${ORG_A}', '${T_C1}', '${driverRow}', '${V_C1}'),
+  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRowB}', '${V_C2}'),
+  ('${TA_BLANK}', '${ORG_A}', '${T_BLANK}', '${driverRow}', '${V_BLANK}')
 on conflict (id) do nothing;
 
 insert into public.trip_events (id, organisation_id, trip_id, event_type)
@@ -405,7 +406,8 @@ expectCount("ADMIN-invoices", adminA, "invoices", "true", 4);
 expectCount("ADMIN-lines", adminA, "invoice_lines", "true", 4);
 expectCount("ADMIN-vehicles", adminA, "vehicles", "true", 6);
 expectCount("ADMIN-fuel", adminA, "fuel_fillups", "true", 3);
-expectCount("ADMIN-drivers", adminA, "drivers", "true", 2);
+// Seed drivers 0201 + 0202, plus fixture driver B (0209).
+expectCount("ADMIN-drivers", adminA, "drivers", "true", 3);
 expectCount("ADMIN-rates", adminA, "rate_cards", "true", 3);
 expectCount("ADMIN-passengers", adminA, "trip_passengers", "true", 3);
 expectCount("ADMIN-attendance", adminA, "attendance_events", "true", 2);
@@ -414,7 +416,8 @@ expectCount("ADMIN-qr", adminA, "qr_tokens", "true", 2);
 expectCount("DRIVER-invoices", driverA, "invoices", "true", 0);
 expectCount("DRIVER-lines", driverA, "invoice_lines", "true", 0);
 expectCount("DRIVER-drivers", driverA, "drivers", "true", 1);
-expectCount("DRIVER-vehicles", driverA, "vehicles", "true", 3);
+// 00065: drivers see only vehicles on their own assignments (V_C1, V_BLANK).
+expectCount("DRIVER-vehicles", driverA, "vehicles", "true", 2);
 expectCount("DRIVER-fuel", driverA, "fuel_fillups", "true", 2);
 expectCount("DRIVER-trips", driverA, "trips", "true", 2);
 expectCount("DRIVER-rates-org", driverA, "rate_cards", "company_id is null", 0);

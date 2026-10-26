@@ -61,7 +61,7 @@ export function DispatchBoardPage() {
 
   const showTripsSkeleton = useShowListSkeleton(tripsQuery);
   const rangeRefreshing = isRangeQueryRefreshing(tripsQuery);
-  const filteredTrips = tripsQuery.data ?? [];
+  const filteredTrips = useMemo(() => tripsQuery.data ?? [], [tripsQuery.data]);
 
   const tripIds = useMemo(
     () => filteredTrips.map((t) => t.id),
@@ -105,7 +105,7 @@ export function DispatchBoardPage() {
   );
 
   const tripsByStatus = useMemo(() => {
-    const map = new Map<TripStatus, typeof tripsQuery.data>();
+    const map = new Map<TripStatus, typeof filteredTrips>();
     for (const col of KANBAN_COLUMNS) map.set(col.status, []);
     for (const trip of filteredTrips) {
       if (trip.status === "cancelled") continue;

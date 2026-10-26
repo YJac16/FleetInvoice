@@ -22,7 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlanCard } from "@/features/subscriptions/components/plan-card";
-import { isStripeConfigured } from "@/lib/env";
 import {
   formatZarFromCents,
   isRecommendedPlan,
@@ -99,36 +98,6 @@ export function SubscriptionsPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  async function startCheckout(organisationId: string, planId: string) {
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organisationId, planId }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed");
-      window.location.href = data.url;
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  }
-
-  async function openPortal(organisationId: string) {
-    try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organisationId }),
-      });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Portal failed");
-      window.location.href = data.url;
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  }
-
   const columns = useMemo<ColumnDef<SubRow, unknown>[]>(
     () => [
       {
@@ -190,28 +159,6 @@ export function SubscriptionsPage() {
               >
                 Assign
               </Button>
-              {isStripeConfigured() &&
-              allPlansQuery.data?.find((p) => p.id === selected)
-                ?.stripe_price_id ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    void startCheckout(sub.organisation_id, selected)
-                  }
-                >
-                  Checkout
-                </Button>
-              ) : null}
-              {sub.stripe_customer_id ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void openPortal(sub.organisation_id)}
-                >
-                  Portal
-                </Button>
-              ) : null}
             </div>
           );
         },
@@ -310,17 +257,6 @@ export function SubscriptionsPage() {
                 isCurrent={
                   plan.id === currentPlanId || plan.code === currentPlan?.code
                 }
-                checkoutEnabled={
-                  canManage &&
-                  isStripeConfigured() &&
-                  Boolean(plan.stripe_price_id) &&
-                  Boolean(activeOrganisationId)
-                }
-                onCheckout={
-                  activeOrganisationId
-                    ? () => void startCheckout(activeOrganisationId, plan.id)
-                    : undefined
-                }
               />
             ))}
           </div>
@@ -334,8 +270,8 @@ export function SubscriptionsPage() {
               Assign plans
             </h2>
             <p className="text-sm text-muted-foreground">
-              Platform owners can move organisations between plans. Stripe
-              Checkout stays optional when a price ID is set.
+              Platform owners can move organisations between plans. Billing is
+              handled offline (EFT / invoice).
             </p>
           </div>
           {subsQuery.isLoading ? (

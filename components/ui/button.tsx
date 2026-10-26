@@ -1,3 +1,5 @@
+import * as React from "react"
+import Link from "next/link"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -40,6 +42,14 @@ const buttonVariants = cva(
   }
 )
 
+/** True when `render` is a link (<Link> or <a>), which must stay a link for assistive tech. */
+function isLinkElement(
+  render: unknown
+): render is React.ReactElement<Record<string, unknown>> {
+  if (!React.isValidElement(render)) return false
+  return render.type === Link || render.type === "a"
+}
+
 function Button({
   className,
   variant = "default",
@@ -48,6 +58,21 @@ function Button({
   nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  if (isLinkElement(render)) {
+    // Base UI would add role="button" to the anchor; keep native link semantics instead.
+    const { children, ...rest } = props as React.HTMLAttributes<HTMLElement>
+    const linkProps = render.props as { className?: string }
+    return React.cloneElement(
+      render,
+      {
+        ...rest,
+        "data-slot": "button",
+        className: cn(buttonVariants({ variant, size, className: cn(linkProps.className, className as string) })),
+      },
+      children
+    )
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
