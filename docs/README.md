@@ -3,6 +3,7 @@
 | Document | Purpose |
 |----------|---------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Master software architecture & phased roadmap |
+| [specs/company-portal.md](./specs/company-portal.md) | Company portal spec (founder review, no implementation) |
 | [adr/0002-phase2-master-data.md](./adr/0002-phase2-master-data.md) | Phase 2 master data decisions |
 | [adr/0005-phase5-fuel-hubs-invoices.md](./adr/0005-phase5-fuel-hubs-invoices.md) | Phase 5 fuel, hubs & weekly invoices |
 | [adr/0006-phase6-employee-qr-attendance.md](./adr/0006-phase6-employee-qr-attendance.md) | Phase 6 employee portal, QR & attendance |
