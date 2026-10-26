@@ -8,6 +8,9 @@ export type ParsedInvoiceLineDescription = {
 
 const PAX_PATTERN = /(\d+)\s*pax/i;
 
+/** Separator written by trip_route_text() between pickup and drop-off. */
+const ROUTE_ARROW = "→";
+
 /** WEX Head Office pickup — never belongs in the printed AREA column. */
 const WEX_PICKUP_TRAILING =
   /\s*\/\s*WEX(?:\s*[–-]\s*)?\s*(?:William\s*(?:Street|St\.?)?)?\s*$/i;
@@ -39,6 +42,12 @@ export function sanitizeInvoiceArea(area: string, company?: string): string {
   let cleaned = area.trim();
   if (!cleaned) return cleaned;
 
+  // Structured routes ("Pickup → Drop-off", see trip_route_text) are exactly
+  // what the driver/admin entered. Place names such as "Alexandra WEX Centre"
+  // must print verbatim, so the legacy WEX stripping below only applies to the
+  // old slash-separated area text.
+  if (cleaned.includes(ROUTE_ARROW)) return cleaned;
+
   cleaned = cleaned.replace(WEX_PICKUP_TRAILING, "").trim();
 
   const shouldStripPickupTokens =
@@ -55,7 +64,9 @@ export function sanitizeInvoiceArea(area: string, company?: string): string {
   cleaned = segments.join(" / ").trim();
 
   cleaned = cleaned
-    .replace(/\bWEX(?:\s*[–-]\s*)?\s*(?:William\s*(?:Street|St\.?)?)?\b/gi, "")
+    // Only the WEX *hub* ("WEX William St"); a bare "WEX" inside a longer
+    // place name (e.g. "Alexandra WEX Centre") is left alone.
+    .replace(/\bWEX(?:\s*[–-]\s*)?\s*William\s*(?:Street|St\.?)?\b/gi, "")
     .replace(/\s*\/\s*/g, " / ")
     .replace(/\s*\/\s*$/, "")
     .trim();
