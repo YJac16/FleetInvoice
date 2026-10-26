@@ -65,6 +65,44 @@ export async function createOrganisation(input: {
   return data as Organisation;
 }
 
+/** Self-serve path for users with no active membership (requires migration 00028). */
+export async function createOwnOrganisation(input: {
+  name: string;
+  slug?: string;
+  settings?: Record<string, unknown>;
+}): Promise<Organisation> {
+  const supabase = createClient();
+  const slug = input.slug?.trim() || slugify(input.name);
+  const { data: organisationId, error } = await supabase.rpc(
+    "create_own_organisation",
+    {
+      p_name: input.name.trim(),
+      p_slug: slug,
+      p_settings: input.settings ?? {},
+    }
+  );
+  if (error) throw error;
+
+  const org = await getOrganisation(organisationId as string);
+  if (!org) {
+    throw new Error("Organisation was created but could not be loaded");
+  }
+
+  try {
+    await writeAuditLog({
+      organisationId: org.id,
+      action: "organisation.created",
+      entityType: "organisation",
+      entityId: org.id,
+      metadata: { name: org.name, slug: org.slug, self_serve: true },
+    });
+  } catch {
+    // best-effort
+  }
+
+  return org;
+}
+
 export async function updateOrganisation(
   id: string,
   input: Partial<
