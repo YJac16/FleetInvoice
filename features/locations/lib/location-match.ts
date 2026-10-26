@@ -9,6 +9,9 @@ export type ServiceLocation = {
 
 export const LOCATION_AREA_SEPARATOR = " / ";
 
+/** Separator between pickup and drop-off in structured route text. */
+const ROUTE_ARROW = "→";
+
 /** Split multi-drop AREA text into individual place tokens. */
 export function splitAreaPlaces(value: string): string[] {
   return value
@@ -141,6 +144,13 @@ export function normalizeAreaValue(
   value: string,
   locations: ServiceLocation[]
 ): { value: string; corrections: LocationMatchResult[] } {
+  // Structured "Pickup → Drop-off" routes are written by the driver/admin as
+  // whole place names (which may contain commas, e.g. "The Silo Hotel, V&A
+  // Waterfront"). Never split them into multi-drop tokens.
+  if (value.includes(ROUTE_ARROW)) {
+    return { value: value.trim(), corrections: [] };
+  }
+
   const parts = splitAreaPlaces(value);
   const corrections: LocationMatchResult[] = [];
   const canonicalParts = parts.map((part) => {

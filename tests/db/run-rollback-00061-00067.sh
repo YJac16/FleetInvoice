@@ -11,6 +11,7 @@ SKIP_POST_00060=(
   00066_admin_assign_vehicle_on_approve.sql
   00067_revoke_anon_driver_admin_rpcs.sql
   00068_invoice_line_override_marker_audit_immutable.sql
+  00069_trip_pickup_dropoff.sql
 )
 export WORKOPS_EXTRA_SKIP_MIGRATIONS="${SKIP_POST_00060[*]}"
 

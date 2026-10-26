@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { isMapboxConfigured, env } from "@/lib/env";
+import { CAPE_TOWN_MAX_BOUNDS } from "@/lib/maps/cape-town";
 import {
   createMapboxMap,
   type MapHandle,
@@ -26,6 +27,7 @@ export function DispatchMap({ markers, className }: DispatchMapProps) {
 
     void createMapboxMap(containerRef.current, {
       accessToken: env.NEXT_PUBLIC_MAPBOX_TOKEN!,
+      maxBounds: CAPE_TOWN_MAX_BOUNDS,
     }).then((handle) => {
       if (cancelled) {
         handle.destroy();

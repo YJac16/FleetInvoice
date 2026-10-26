@@ -23,6 +23,7 @@ import {
   listGeofences,
   updateGeofence,
 } from "@/services/geofences.service";
+import { CAPE_TOWN_CENTER } from "@/lib/maps/cape-town";
 import type { Geofence } from "@/types";
 import { queryKeys } from "@/utils/query";
 
@@ -52,8 +53,8 @@ function GeofenceForm({
     resolver: zodResolver(geofenceSchema),
     defaultValues: {
       name: initial?.name ?? "",
-      center_lat: String(initial?.center_lat ?? -26.2041),
-      center_lng: String(initial?.center_lng ?? 28.0473),
+      center_lat: String(initial?.center_lat ?? CAPE_TOWN_CENTER[1]),
+      center_lng: String(initial?.center_lng ?? CAPE_TOWN_CENTER[0]),
       radius_m: String(initial?.radius_m ?? 150),
       site_id: initial?.site_id ?? NONE,
       pickup_point_id: initial?.pickup_point_id ?? NONE,
