@@ -83,9 +83,9 @@ function DocCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="border-zinc-800 bg-zinc-900/80">
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-white">{title}</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">{children}</CardContent>
     </Card>
@@ -102,10 +102,10 @@ function Row({
   badgeDate?: string | null;
 }) {
   return (
-    <div className="flex min-h-11 items-start justify-between gap-3">
-      <div>
-        <p className="text-zinc-500">{label}</p>
-        <p className="font-medium text-zinc-100">{value}</p>
+    <div className="flex min-h-11 min-w-0 items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-muted-foreground">{label}</p>
+        <p className="break-words font-medium text-foreground">{value}</p>
       </div>
       {badgeDate !== undefined ? (
         <ComplianceExpiryBadge expiresOn={badgeDate} />
@@ -169,14 +169,14 @@ export function DriverDocumentsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-white">My docs</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-lg font-semibold text-foreground">My docs</h1>
+        <p className="text-sm text-muted-foreground">
           Read-only view of your licence, {PRDP_SHORT_LABEL}, and assigned vehicle.
         </p>
       </div>
 
       {urgent ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-50">
           One or more items need attention soon. Details below.
         </p>
       ) : null}
@@ -216,7 +216,7 @@ export function DriverDocumentsPage() {
 
       <DocCard title="My vehicle">
         {!vehicle ? (
-          <p className="min-h-11 py-2 text-zinc-400">
+          <p className="min-h-11 py-2 text-muted-foreground">
             No vehicle assigned. Contact your fleet admin.
           </p>
         ) : (
@@ -258,7 +258,7 @@ export function DriverDocumentsPage() {
         )}
       </DocCard>
 
-      <p className="text-center text-sm text-zinc-500">
+      <p className="text-center text-sm text-muted-foreground">
         Something wrong? Contact your admin.
       </p>
       <p className="sr-only">
@@ -288,7 +288,7 @@ export function DriverComplianceBanner() {
   return (
     <Link
       href="/driver/documents"
-      className="mb-4 flex min-h-11 items-center justify-between rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-50"
+      className="mb-4 flex min-h-11 items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-50"
     >
       <span>Licence, PrDP, or vehicle docs need attention</span>
       <span className="text-xs underline">My docs</span>

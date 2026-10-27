@@ -55,10 +55,10 @@ export function DriverHistoryPage() {
   return (
     <div className="mx-auto max-w-lg space-y-5">
       <div>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-white">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
           History
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Completed trips · {formatRangeLabel(range)}
         </p>
       </div>
@@ -68,7 +68,6 @@ export function DriverHistoryPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
-        className="[&_button]:border-zinc-700 [&_button]:bg-zinc-900/50"
       />
 
       {showHistorySkeleton ? (

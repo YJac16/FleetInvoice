@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import {
   CalendarDays,
   CircleUser,
-  FileText,
   Home,
   ListChecks,
   LogOut,
@@ -16,12 +15,14 @@ import {
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider } from "@/components/layout/org-context";
 import { PageFadeIn } from "@/components/shared/page-fade-in";
+import { DriverThemeControl } from "@/features/driver-portal/components/driver-theme-control";
 import { NotificationBell } from "@/features/driver-portal/components/notification-bell";
 import { StaffTripGpsTracker } from "@/features/driver-portal/components/staff-trip-gps-tracker";
 import {
   DriverPresenceProvider,
   useDriverPresence,
 } from "@/features/driver-portal/hooks/use-driver-heartbeat";
+import { driverHeaderName } from "@/features/driver-portal/lib/driver-header-name";
 import { presenceStateLabel } from "@/features/driver-portal/lib/presence";
 import { createClient } from "@/lib/supabase/client";
 import type { MembershipWithOrg, Profile } from "@/types";
@@ -41,9 +42,9 @@ function PresenceDot() {
   return (
     <span
       className={cn(
-        "size-2.5 shrink-0 rounded-full ring-2 ring-zinc-950",
+        "size-2.5 shrink-0 rounded-full ring-2 ring-background",
         state === "online" && "bg-emerald-500",
-        state === "offline" && "bg-zinc-500",
+        state === "offline" && "bg-muted-foreground",
         state === "signing_out" && "bg-red-500"
       )}
       title={presenceStateLabel(state)}
@@ -62,22 +63,25 @@ function DriverHeader({ profile }: { profile: Profile }) {
     window.location.href = "/login";
   }
 
-  const displayName = profile.full_name?.toUpperCase() ?? "DRIVER";
+  const displayName = driverHeaderName(profile.full_name);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur md:px-6">
-      <div className="mx-auto flex h-12 max-w-lg items-center justify-between gap-2">
-        <GoOpsLogo variant="on-dark" size="sm" href="/driver" />
-        <div className="flex min-w-0 items-center gap-1">
+    <header className="sticky top-0 z-30 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+      <div className="mx-auto flex h-12 max-w-lg items-center gap-2">
+        <div className="shrink-0">
+          <GoOpsLogo size="sm" href="/driver" />
+        </div>
+        <div className="ml-auto flex min-w-0 items-center gap-0.5">
           <PresenceDot />
-          <span className="max-w-[5.5rem] truncate text-[11px] font-medium text-zinc-400 sm:max-w-[7rem]">
+          <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
             {displayName}
           </span>
+          <DriverThemeControl variant="icon" />
           <NotificationBell />
           <button
             type="button"
             onClick={() => void signOut()}
-            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Sign out"
           >
             <LogOut className="size-4" />
@@ -92,7 +96,7 @@ function DriverBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-800 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
         {DRIVER_TABS.map((tab) => {
           const Icon = tab.icon;
@@ -106,7 +110,9 @@ function DriverBottomNav() {
               href={tab.href}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px]",
-                active ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+                active
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Icon className={cn("size-5", active && "stroke-[2.25px]")} />
@@ -141,10 +147,10 @@ export function DriverShell({
       initialOrganisationId={activeOrganisationId}
       isPlatformOwner={isPlatformOwner}
     >
-      <div className="dark flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+      <div className="flex min-h-screen flex-col bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
         <DriverPresenceProvider>
           <DriverHeader profile={profile} />
-          <main className="mx-auto w-full max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">
+          <main className="mx-auto w-full min-w-0 max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">
             <StaffTripGpsTracker />
             <PageFadeIn>{children}</PageFadeIn>
           </main>

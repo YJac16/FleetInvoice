@@ -23,9 +23,9 @@ const STATUS_LABEL = {
 } as const;
 
 const STATUS_CLASS = {
-  pending: "bg-amber-500/20 text-amber-200",
-  approved: "bg-emerald-500/20 text-emerald-200",
-  rejected: "bg-red-500/20 text-red-200",
+  pending: "bg-amber-500/15 text-amber-950 dark:text-amber-100",
+  approved: "bg-emerald-500/15 text-emerald-950 dark:text-emerald-100",
+  rejected: "bg-red-500/15 text-red-950 dark:text-red-100",
 } as const;
 
 export function DriverSubmissionsPage() {
@@ -57,8 +57,10 @@ export function DriverSubmissionsPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-white">My submissions</h1>
-          <p className="mt-1 text-sm text-zinc-400">Driver-logged trips awaiting review.</p>
+          <h1 className="text-lg font-semibold text-foreground">My submissions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Driver-logged trips awaiting review.
+          </p>
         </div>
         <Button size="sm" render={<Link href="/driver/log">Log trip</Link>} />
       </div>
@@ -78,10 +80,10 @@ export function DriverSubmissionsPage() {
             return (
               <li
                 key={trip.id}
-                className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 text-sm"
+                className="min-w-0 rounded-xl border border-border bg-card p-4 text-sm"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-white">
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <p className="min-w-0 break-words font-medium text-foreground">
                     {trip.companies?.name ?? "Company"}
                   </p>
                   <span
@@ -93,10 +95,14 @@ export function DriverSubmissionsPage() {
                     {STATUS_LABEL[status]}
                   </span>
                 </div>
-                <p className="mt-1 text-zinc-400">{formatDateTime(trip.planned_start)}</p>
-                <p className="mt-2 text-zinc-300">{trip.area_text}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {formatDateTime(trip.planned_start)}
+                </p>
+                <p className="mt-2 break-words text-foreground">{trip.area_text}</p>
                 {trip.rejected_reason ? (
-                  <p className="mt-2 text-xs text-red-300">{trip.rejected_reason}</p>
+                  <p className="mt-2 break-words text-xs text-red-700 dark:text-red-300">
+                    {trip.rejected_reason}
+                  </p>
                 ) : null}
               </li>
             );

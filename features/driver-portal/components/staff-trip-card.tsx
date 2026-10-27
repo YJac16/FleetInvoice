@@ -40,34 +40,34 @@ export function StaffTripCard({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "w-full rounded-xl border border-zinc-800 bg-zinc-900/80 text-left",
+        "w-full min-w-0 rounded-xl border border-border bg-card text-left",
         compact ? "px-3 py-2.5" : "px-4 py-3",
-        onClick && "transition hover:border-zinc-600",
+        onClick && "transition hover:border-foreground/30",
         className
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span className="font-medium text-zinc-300">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">
               {formatTripTime(trip.planned_start)}
             </span>
             {isNow ? (
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                 Today
               </span>
             ) : (
-              <span>{formatDayLabel(trip.planned_start)}</span>
+              <span className="min-w-0 truncate">{formatDayLabel(trip.planned_start)}</span>
             )}
           </div>
-          <p className={cn("mt-1 font-semibold text-white", compact ? "text-base" : "text-lg")}>
+          <p className={cn("mt-1 break-words font-semibold text-foreground", compact ? "text-base" : "text-lg")}>
             {staffCompanyLabel(trip.staff_company)}
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-400">
+          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin className="size-3.5 shrink-0 text-emerald-500" />
             <span className="truncate">{trip.area_text ?? "—"}</span>
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Users className="size-3" />
               {trip.pax_count ?? 0} pax
@@ -79,7 +79,7 @@ export function StaffTripCard({
               <span>Close {trip.closing_km} km</span>
             ) : null}
             {trip.total_km != null ? (
-              <span className="text-zinc-300">Total {trip.total_km} km</span>
+              <span className="text-foreground">Total {trip.total_km} km</span>
             ) : null}
             {showRate ? (
               <span>R{STAFF_TRANSPORT_FLAT_RATE_ZAR}</span>

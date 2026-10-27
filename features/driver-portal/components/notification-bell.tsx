@@ -58,7 +58,7 @@ export function NotificationBell() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="relative text-zinc-300 hover:text-white"
+            className="relative shrink-0 text-muted-foreground"
             aria-label="Notifications"
           />
         }
@@ -70,21 +70,21 @@ export function NotificationBell() {
           </span>
         ) : null}
       </SheetTrigger>
-      <SheetContent side="right" className="w-full max-w-sm bg-zinc-950 text-zinc-100">
+      <SheetContent side="right" className="w-full max-w-sm bg-background text-foreground">
         <SheetHeader>
-          <SheetTitle className="text-white">Alerts</SheetTitle>
+          <SheetTitle>Alerts</SheetTitle>
         </SheetHeader>
         <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
           {notifications.length === 0 ? (
-            <p className="px-1 text-sm text-zinc-500">No alerts yet.</p>
+            <p className="px-1 text-sm text-muted-foreground">No alerts yet.</p>
           ) : (
             <ul className="space-y-2 pr-3">
               {notifications.map((n) => (
                 <li
                   key={n.id}
                   className={cn(
-                    "rounded-lg border border-zinc-800 px-3 py-2",
-                    !n.read_at && "border-zinc-600 bg-zinc-900"
+                    "rounded-lg border border-border px-3 py-2",
+                    !n.read_at && "border-foreground/25 bg-muted"
                   )}
                 >
                   <button
@@ -94,9 +94,13 @@ export function NotificationBell() {
                       if (!n.read_at) readMutation.mutate(n.id);
                     }}
                   >
-                    <p className="text-sm font-medium text-white">{n.title}</p>
-                    <p className="mt-0.5 text-sm text-zinc-400">{n.body}</p>
-                    <p className="mt-1 text-xs text-zinc-600">
+                    <p className="break-words text-sm font-medium text-foreground">
+                      {n.title}
+                    </p>
+                    <p className="mt-0.5 break-words text-sm text-muted-foreground">
+                      {n.body}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {formatDateTime(n.created_at)}
                     </p>
                   </button>
