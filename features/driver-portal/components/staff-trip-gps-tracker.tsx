@@ -56,8 +56,8 @@ export function StaffTripGpsTracker() {
       className={cn(
         "mb-3 flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px]",
         isError
-          ? "border-amber-800/60 bg-amber-950/40 text-amber-100"
-          : "border-emerald-900/50 bg-emerald-950/30 text-emerald-100"
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-50"
+          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-50"
       )}
       role="status"
     >
@@ -66,11 +66,14 @@ export function StaffTripGpsTracker() {
       ) : (
         <MapPin className="size-3 shrink-0" aria-hidden />
       )}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 break-words">
         {gpsState.status === "sharing" ? (
           <p>
             <span className="font-medium">GPS live</span>
-            <span className="text-emerald-200/70"> · keep tab open</span>
+            <span className="text-emerald-800/80 dark:text-emerald-100/80">
+              {" "}
+              · keep tab open
+            </span>
           </p>
         ) : (
           <p>

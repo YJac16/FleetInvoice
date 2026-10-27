@@ -231,6 +231,51 @@
 }
 
 @layer utilities {
+  /*
+    iOS Safari sizes date/time inputs from their formatted value. Inside a
+    50/50 grid that minimum is wider than the phone, so Date and Time overlap
+    and the time field leaves the screen. These rules pin the control to the
+    cell. Below 360px the pair stacks (see .driver-pair-grid--stack).
+  */
+  .driver-datetime {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .driver-datetime::-webkit-datetime-edit,
+  .driver-datetime::-webkit-date-and-time-value {
+    min-width: 0;
+    overflow: hidden;
+    padding: 0;
+    color: inherit;
+  }
+
+  .driver-pair-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 359px) {
+    .driver-pair-grid--stack {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .driver-portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    .driver-portal textarea,
+    .driver-portal [data-slot="select-trigger"],
+    .driver-portal [data-slot="button"] {
+      min-height: 2.75rem;
+    }
+  }
+
   .bg-auth-surface {
     background-image:
       radial-gradient(circle at top left, rgb(0 109 255 / 0.1), transparent 40%),
@@ -243,6 +288,22 @@
       rgb(0 109 255 / 0.1),
       transparent 40%
     );
+  }
+}
+
+/* Sonner's close control is 20px. On a phone it needs a 44px target and must stay inside the toast. */
+@media (max-width: 767px) {
+  [data-sonner-toast][data-styled="true"] {
+    padding-right: 52px !important;
+  }
+
+  [data-sonner-toast][data-styled="true"] [data-close-button] {
+    top: 8px !important;
+    right: 4px !important;
+    left: auto !important;
+    width: 44px !important;
+    height: 44px !important;
+    transform: none !important;
   }
 }
 

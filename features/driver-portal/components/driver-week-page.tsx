@@ -74,20 +74,19 @@ export function DriverWeekPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-3xl font-semibold tracking-tight text-white">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
             Week
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             {tripCount} trip{tripCount === 1 ? "" : "s"} this week
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="text-zinc-400"
+            className="size-11 text-muted-foreground"
             onClick={() => shiftWeek(-1)}
             aria-label="Previous week"
           >
@@ -95,8 +94,7 @@ export function DriverWeekPage() {
           </Button>
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="text-zinc-400"
+            className="size-11 text-muted-foreground"
             onClick={() => shiftWeek(1)}
             aria-label="Next week"
           >
@@ -105,7 +103,7 @@ export function DriverWeekPage() {
         </div>
       </div>
 
-      <p className="text-xs text-zinc-600">{weekRangeLabel(weekMonday)}</p>
+      <p className="text-xs text-muted-foreground">{weekRangeLabel(weekMonday)}</p>
 
       {tripsQuery.isLoading ? (
         <LoadingSkeleton rows={4} />
@@ -122,17 +120,17 @@ export function DriverWeekPage() {
               return (
                 <div
                   key={dateStr}
-                  className="flex items-center justify-between rounded-xl border border-zinc-800/80 px-4 py-3 text-sm"
+                  className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border px-4 py-3 text-sm"
                 >
-                  <span className="text-zinc-300">
+                  <span className="min-w-0 truncate text-foreground">
                     {formatDayLabel(sampleIso)}
                     {isToday ? (
-                      <span className="ml-2 text-[10px] uppercase text-emerald-500">
+                      <span className="ml-2 text-[10px] uppercase text-emerald-700 dark:text-emerald-400">
                         Today
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-zinc-500">
+                  <span className="shrink-0 text-muted-foreground">
                     {noTrip ? "No trip today" : "No trips"}
                   </span>
                 </div>
@@ -143,39 +141,39 @@ export function DriverWeekPage() {
               <div
                 key={dateStr}
                 className={cn(
-                  "overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40",
-                  isToday && "border-zinc-600"
+                  "overflow-hidden rounded-xl border border-border bg-card",
+                  isToday && "border-foreground/30"
                 )}
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-4 py-3 text-left"
+                  className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left"
                   onClick={() =>
                     setExpandedDay(expanded ? null : dateStr)
                   }
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-200">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="min-w-0 truncate text-sm font-medium text-foreground">
                       {formatDayLabel(dayTrips[0]!.planned_start)}
                     </span>
                     {isToday ? (
-                      <span className="text-[10px] uppercase text-emerald-500">
+                      <span className="shrink-0 text-[10px] uppercase text-emerald-700 dark:text-emerald-400">
                         Today
                       </span>
                     ) : null}
-                    <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {dayTrips.length}
                     </span>
                   </div>
                   <ChevronDown
                     className={cn(
-                      "size-4 text-zinc-500 transition",
+                      "size-4 shrink-0 text-muted-foreground transition",
                       expanded && "rotate-180"
                     )}
                   />
                 </button>
                 {expanded ? (
-                  <div className="space-y-2 border-t border-zinc-800 px-3 pb-3 pt-2">
+                  <div className="space-y-2 border-t border-border px-3 pb-3 pt-2">
                     {dayTrips.map((trip) => (
                       <StaffTripCard key={trip.id} trip={trip} compact />
                     ))}

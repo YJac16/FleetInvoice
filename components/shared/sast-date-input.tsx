@@ -54,7 +54,7 @@ export function SastDateInput({
           if (iso) onTextChange(isoDateToDisplay(iso));
         }}
         className={cn(
-          "w-[10.5rem] font-mono tabular-nums",
+          "w-[10.5rem] max-w-full font-mono tabular-nums",
           showError && "border-destructive"
         )}
       />

@@ -139,7 +139,7 @@ export function DriverLocationPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {lastPoint ? (
-            <p className="font-mono text-sm text-muted-foreground">{lastPoint}</p>
+            <p className="break-all font-mono text-sm text-muted-foreground">{lastPoint}</p>
           ) : null}
           {lastSyncedAt ? (
             <p className="text-xs text-muted-foreground">

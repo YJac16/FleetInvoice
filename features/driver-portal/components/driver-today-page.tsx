@@ -196,14 +196,14 @@ export function DriverTodayPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-white">
+      <div className="flex min-w-0 items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
             Today
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500">{tripCountLabel}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{tripCountLabel}</p>
         </div>
-        <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium tabular-nums text-zinc-400">
+        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground">
           {nowLabel}
         </span>
       </div>
@@ -211,7 +211,7 @@ export function DriverTodayPage() {
       <DriverComplianceBanner />
 
       <div className="relative pl-4">
-        <div className="absolute bottom-0 left-[5px] top-0 w-px bg-zinc-800" />
+        <div className="absolute bottom-0 left-[5px] top-0 w-px bg-border" />
 
         {showTripsSkeleton ? (
           <LoadingSkeleton rows={2} />
@@ -221,7 +221,7 @@ export function DriverTodayPage() {
           <section className="relative mb-5 space-y-3">
             <div className="relative mb-1">
               <span className="absolute -left-4 top-1 size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                 Active trip
               </p>
             </div>
@@ -251,7 +251,7 @@ export function DriverTodayPage() {
 
         {upcoming.length > 0 ? (
           <section className="relative mb-5 space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Upcoming
             </p>
             {upcoming.map((trip, idx) => (
@@ -259,7 +259,7 @@ export function DriverTodayPage() {
                 <span
                   className={cn(
                     "absolute -left-4 top-4 size-2 rounded-full",
-                    idx === 0 && !active ? "bg-violet-500" : "bg-zinc-600"
+                    idx === 0 && !active ? "bg-violet-500" : "bg-muted-foreground"
                   )}
                 />
                 <StaffTripCard trip={trip} />
@@ -279,7 +279,7 @@ export function DriverTodayPage() {
 
         {done.length > 0 ? (
           <section className="relative space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Completed
             </p>
             {done.map((trip) => (
@@ -291,17 +291,16 @@ export function DriverTodayPage() {
         {!showTripsSkeleton &&
         !hasTripsToday(trips) &&
         !declaredNoTrip ? (
-          <div className="space-y-3 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/30 px-4 py-5 text-center">
-            <p className="text-sm font-medium text-zinc-300">
+          <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5 text-center">
+            <p className="text-sm font-medium text-foreground">
               No trips assigned
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               If you are not driving today, record it below.
             </p>
             <Button
               variant="outline"
               size="sm"
-              className="border-zinc-700 text-zinc-300"
               disabled={noTripMutation.isPending}
               onClick={() => noTripMutation.mutate()}
             >
@@ -311,9 +310,9 @@ export function DriverTodayPage() {
         ) : null}
 
         {declaredNoTrip && !hasTripsToday(trips) ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 text-center">
-            <p className="text-sm font-medium text-zinc-300">No trip today</p>
-            <p className="mt-1 text-xs text-zinc-500">
+          <div className="rounded-xl border border-border bg-card px-4 py-4 text-center">
+            <p className="text-sm font-medium text-foreground">No trip today</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               You confirmed no assigned trips for today.
             </p>
           </div>
