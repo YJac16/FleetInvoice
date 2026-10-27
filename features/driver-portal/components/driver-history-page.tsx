@@ -68,6 +68,7 @@ export function DriverHistoryPage() {
         onPresetChange={setPreset}
         onCustomChange={setCustomRange}
         updating={rangeRefreshing}
+        className="min-w-0 [&_button]:min-h-11"
       />
 
       {showHistorySkeleton ? (

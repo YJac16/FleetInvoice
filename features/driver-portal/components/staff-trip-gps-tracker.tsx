@@ -66,7 +66,7 @@ export function StaffTripGpsTracker() {
       ) : (
         <MapPin className="size-3 shrink-0" aria-hidden />
       )}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 break-words">
         {gpsState.status === "sharing" ? (
           <p>
             <span className="font-medium">GPS live</span>

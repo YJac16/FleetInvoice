@@ -74,8 +74,8 @@ export function DriverWeekPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
             Week
           </h1>
@@ -86,8 +86,7 @@ export function DriverWeekPage() {
         <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground"
+            className="size-11 text-muted-foreground"
             onClick={() => shiftWeek(-1)}
             aria-label="Previous week"
           >
@@ -95,8 +94,7 @@ export function DriverWeekPage() {
           </Button>
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground"
+            className="size-11 text-muted-foreground"
             onClick={() => shiftWeek(1)}
             aria-label="Next week"
           >
@@ -149,7 +147,7 @@ export function DriverWeekPage() {
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-4 py-3 text-left"
+                  className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left"
                   onClick={() =>
                     setExpandedDay(expanded ? null : dateStr)
                   }

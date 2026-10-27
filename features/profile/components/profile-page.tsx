@@ -232,7 +232,7 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
             To change your password, use{" "}
             <Link
               href="/forgot-password"
-              className="underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
             >
               forgot password
             </Link>

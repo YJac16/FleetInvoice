@@ -55,9 +55,9 @@ export function DriverSubmissionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">My submissions</h1>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="break-words text-lg font-semibold text-foreground">My submissions</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Driver-logged trips awaiting review.
           </p>

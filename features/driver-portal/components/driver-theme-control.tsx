@@ -52,8 +52,7 @@ export function DriverThemeControl({
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
-        className="shrink-0 text-muted-foreground"
+        className="size-11 shrink-0 text-muted-foreground"
         aria-label={
           mounted ? `Theme: ${current}. Switch to ${next}` : "Theme"
         }
@@ -79,7 +78,7 @@ export function DriverThemeControl({
             type="button"
             aria-pressed={selected}
             className={cn(
-              "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium",
+              "inline-flex min-h-11 items-center gap-1 rounded-md px-2.5 text-xs font-medium",
               selected
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

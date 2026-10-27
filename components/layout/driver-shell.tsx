@@ -66,9 +66,9 @@ function DriverHeader({ profile }: { profile: Profile }) {
   const displayName = driverHeaderName(profile.full_name);
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-      <div className="mx-auto flex h-12 max-w-lg items-center gap-2">
-        <div className="shrink-0">
+    <header className="sticky top-0 z-30 border-b bg-background/95 px-3 backdrop-blur md:px-6">
+      <div className="mx-auto flex min-h-14 max-w-lg items-center gap-1">
+        <div className="shrink-0 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center">
           <GoOpsLogo size="sm" href="/driver" />
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-0.5">
@@ -81,7 +81,7 @@ function DriverHeader({ profile }: { profile: Profile }) {
           <button
             type="button"
             onClick={() => void signOut()}
-            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Sign out"
           >
             <LogOut className="size-4" />
@@ -109,7 +109,7 @@ function DriverBottomNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px]",
+                "flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[11px]",
                 active
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -147,7 +147,7 @@ export function DriverShell({
       initialOrganisationId={activeOrganisationId}
       isPlatformOwner={isPlatformOwner}
     >
-      <div className="flex min-h-screen flex-col bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
+      <div className="driver-portal flex min-h-screen min-w-0 flex-col overflow-x-clip bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
         <DriverPresenceProvider>
           <DriverHeader profile={profile} />
           <main className="mx-auto w-full min-w-0 max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">

@@ -196,8 +196,8 @@ export function DriverTodayPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
+      <div className="flex min-w-0 items-end justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
             Today
           </h1>

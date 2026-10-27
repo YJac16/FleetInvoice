@@ -57,8 +57,7 @@ export function NotificationBell() {
         render={
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="relative shrink-0 text-muted-foreground"
+            className="relative size-11 shrink-0 text-muted-foreground"
             aria-label="Notifications"
           />
         }
@@ -70,11 +69,11 @@ export function NotificationBell() {
           </span>
         ) : null}
       </SheetTrigger>
-      <SheetContent side="right" className="w-full max-w-sm bg-background text-foreground">
+      <SheetContent side="right" className="bg-background text-foreground">
         <SheetHeader>
-          <SheetTitle>Alerts</SheetTitle>
+          <SheetTitle className="break-words">Alerts</SheetTitle>
         </SheetHeader>
-        <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
+        <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
           {notifications.length === 0 ? (
             <p className="px-1 text-sm text-muted-foreground">No alerts yet.</p>
           ) : (
@@ -89,7 +88,7 @@ export function NotificationBell() {
                 >
                   <button
                     type="button"
-                    className="w-full text-left"
+                    className="min-h-11 w-full text-left"
                     onClick={() => {
                       if (!n.read_at) readMutation.mutate(n.id);
                     }}
