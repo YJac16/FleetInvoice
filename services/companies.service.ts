@@ -78,6 +78,19 @@ export async function listCompanyTripRateCards(
   return (data as RateCard[]) ?? [];
 }
 
+export async function getEarliestUnbilledTripDate(
+  organisationId: string,
+  companyId: string
+): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("earliest_unbilled_trip_date", {
+    p_organisation_id: organisationId,
+    p_company_id: companyId,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 export type CompanyTripRateInput = {
   unitAmount: number;
   effectiveFrom: string;

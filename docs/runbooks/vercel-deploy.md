@@ -25,7 +25,7 @@ Do **not** use framework preset **Other** — set **Next.js** (CLI-created proje
 
 | Name | Notes |
 |------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | WorkOps project `tggxnvombexvxblsntsm` |
+| `NEXT_PUBLIC_SUPABASE_URL` | WorkOps project `fyxyajsugvhjgukzhlkc` (live prod; `tggxnvombexvxblsntsm` is the old project) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key |
 | `NEXT_PUBLIC_APP_URL` | `https://<your-domain>` or `https://<project>.vercel.app` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only |
@@ -54,3 +54,6 @@ Then run `npm run env:check` locally against production-shaped env, and `PLAYWRI
 ## 6. Custom domain
 
 Vercel → Project → Domains → add hostname; update Auth URLs and Mapbox restrictions.
+
+## Migration history on live prod (fyx), checked 3 Nov 2026
+`fyxyajsugvhjgukzhlkc` was created from a schema dump on 25 Oct 2026. Its `supabase_migrations.schema_migrations` table holds only `rehearsal_schema_pre` and `rehearsal_schema_post`, but the objects from 00001–00068 are present. **Do not run `supabase db push` against fyx**, because it would try to replay every migration. Apply new migrations one at a time (for example 00069 through the Supabase MCP `apply_migration`), and only after the founder says go.

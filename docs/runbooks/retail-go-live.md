@@ -8,7 +8,7 @@ Complete these on the **deployment host** before selling managed or self-serve r
 
 | Variable | Where |
 |----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Host env (WorkOps project `tggxnvombexvxblsntsm`) |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Host env (WorkOps project `fyxyajsugvhjgukzhlkc` (live prod; `tggxnvombexvxblsntsm` is the old project)) |
 | `NEXT_PUBLIC_APP_URL` | Production hostname (`https://…`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only |
 | `NOTIFICATIONS_PROCESS_SECRET` or `CRON_SECRET` | Server only (`CRON_SECRET` required for Vercel Cron) |
@@ -34,7 +34,7 @@ npm run db:audit
 npm run test:e2e:smoke
 ```
 
-Apply Phase 9 SQL on **WorkOps** Supabase (`tggxnvombexvxblsntsm`) in the SQL editor:
+Apply Phase 9 SQL on **WorkOps** Supabase (`fyxyajsugvhjgukzhlkc` (live prod; `tggxnvombexvxblsntsm` is the old project)) in the SQL editor:
 
 1. `database/migrations/00013_phase9_subscriptions.sql`
 2. `database/migrations/00014_phase9_white_label.sql`

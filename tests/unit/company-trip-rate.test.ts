@@ -33,3 +33,29 @@ describe("company trip rate helpers", () => {
     expect(defaultEffectiveFromDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
+
+import {
+  pickDefaultEffectiveFrom,
+  tripRateChanged,
+} from "@/features/companies/lib/company-trip-rate";
+
+describe("00069 rate edit defaults", () => {
+  const now = new Date("2026-11-02T23:30:00Z"); // 3 Nov 01:30 SAST
+
+  it("defaults effective-from to the earliest unbilled trip date", () => {
+    expect(pickDefaultEffectiveFrom("2026-09-24", now)).toBe("2026-09-24");
+  });
+
+  it("falls back to today in SAST, not UTC", () => {
+    expect(pickDefaultEffectiveFrom(null, now)).toBe("2026-11-03");
+    expect(defaultEffectiveFromDate(now)).toBe("2026-11-03");
+  });
+
+  it("does not resend an unchanged rate", () => {
+    const latest = { unit_amount: 440, effective_from: "2026-09-01" };
+    expect(tripRateChanged(latest, 440, "2026-09-01")).toBe(false);
+    expect(tripRateChanged(latest, 450, "2026-09-01")).toBe(true);
+    expect(tripRateChanged(latest, 440, "2026-08-01")).toBe(true);
+    expect(tripRateChanged(null, 440, "2026-09-01")).toBe(true);
+  });
+});
