@@ -27,7 +27,7 @@ export function waybillBillingProblems(
   }
   if (!readiness.hasBillTo) {
     problems.push(
-      `This organisation has no invoice bill-to company configured, so completed trips cannot be invoiced. Ask GoOps support to set the bill-to company before ${action}.`
+      `This organisation has no invoice bill-to company configured, so completed trips cannot be invoiced. An org admin can set it in Settings → Invoicing before ${action}.`
     );
   }
   return problems;

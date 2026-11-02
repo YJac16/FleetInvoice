@@ -129,3 +129,39 @@ export async function getOrganisation(
   if (error) throw error;
   return data as Organisation | null;
 }
+
+export type OrgInvoiceBillTo = {
+  company_id: string;
+  company_name: string;
+  is_explicit: boolean;
+};
+
+/** Current invoice bill-to (explicit setting or WCL fallback); null if none. */
+export async function getOrgInvoiceBillTo(
+  organisationId: string
+): Promise<OrgInvoiceBillTo | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_org_invoice_bill_to", {
+    p_organisation_id: organisationId,
+  });
+  if (error) throw error;
+  const rows = (data ?? []) as OrgInvoiceBillTo[];
+  return rows[0] ?? null;
+}
+
+/**
+ * Org admins only (enforced in SQL, 00070). Re-targets DRAFT driver-week
+ * invoices; issued/paid/void are never changed. Returns drafts re-targeted.
+ */
+export async function setOrgInvoiceBillTo(
+  organisationId: string,
+  companyId: string
+): Promise<number> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("set_org_invoice_bill_to", {
+    p_organisation_id: organisationId,
+    p_company_id: companyId,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}

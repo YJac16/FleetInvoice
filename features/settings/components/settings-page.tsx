@@ -39,6 +39,7 @@ import {
   removeOrganisationLogo,
   uploadOrganisationLogo,
 } from "@/services/org-logo.service";
+import { InvoiceBillToSettings } from "@/features/settings/components/invoice-bill-to-settings";
 import { ServiceLocationsSettings } from "@/features/settings/components/service-locations-settings";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
@@ -80,9 +81,11 @@ const EMPTY_INVOICE_PRINT: InvoicePrintFormValues = {
 };
 
 export function SettingsPage() {
-  const { can } = useOrg();
+  const { can, activeRole, isPlatformOwner } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("settings:manage");
+  // Bill-to is org-admin only (00070 enforces this server-side too).
+  const canSetBillTo = isPlatformOwner || activeRole === "organisation_admin";
   const queryClient = useQueryClient();
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -438,6 +441,10 @@ export function SettingsPage() {
               </form>
             </CardContent>
           </Card>
+
+          {canSetBillTo ? (
+            <InvoiceBillToSettings organisationId={organisationId} />
+          ) : null}
 
           <ServiceLocationsSettings organisationId={organisationId} />
         </>

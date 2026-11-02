@@ -36,6 +36,8 @@ describe("waybillBillingProblems", () => {
     const problems = waybillBillingProblems({ hasTripRate: false, hasBillTo: false }, "Acme", "send");
     expect(problems).toHaveLength(2);
     expect(problems[1]).toContain("no invoice bill-to company configured");
+    expect(problems[1]).toContain("An org admin can set it in Settings → Invoicing");
+    expect(problems[1]).not.toContain("GoOps support");
   });
 });
 
