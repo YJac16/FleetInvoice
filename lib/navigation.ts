@@ -19,6 +19,7 @@ import {
   Building,
   Radar,
   ShieldCheck,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 
@@ -104,6 +105,7 @@ export const MAIN_NAV: NavItem[] = [
   item("Dispatch", "/dispatch", Radar, "dispatch:view", "ops", "gps"),
   item("Geofences", "/geofences", MapPin, "geofences:view", "ops", "gps"),
   item("Attendance", "/attendance", UsersRound, "attendance:view", "ops", "attendance"),
+  item("Setup health", "/setup", ListChecks, "invoices:manage", "finance", "billing"),
   item("Invoices", "/invoices", FileText, "invoices:view", "finance", "billing"),
   item("Rate cards", "/rate-cards", FileText, "rate_cards:view", "finance", "billing"),
   item("Pay rates", "/pay-rates", FileText, "payroll:view", "finance", "payroll"),
