@@ -1,5 +1,6 @@
 # WorkOps remote auth settings (pushed via supabase config push)
-project_id = "tggxnvombexvxblsntsm"
+# Live prod (workops-mu) = fyxyajsugvhjgukzhlkc. tggxnvombexvxblsntsm is the OLD project.
+project_id = "fyxyajsugvhjgukzhlkc"
 
 [auth]
 enabled = true
