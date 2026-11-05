@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { ArrowUpDown } from "lucide-react";
+
 import { useOrg } from "@/components/layout/org-context";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PlacePicker } from "@/features/places/components/place-picker";
+import { usePlacePickerEnabled } from "@/features/places/hooks/use-place-picker-enabled";
+import { CAPE_TOWN_AIRPORT_NAME } from "@/features/places/lib/constants";
+import { validateTripPlaces } from "@/features/trips/lib/trip-route-text";
+import { env } from "@/lib/env";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
 import { listActiveCompanies } from "@/services/companies.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -39,6 +46,17 @@ export function DriverLogTripPage() {
   const [pax, setPax] = useState("1");
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
+  const placePickerEnabled = usePlacePickerEnabled(organisationId);
+  const placeError = (() => {
+    if (!pickup.trim() || !dropoff.trim()) return null;
+    const result = validateTripPlaces(pickup, dropoff);
+    return result.ok ? null : result.error;
+  })();
+
+  function swapPlaces() {
+    setPickup(dropoff);
+    setDropoff(pickup);
+  }
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
@@ -91,6 +109,7 @@ export function DriverLogTripPage() {
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
+          if (placeError) return;
           submitMutation.mutate();
         }}
       >
@@ -117,24 +136,63 @@ export function DriverLogTripPage() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Pickup</Label>
-          <Input
-            value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-            className="border-zinc-700 bg-zinc-900"
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Drop-off</Label>
-          <Input
-            value={dropoff}
-            onChange={(e) => setDropoff(e.target.value)}
-            className="border-zinc-700 bg-zinc-900"
-            required
-          />
-        </div>
+        <PlacePicker
+          label="Pickup"
+          value={pickup}
+          onChange={setPickup}
+          accessToken={env.NEXT_PUBLIC_MAPBOX_TOKEN}
+          searchEnabled={placePickerEnabled}
+          required
+        />
+        {placePickerEnabled ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11 border-zinc-700 bg-zinc-900 text-zinc-200"
+              onClick={swapPlaces}
+              aria-label="Swap pickup and drop-off"
+            >
+              <ArrowUpDown className="mr-1.5 size-4" aria-hidden />
+              Swap
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11 border-zinc-700 bg-zinc-900 text-zinc-200"
+              onClick={() => setPickup(CAPE_TOWN_AIRPORT_NAME)}
+            >
+              {CAPE_TOWN_AIRPORT_NAME} (pickup)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11 border-zinc-700 bg-zinc-900 text-zinc-200"
+              onClick={() => setDropoff(CAPE_TOWN_AIRPORT_NAME)}
+            >
+              {CAPE_TOWN_AIRPORT_NAME} (drop-off)
+            </Button>
+          </div>
+        ) : null}
+        <PlacePicker
+          label="Drop-off"
+          value={dropoff}
+          onChange={setDropoff}
+          accessToken={env.NEXT_PUBLIC_MAPBOX_TOKEN}
+          searchEnabled={placePickerEnabled}
+          required
+        />
+        <p className="-mt-2 text-xs text-zinc-400">
+          Place names only — no passenger names or references (use Notes).
+        </p>
+        {placeError ? (
+          <p role="alert" className="text-sm text-red-400">
+            {placeError}
+          </p>
+        ) : null}
 
         <div className="space-y-1.5">
           <Label className="text-zinc-300">Company</Label>
@@ -197,7 +255,7 @@ export function DriverLogTripPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={submitMutation.isPending}
+            disabled={submitMutation.isPending || Boolean(placeError)}
           >
             Submit for approval
           </Button>

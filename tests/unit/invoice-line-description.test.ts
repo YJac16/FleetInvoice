@@ -146,3 +146,34 @@ describe("buildTripPrintRow pipe descriptions", () => {
     expect(row.area).toBe("Rondebosch");
   });
 });
+
+describe("sanitizeInvoiceArea: place names containing WEX", () => {
+  it("does not strip WEX from a structured route", () => {
+    expect(
+      sanitizeInvoiceArea(
+        "Cape Town International Airport → Alexandra WEX Centre",
+        "Lewis Head Office"
+      )
+    ).toBe("Cape Town International Airport → Alexandra WEX Centre");
+  });
+
+  it("does not leave a dangling arrow for a WEX pickup route", () => {
+    expect(
+      sanitizeInvoiceArea(
+        "WEX William Street → Cape Town International Airport",
+        "Lewis Head Office"
+      )
+    ).toBe("WEX William Street → Cape Town International Airport");
+  });
+
+  it("keeps a bare WEX inside a legacy place name", () => {
+    expect(sanitizeInvoiceArea("Alexandra WEX Centre", "Lewis Head Office")).toBe(
+      "Alexandra WEX Centre"
+    );
+  });
+
+  it("still strips the legacy WEX William St hub", () => {
+    expect(sanitizeInvoiceArea("Central / WEX William St", "Lewis Head Office")).toBe("Central");
+    expect(sanitizeInvoiceArea("Central WEX William St", "Lewis Head Office")).toBe("Central");
+  });
+});

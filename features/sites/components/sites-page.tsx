@@ -90,13 +90,13 @@ function SiteForm({
           control={form.control}
           name="latitude"
           label="Latitude"
-          placeholder="-26.2041"
+          placeholder="-33.9249"
         />
         <TextField
           control={form.control}
           name="longitude"
           label="Longitude"
-          placeholder="28.0473"
+          placeholder="18.4241"
         />
       </div>
       <SelectField

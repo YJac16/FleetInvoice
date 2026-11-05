@@ -135,3 +135,16 @@ describe("buildInvoiceEmailContent", () => {
     expect(content.html).toContain("View and print invoice");
   });
 });
+
+describe("normalizeAreaValue with structured routes", () => {
+  it("returns an unchanged 'A → B' route as-is, even with commas and slashes", () => {
+    for (const route of [
+      "Cape Town International Airport → The Silo Hotel, V&A Waterfront",
+      "Hotel A → Annex / Spa",
+    ]) {
+      const result = normalizeAreaValue(route, catalogue);
+      expect(result.value).toBe(route);
+      expect(result.corrections).toEqual([]);
+    }
+  });
+});

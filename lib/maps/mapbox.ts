@@ -1,3 +1,8 @@
+import {
+  CAPE_TOWN_CENTER,
+  CAPE_TOWN_DEFAULT_ZOOM,
+} from "@/lib/maps/cape-town";
+
 import type { GeoJSONSource, Map as MapboxMap, Marker } from "mapbox-gl";
 
 export type MapMarker = {
@@ -31,6 +36,12 @@ export async function createMapboxMap(
     accessToken: string;
     center?: [number, number];
     zoom?: number;
+    /**
+     * Optional pan limit [[west, south], [east, north]]. Off by default so
+     * maps that show vehicles outside Cape Town (e.g. GPS trip trails) are
+     * never clipped.
+     */
+    maxBounds?: [[number, number], [number, number]];
   }
 ): Promise<MapHandle> {
   const mapboxgl = (await import("mapbox-gl")).default;
@@ -39,8 +50,9 @@ export async function createMapboxMap(
   const map = new mapboxgl.Map({
     container,
     style: "mapbox://styles/mapbox/streets-v12",
-    center: options.center ?? [28.0473, -26.2041],
-    zoom: options.zoom ?? 10,
+    center: options.center ?? CAPE_TOWN_CENTER,
+    zoom: options.zoom ?? CAPE_TOWN_DEFAULT_ZOOM,
+    ...(options.maxBounds ? { maxBounds: options.maxBounds } : {}),
   });
 
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");

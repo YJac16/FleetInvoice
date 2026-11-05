@@ -153,6 +153,16 @@ DO $$ BEGIN
       uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text
     ) TO authenticated;
   END IF;
+  IF to_regprocedure(
+    'public.update_staff_trip(uuid, timestamp with time zone, uuid, staff_transport_company, text, integer, numeric, text, uuid, text, text, text)'
+  ) IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.update_staff_trip(
+      uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text, text, text
+    ) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.update_staff_trip(
+      uuid, timestamptz, uuid, public.staff_transport_company, text, int, numeric, text, uuid, text, text, text
+    ) TO authenticated;
+  END IF;
   IF to_regprocedure('public.set_trip_billing_override(uuid, numeric, text)') IS NOT NULL THEN
     REVOKE EXECUTE ON FUNCTION public.set_trip_billing_override(uuid, numeric, text) FROM PUBLIC, anon;
     GRANT EXECUTE ON FUNCTION public.set_trip_billing_override(uuid, numeric, text) TO authenticated;
