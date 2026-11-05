@@ -60,13 +60,17 @@ export function StartTripDialog({
     >
       {trip ? <StaffTripCard trip={trip} compact className="mb-4" /> : null}
       <div className="space-y-4">
-        <div className="flex items-start gap-2">
+        <div className="flex min-h-11 min-w-0 items-start gap-3">
           <Checkbox
             id="waybill-confirmed"
             checked={waybillConfirmed}
             onCheckedChange={(v) => setWaybillConfirmed(Boolean(v))}
+            className="mt-0.5 size-5 shrink-0"
           />
-          <Label htmlFor="waybill-confirmed" className="text-sm leading-snug">
+          <Label
+            htmlFor="waybill-confirmed"
+            className="block min-w-0 flex-1 text-sm leading-snug font-normal break-words whitespace-normal"
+          >
             I confirm company, time, area and pax match the waybill
           </Label>
         </div>

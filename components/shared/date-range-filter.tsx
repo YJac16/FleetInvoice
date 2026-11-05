@@ -79,7 +79,7 @@ function FilterChipRow({
       ) : null}
       <div
         ref={scrollerRef}
-        className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 pr-1 [scrollbar-width:thin] md:flex-wrap md:overflow-visible"
+        className="flex max-w-full flex-wrap gap-2 pb-1"
         role="group"
         aria-label="Filter by date range"
       >
@@ -212,7 +212,7 @@ export function DateRangeFilter({
           customPanelOpen={customPanelOpen}
           onPresetClick={handlePresetClick}
         />
-        <p className="text-xs text-muted-foreground sm:shrink-0">
+        <p className="min-w-0 max-w-full text-xs break-words text-muted-foreground sm:shrink-0">
           <span className="inline-flex flex-wrap items-center gap-2">
             <span>{rangeStatusLabel} · SAST</span>
             <span

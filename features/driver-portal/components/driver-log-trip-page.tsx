@@ -19,6 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DRIVER_DATETIME_INPUT,
+  DRIVER_PAIR_CELL,
+  DRIVER_PAIR_GRID,
+  DRIVER_PAIR_GRID_STACK,
+} from "@/features/driver-portal/lib/driver-form-layout";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
 import { listActiveCompanies } from "@/services/companies.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -74,76 +80,82 @@ export function DriverLogTripPage() {
 
   if (!canSelf || !organisationId) {
     return (
-      <p className="text-sm text-zinc-400">You do not have access to log trips.</p>
+      <p className="text-sm text-muted-foreground">
+        You do not have access to log trips.
+      </p>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-white">Log a trip</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           An admin assigns the vehicle when approving. Rate card applies after approval.
         </p>
       </div>
 
       <form
-        className="space-y-4"
+        className="min-w-0 space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           submitMutation.mutate();
         }}
       >
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-zinc-300">Date</Label>
+        <div className={DRIVER_PAIR_GRID_STACK}>
+          <div className={DRIVER_PAIR_CELL}>
+            <Label htmlFor="log-date">Date</Label>
             <Input
+              id="log-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="border-zinc-700 bg-zinc-900"
+              className={DRIVER_DATETIME_INPUT}
               required
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-zinc-300">Time</Label>
+          <div className={DRIVER_PAIR_CELL}>
+            <Label htmlFor="log-time">Time</Label>
             <Input
+              id="log-time"
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="border-zinc-700 bg-zinc-900"
+              className={DRIVER_DATETIME_INPUT}
               required
             />
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Pickup</Label>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor="log-pickup">Pickup</Label>
           <Input
+            id="log-pickup"
             value={pickup}
             onChange={(e) => setPickup(e.target.value)}
-            className="border-zinc-700 bg-zinc-900"
+            className="w-full min-w-0"
             required
           />
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Drop-off</Label>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor="log-dropoff">Drop-off</Label>
           <Input
+            id="log-dropoff"
             value={dropoff}
             onChange={(e) => setDropoff(e.target.value)}
-            className="border-zinc-700 bg-zinc-900"
+            className="w-full min-w-0"
             required
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Company</Label>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor="log-company">Company</Label>
           <Select
             value={companyId}
             onValueChange={(value) => setCompanyId(value ?? "")}
             required
           >
-            <SelectTrigger className="border-zinc-700 bg-zinc-900">
+            <SelectTrigger id="log-company" className="w-full min-w-0 max-w-full">
               <SelectValue placeholder="Select company" />
             </SelectTrigger>
             <SelectContent>
@@ -154,42 +166,45 @@ export function DriverLogTripPage() {
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-zinc-300">Pax</Label>
+        <div className={DRIVER_PAIR_GRID}>
+          <div className={DRIVER_PAIR_CELL}>
+            <Label htmlFor="log-pax">Pax</Label>
             <Input
+              id="log-pax"
               type="number"
               min={0}
               value={pax}
               onChange={(e) => setPax(e.target.value)}
-              className="border-zinc-700 bg-zinc-900"
+              className="w-full min-w-0"
               required
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-zinc-300">Km</Label>
+          <div className={DRIVER_PAIR_CELL}>
+            <Label htmlFor="log-km">Km</Label>
             <Input
+              id="log-km"
               type="number"
               min={0}
               step="0.1"
               value={km}
               onChange={(e) => setKm(e.target.value)}
-              className="border-zinc-700 bg-zinc-900"
+              className="w-full min-w-0"
               required
             />
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-zinc-300">Notes</Label>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor="log-notes">Notes</Label>
           <Textarea
+            id="log-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="min-h-[80px] border-zinc-700 bg-zinc-900"
+            className="min-h-[80px] w-full min-w-0"
           />
         </div>
 
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           You do not choose a vehicle here — that happens during admin approval.
         </p>
 
@@ -204,7 +219,7 @@ export function DriverLogTripPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full border-zinc-700"
+            className="w-full"
             render={<Link href="/driver/submissions">My submissions</Link>}
           />
         </div>
