@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import React, { type ReactNode } from "react";
@@ -96,5 +99,15 @@ describe("DriverShell theme", () => {
     expect(screen.getByText("YASEEN JACOBS")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /theme: dark/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Log" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/\d{2}:\d{2}/)).toBeInTheDocument();
+
+    const main = container.querySelector("main");
+    expect(main?.className).toContain("driver-tab-clearance");
+    expect(main?.className.split(/\s+/)).not.toContain("pb-24");
+
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    expect(css).toMatch(
+      /\.driver-tab-clearance\s*\{[^}]*padding-bottom:\s*calc\(6rem\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)/s
+    );
   });
 });

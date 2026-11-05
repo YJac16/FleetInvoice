@@ -12,6 +12,7 @@ import {
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
+import { PortalClock } from "@/components/layout/portal-clock";
 import type { Permission } from "@/lib/permissions";
 import type { MembershipWithOrg, Profile } from "@/types";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ function EmployeeHeader() {
       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         Employee
       </span>
+      <PortalClock className="ml-auto" />
     </header>
   );
 }

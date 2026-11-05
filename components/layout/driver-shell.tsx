@@ -14,6 +14,7 @@ import {
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider } from "@/components/layout/org-context";
+import { PortalClock } from "@/components/layout/portal-clock";
 import { PageFadeIn } from "@/components/shared/page-fade-in";
 import { DriverThemeControl } from "@/features/driver-portal/components/driver-theme-control";
 import { NotificationBell } from "@/features/driver-portal/components/notification-bell";
@@ -71,6 +72,7 @@ function DriverHeader({ profile }: { profile: Profile }) {
         <div className="shrink-0 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center">
           <GoOpsLogo size="sm" href="/driver" />
         </div>
+        <PortalClock className="ml-2" />
         <div className="ml-auto flex min-w-0 items-center gap-0.5">
           <PresenceDot />
           <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
@@ -150,7 +152,7 @@ export function DriverShell({
       <div className="driver-portal flex min-h-screen min-w-0 flex-col overflow-x-clip bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
         <DriverPresenceProvider>
           <DriverHeader profile={profile} />
-          <main className="mx-auto w-full min-w-0 max-w-lg flex-1 px-4 py-4 pb-24 md:px-6">
+          <main className="driver-tab-clearance mx-auto w-full min-w-0 max-w-lg flex-1 px-4 pt-4 md:px-6">
             <StaffTripGpsTracker />
             <PageFadeIn>{children}</PageFadeIn>
           </main>

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { GoOpsLogo } from "@/components/brand/goops-logo";
 import { OrgProvider, useOrg } from "@/components/layout/org-context";
+import { PortalClock } from "@/components/layout/portal-clock";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { COMPANY_NAV } from "@/features/company/lib/company-nav";
@@ -71,28 +72,31 @@ function CompanyHeader() {
           </Button>
         </div>
       </div>
-      <nav className="flex gap-1 overflow-x-auto px-4 pb-2 md:px-6">
-        {COMPANY_NAV.filter((item) => can(item.permission)).map((item) => {
-          const active =
-            item.href === "/company"
-              ? pathname === "/company"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors",
-                active
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="flex items-center gap-3 px-4 pb-2 md:px-6">
+        <nav className="flex min-w-0 gap-1 overflow-x-auto">
+          {COMPANY_NAV.filter((item) => can(item.permission)).map((item) => {
+            const active =
+              item.href === "/company"
+                ? pathname === "/company"
+                : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm whitespace-nowrap transition-colors",
+                  active
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <PortalClock className="ml-auto shrink-0" />
+      </div>
     </header>
   );
 }
