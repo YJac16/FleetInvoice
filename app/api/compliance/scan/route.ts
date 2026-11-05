@@ -128,7 +128,13 @@ export async function POST(request: Request) {
       bytes = loaded.bytes;
       tempPath = loaded.path;
     } else if (parsed.data.document_id) {
-      const loaded = await loadRetainedDocumentBytes(admin, parsed.data.document_id);
+      const loaded = await loadRetainedDocumentBytes(
+        admin,
+        parsed.data.document_id,
+        orgId,
+        parsed.data.subject_id,
+        parsed.data.subject_kind
+      );
       if (!loaded) {
         return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
@@ -273,20 +279,33 @@ async function loadTempScanBytes(
 
 async function loadRetainedDocumentBytes(
   admin: NonNullable<ReturnType<typeof createServiceClient>>,
-  documentId: string
+  documentId: string,
+  orgId: string,
+  subjectId: string,
+  subjectKind: string
 ): Promise<{ bytes: Uint8Array; path: string } | null> {
-  const { data: dd } = await admin
-    .from("driver_documents")
-    .select("storage_path")
-    .eq("id", documentId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (dd?.storage_path) return downloadObject(admin, dd.storage_path);
+  const driverSubject =
+    subjectKind === "driver_licence" || subjectKind === "prdp";
+
+  if (driverSubject) {
+    const { data: dd } = await admin
+      .from("driver_documents")
+      .select("storage_path")
+      .eq("id", documentId)
+      .eq("organisation_id", orgId)
+      .eq("driver_id", subjectId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!dd?.storage_path) return null;
+    return downloadObject(admin, dd.storage_path);
+  }
 
   const { data: vd } = await admin
     .from("vehicle_documents")
     .select("storage_path")
     .eq("id", documentId)
+    .eq("organisation_id", orgId)
+    .eq("vehicle_id", subjectId)
     .is("deleted_at", null)
     .maybeSingle();
   if (!vd?.storage_path) return null;
