@@ -35,12 +35,12 @@ export function hubPathForRole(
 
 /**
  * Safe home for a 404 / recovery CTA. Signed-out users go to login
- * (invite-only — never /dashboard). Members without an org wait for invite.
+ * (never /dashboard). Members without an org start self-serve onboarding.
  */
 export function hubHrefForSession(session: HubSessionLike | null): string {
   if (!session) return "/login";
   if (!session.isPlatformOwner && session.memberships.length === 0) {
-    return "/awaiting-invite";
+    return "/onboarding/create-organisation";
   }
   return hubPathForRole(session.activeRole, session.isPlatformOwner);
 }

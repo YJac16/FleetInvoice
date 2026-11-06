@@ -18,7 +18,7 @@ export async function requireRole(
   const session = await requireSession();
 
   if (!session.isPlatformOwner && session.memberships.length === 0) {
-    redirect("/awaiting-invite");
+    redirect("/onboarding/create-organisation");
   }
 
   // Platform owners only enter hubs that explicitly allow platform_owner

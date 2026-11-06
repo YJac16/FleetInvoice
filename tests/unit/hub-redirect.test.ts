@@ -34,14 +34,14 @@ describe("hubHrefForSession", () => {
     expect(hubHrefForSession(null)).toBe("/login");
   });
 
-  it("sends members without an organisation to awaiting invite", () => {
+  it("sends members without an organisation to self-serve onboarding", () => {
     expect(
       hubHrefForSession({
         activeRole: null,
         isPlatformOwner: false,
         memberships: [],
       })
-    ).toBe("/awaiting-invite");
+    ).toBe("/onboarding/create-organisation");
   });
 
   it("uses the role hub for active memberships", () => {
