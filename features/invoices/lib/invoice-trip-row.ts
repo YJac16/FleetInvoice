@@ -133,13 +133,12 @@ export function buildTripPrintRow(
   };
 }
 
+/**
+ * Printed and customer-facing amount. `price_overridden` / `override_reason`
+ * stay on the line for billing; they are not shown next to the price.
+ */
 function formatLineAmount(line: InvoiceLine): string {
-  const base = formatZarAmount(line.amount);
-  if (line.price_overridden) {
-    const reason = line.override_reason?.trim();
-    return reason ? `${base} (override: ${reason})` : `${base} (override)`;
-  }
-  return base;
+  return formatZarAmount(line.amount);
 }
 
 export function buildNonTripPrintRow(

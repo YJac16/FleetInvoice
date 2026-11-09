@@ -10,6 +10,7 @@ import {
   resolveInvoicePrintDate,
 } from "@/features/invoices/lib/invoice-print-format";
 import {
+  buildNonTripPrintRow,
   buildTripPrintRow,
   resolveVehicleReg,
 } from "@/features/invoices/lib/invoice-trip-row";
@@ -172,6 +173,59 @@ describe("buildTripPrintRow", () => {
     expect(row.pax).toBe("4");
     expect(row.area).toBe("Woodstock and Town");
     expect(row.amount).toBe("R300.00");
+  });
+
+  it("prints only the amount when the line price is overridden", () => {
+    const trip = {
+      id: "trip-1",
+      planned_start: new Date(2026, 7, 17, 18, 0).toISOString(),
+      notes: null,
+      companies: { name: "Lewis Compliance" },
+      routes: { name: "Woodstock and Town" },
+    };
+
+    const withReason = buildTripPrintRow(
+      {
+        ...line,
+        unit_price: 500,
+        amount: 500,
+        price_overridden: true,
+        override_reason: "Executive",
+      },
+      trip,
+      2
+    );
+    expect(withReason.amount).toBe("R500.00");
+    expect(withReason.amount).not.toMatch(/override/i);
+
+    const withoutReason = buildTripPrintRow(
+      {
+        ...line,
+        unit_price: 500,
+        amount: 500,
+        price_overridden: true,
+        override_reason: "   ",
+      },
+      trip,
+      3
+    );
+    expect(withoutReason.amount).toBe("R500.00");
+
+    const fuel = buildNonTripPrintRow(
+      {
+        ...line,
+        line_type: "fuel",
+        trip_id: null,
+        description: "Fuel — Quantam 1",
+        unit_price: 23.45,
+        amount: 1289.75,
+        price_overridden: true,
+        override_reason: "station correction",
+      },
+      4
+    );
+    expect(fuel.amount).toBe("R1,289.75");
+    expect(fuel.amount).not.toMatch(/override/i);
   });
 });
 
