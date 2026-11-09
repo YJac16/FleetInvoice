@@ -96,10 +96,14 @@ describe("DriverShell theme", () => {
     expect(root).toBeTruthy();
     expect(root?.className.split(/\s+/)).not.toContain("dark");
     expect(root?.className).toContain("bg-background");
-    expect(screen.getByText("YASEEN JACOBS")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /theme: dark/i })).toBeInTheDocument();
+    const name = screen.getByText("YASEEN JACOBS");
+    const clock = screen.getByLabelText(/\d{2}:\d{2}/);
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    const theme = screen.getByRole("button", { name: /theme: dark/i });
+    expect(name.parentElement).toBe(clock.parentElement);
+    expect(signOut.parentElement).not.toBe(clock.parentElement);
+    expect(signOut.parentElement).toBe(theme.parentElement);
     expect(screen.getByRole("link", { name: "Log" })).toBeInTheDocument();
-    expect(screen.getByLabelText(/\d{2}:\d{2}/)).toBeInTheDocument();
 
     const main = container.querySelector("main");
     expect(main?.className).toContain("driver-tab-clearance");
@@ -107,7 +111,7 @@ describe("DriverShell theme", () => {
 
     const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
     expect(css).toMatch(
-      /\.driver-tab-clearance\s*\{[^}]*padding-bottom:\s*calc\(6rem\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)/s
+      /\.driver-tab-clearance\s*\{[^}]*padding-bottom:\s*calc\(6rem\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)/
     );
   });
 });

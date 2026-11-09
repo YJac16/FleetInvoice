@@ -44,9 +44,11 @@ const EMPLOYEE_TABS: TabItem[] = [
 
 function EmployeeHeader() {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
-      <GoOpsLogo size="sm" href="/employee" />
-      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+    <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur sm:gap-3 sm:px-4 md:px-6">
+      <div className="shrink-0">
+        <GoOpsLogo size="sm" href="/employee" />
+      </div>
+      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
         Employee
       </span>
       <PortalClock className="ml-auto" />

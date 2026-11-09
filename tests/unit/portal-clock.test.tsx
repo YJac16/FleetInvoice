@@ -143,6 +143,30 @@ describe("PortalClock", () => {
     expect(screen.getByLabelText("05 Nov, 17:52")).toBeInTheDocument();
     expect(screen.queryByLabelText("05 Nov, 17:51")).not.toBeInTheDocument();
   });
+
+  it("resyncs to SAST when the tab becomes visible again", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-05T15:51:30.000Z"));
+    const visibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
+
+    render(<PortalClock />);
+    expect(screen.getByLabelText("05 Nov, 17:51")).toBeInTheDocument();
+
+    act(() => {
+      vi.setSystemTime(new Date("2026-11-05T16:10:05.000Z"));
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(screen.getByLabelText("05 Nov, 18:10")).toBeInTheDocument();
+
+    if (visibility) {
+      Object.defineProperty(document, "visibilityState", visibility);
+    }
+  });
 });
 
 describe("portal headers", () => {

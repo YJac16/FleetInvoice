@@ -41,7 +41,7 @@ function trip(overrides: Partial<StaffTrip> = {}): StaffTrip {
     staff_completed_at: null,
     companies: null,
     ...overrides,
-  };
+  } as StaffTrip;
 }
 
 describe("StaffTripCard empty name line", () => {

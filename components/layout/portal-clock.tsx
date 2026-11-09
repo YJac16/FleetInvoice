@@ -19,15 +19,29 @@ export function PortalClock({ className }: { className?: string }) {
       setNow(new Date());
     }
 
-    tick();
-    const msUntilNextMinute = MINUTE_MS - (Date.now() % MINUTE_MS);
     let intervalId = 0;
-    const timeoutId = window.setTimeout(() => {
+    let timeoutId = 0;
+
+    function arm() {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
       tick();
-      intervalId = window.setInterval(tick, MINUTE_MS);
-    }, msUntilNextMinute);
+      const msUntilNextMinute = MINUTE_MS - (Date.now() % MINUTE_MS);
+      timeoutId = window.setTimeout(() => {
+        tick();
+        intervalId = window.setInterval(tick, MINUTE_MS);
+      }, msUntilNextMinute);
+    }
+
+    function onVisible() {
+      if (document.visibilityState === "visible") arm();
+    }
+
+    arm();
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       window.clearTimeout(timeoutId);
       window.clearInterval(intervalId);
     };
@@ -43,7 +57,7 @@ export function PortalClock({ className }: { className?: string }) {
       aria-label={now ? shown.label : undefined}
       aria-hidden={now ? undefined : true}
       className={cn(
-        "inline-flex shrink-0 flex-col justify-center text-xs leading-tight font-medium tabular-nums text-muted-foreground",
+        "inline-flex shrink-0 flex-col justify-center text-xs leading-tight font-medium whitespace-nowrap tabular-nums text-muted-foreground",
         !now && "invisible",
         className
       )}

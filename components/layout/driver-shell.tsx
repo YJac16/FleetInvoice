@@ -67,27 +67,35 @@ function DriverHeader({ profile }: { profile: Profile }) {
   const displayName = driverHeaderName(profile.full_name);
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/95 px-3 backdrop-blur md:px-6">
-      <div className="mx-auto flex min-h-14 max-w-lg items-center gap-1">
-        <div className="shrink-0 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center">
-          <GoOpsLogo size="sm" href="/driver" />
+    <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
+      <div className="mx-auto flex max-w-lg flex-col px-3 pt-1 pb-1.5 md:px-6">
+        <div className="flex min-h-11 items-center gap-1">
+          <div className="shrink-0 [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center">
+            <GoOpsLogo size="sm" href="/driver" />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center">
+            <DriverThemeControl variant="icon" />
+            <NotificationBell />
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Sign out"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
         </div>
-        <PortalClock className="ml-2" />
-        <div className="ml-auto flex min-w-0 items-center gap-0.5">
+        {/* Clock shares this row with the name so the 44px controls stay on screen at 320px. */}
+        <div className="flex min-w-0 items-center gap-2">
           <PresenceDot />
-          <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
+          <span
+            className="min-w-0 truncate text-[11px] font-medium text-muted-foreground"
+            title={displayName}
+          >
             {displayName}
           </span>
-          <DriverThemeControl variant="icon" />
-          <NotificationBell />
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Sign out"
-          >
-            <LogOut className="size-4" />
-          </button>
+          <PortalClock className="ml-auto" />
         </div>
       </div>
     </header>

@@ -72,7 +72,7 @@ describe("DriverLogTripPage layout", () => {
       "utf8"
     );
     expect(css).toContain("repeat(2, minmax(0, 1fr))");
-    expect(css).toMatch(/\.driver-pair-grid\s*\{[^}]*gap:\s*0\.75rem/s);
+    expect(css).toMatch(/\.driver-pair-grid\s*\{[^}]*gap:\s*0\.75rem/);
     expect(css).toContain(".driver-pair-grid--stack");
     expect(css).toMatch(/max-width:\s*359px/);
 
