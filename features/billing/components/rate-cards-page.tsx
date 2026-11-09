@@ -27,11 +27,13 @@ import {
   createRateCard,
   deleteRateCard,
   listRateCards,
+  restoreRateCard,
   updateRateCard,
   type RateCardInput,
 } from "@/services/rate-cards.service";
 import type { RateCard } from "@/types";
 import { formatDate } from "@/utils/format";
+import { defaultEffectiveFromDate } from "@/features/companies/lib/company-trip-rate";
 import { queryKeys } from "@/utils/query";
 
 const NONE = "none";
@@ -63,7 +65,7 @@ function RateCardForm({
       unit_amount: initial ? String(initial.unit_amount) : "",
       company_id: initial?.company_id ?? NONE,
       effective_from:
-        initial?.effective_from ?? new Date().toISOString().slice(0, 10),
+        initial?.effective_from ?? defaultEffectiveFromDate(),
       effective_to: initial?.effective_to ?? "",
       notes: initial?.notes ?? "",
       currency: initial?.currency ?? "ZAR",
@@ -223,6 +225,7 @@ export function RateCardsPage() {
           : undefined
       }
       remove={canManage ? deleteRateCard : undefined}
+      restore={canManage ? restoreRateCard : undefined}
       canManage={canManage}
       searchFilter={(row, query) => row.name.toLowerCase().includes(query)}
       emptyIcon={Tags}

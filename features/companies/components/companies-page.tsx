@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { Building2 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -14,6 +14,8 @@ import { SelectField, TextAreaField, TextField } from "@/components/forms/form-f
 import { Button } from "@/components/ui/button";
 import {
   defaultEffectiveFromDate,
+  pickDefaultEffectiveFrom,
+  tripRateChanged,
   latestTripRateCard,
 } from "@/features/companies/lib/company-trip-rate";
 import {
@@ -26,12 +28,13 @@ import {
   createCompanyWithOptionalTripRate,
   deleteCompany,
   listCompanies,
+  getEarliestUnbilledTripDate,
   listCompanyTripRateCards,
   restoreCompany,
   updateCompanyWithOptionalTripRate,
   type CompanyTripRateInput,
 } from "@/services/companies.service";
-import type { Company } from "@/types";
+import type { Company, RateCard } from "@/types";
 import { queryKeys } from "@/utils/query";
 
 const statusOptions = ENTITY_STATUSES.map((status) => ({
@@ -44,15 +47,18 @@ function emptyToNull(value: string | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function parseTripRate(values: CompanyValues): CompanyTripRateInput | null {
+function parseTripRate(
+  values: CompanyValues,
+  latest: RateCard | null
+): CompanyTripRateInput | null {
   const raw = values.default_trip_rate_zar?.trim();
   if (!raw) return null;
   const amount = Number.parseFloat(raw);
   if (!Number.isFinite(amount) || amount <= 0) return null;
-  return {
-    unitAmount: amount,
-    effectiveFrom: values.trip_rate_effective_from?.trim() || defaultEffectiveFromDate(),
-  };
+  const effectiveFrom =
+    values.trip_rate_effective_from?.trim() || defaultEffectiveFromDate();
+  if (!tripRateChanged(latest, amount, effectiveFrom)) return null;
+  return { unitAmount: amount, effectiveFrom };
 }
 
 function CompanyForm({
@@ -77,6 +83,12 @@ function CompanyForm({
     [ratesQuery.data]
   );
 
+  const earliestQuery = useQuery({
+    queryKey: ["company-earliest-unbilled", organisationId, initial?.id],
+    queryFn: () => getEarliestUnbilledTripDate(organisationId, initial!.id),
+    enabled: Boolean(initial?.id),
+  });
+
   const form = useForm<CompanyValues>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -92,11 +104,29 @@ function CompanyForm({
     },
   });
 
+  // Prefill the current rate and the earliest unbilled trip date once loaded
+  // (fields stay editable; untouched values are not re-sent).
+  useEffect(() => {
+    if (latestRate && !form.getFieldState("default_trip_rate_zar").isDirty) {
+      form.setValue("default_trip_rate_zar", String(Number(latestRate.unit_amount)));
+    }
+  }, [latestRate, form]);
+
+  useEffect(() => {
+    if (!initial?.id || earliestQuery.isLoading) return;
+    if (form.getFieldState("trip_rate_effective_from").isDirty) return;
+    const fallback = latestRate?.effective_from ?? null;
+    form.setValue(
+      "trip_rate_effective_from",
+      pickDefaultEffectiveFrom(earliestQuery.data ?? fallback)
+    );
+  }, [initial?.id, earliestQuery.isLoading, earliestQuery.data, latestRate, form]);
+
   return (
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit((values) => {
-        const tripRate = parseTripRate(values);
+        const tripRate = parseTripRate(values, latestRate);
         onSubmit({
           company: {
             name: values.name.trim(),
@@ -137,8 +167,9 @@ function CompanyForm({
         <div>
           <p className="text-sm font-medium">Default trip rate (ZAR)</p>
           <p className="text-xs text-muted-foreground">
-            Saved as a rate card (effective-dated). Changing the rate here creates a new
-            rate card row; older invoice lines keep their original amounts.
+            Saved as a rate card (effective-dated). Keeping the same effective date
+            corrects that card; a new date starts a new card. Draft invoices from that
+            date are re-priced; issued invoices never change.
           </p>
           {initial && latestRate ? (
             <p className="mt-1 text-xs text-muted-foreground">
@@ -152,7 +183,7 @@ function CompanyForm({
           name="default_trip_rate_zar"
           label="Trip rate (ZAR)"
           type="number"
-          placeholder={initial ? "Leave blank to keep current rate" : "e.g. 300"}
+          placeholder={initial ? "Leave unchanged to keep current rate" : "e.g. 300"}
         />
         <TextField
           control={form.control}
