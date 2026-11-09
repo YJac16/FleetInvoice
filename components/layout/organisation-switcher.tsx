@@ -33,7 +33,7 @@ export function OrganisationSwitcher() {
         render={
           <Button
             variant="outline"
-            className="min-w-0 max-w-38 justify-between gap-1 sm:max-w-none sm:min-w-45"
+            className="w-full min-w-0 max-w-full shrink justify-between gap-1 md:w-auto md:max-w-none md:min-w-45"
           >
             <span className="truncate">{label}</span>
             <ChevronsUpDown className="size-4 shrink-0 opacity-50" />

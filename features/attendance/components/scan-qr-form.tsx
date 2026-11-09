@@ -156,9 +156,9 @@ export function ScanQrForm({ onScanned, initialToken = "" }: ScanQrFormProps) {
           />
         </div>
         {cameraError ? (
-          <p className="text-sm text-muted-foreground">{cameraError}</p>
+          <p className="break-words text-sm text-muted-foreground">{cameraError}</p>
         ) : (
-          <p className="text-xs text-muted-foreground">
+          <p className="break-words text-xs text-muted-foreground">
             Point at the employee QR. If the camera can’t read it, use the code
             below.
           </p>

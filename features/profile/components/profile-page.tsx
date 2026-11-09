@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { DriverThemeControl } from "@/features/driver-portal/components/driver-theme-control";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { TextField } from "@/components/forms/form-fields";
@@ -116,6 +117,9 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
         });
       }
       toast.success("Profile updated");
+      if (variant === "driver") {
+        router.refresh();
+      }
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -228,7 +232,7 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
             To change your password, use{" "}
             <Link
               href="/forgot-password"
-              className="underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
             >
               forgot password
             </Link>
@@ -237,9 +241,13 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
             {isFieldPortal ? (
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">Theme</span>
-                <ThemeToggle />
+                {variant === "driver" ? (
+                  <DriverThemeControl />
+                ) : (
+                  <ThemeToggle />
+                )}
               </div>
             ) : (
               <span className="text-sm text-muted-foreground">
