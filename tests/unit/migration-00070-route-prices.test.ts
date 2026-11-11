@@ -29,7 +29,16 @@ describe("migration 00070 route price templates", () => {
     expect(sql).toMatch(/v_price_overridden := true/);
     expect(sql).toMatch(/v_override_reason := null/);
     expect(sql).toMatch(/when v_price_changed then null else line\.override_reason/);
-    expect(sql).toMatch(/reprice_on_next_sync/);
+    expect(sql).toMatch(/Not authorised to sync this trip invoice line/);
+    expect(sql).toMatch(
+      /revoke all on function public\.sync_staff_trip_invoice_line\(uuid, boolean\) from public, anon, authenticated/
+    );
+    expect(sql).not.toMatch(
+      /grant execute on function public\.sync_staff_trip_invoice_line\(uuid, boolean\) to authenticated/
+    );
+    expect(sql).toMatch(
+      /Trip price columns can only be changed by staff billing actions/
+    );
     expect(sql).toMatch(/elsif s ~\* '\\sto\\s'/);
     expect(sql).toMatch(/Driver submissions cannot set manual_unit_price/);
   });
