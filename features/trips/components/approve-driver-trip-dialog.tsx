@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import {
   approveDriverTrip,
@@ -23,6 +25,15 @@ import { listVehicles } from "@/services/vehicles.service";
 import type { StaffTrip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
+
+function tripDateSast(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
 
 type ApproveDriverTripDialogProps = {
   open: boolean;
@@ -40,6 +51,17 @@ export function ApproveDriverTripDialog({
   onApproved,
 }: ApproveDriverTripDialogProps) {
   const [vehicleId, setVehicleId] = useState("");
+  const priceDraft = useTripPriceDraft({
+    enabled: open && Boolean(trip?.id),
+    resetKey: open && trip ? `approve-${trip.id}` : "",
+    organisationId,
+    companyId: trip?.company_id ?? "",
+    areaText: trip?.area_text ?? "",
+    tripDate: trip ? tripDateSast(trip.planned_start) : null,
+    existingUnitPrice: null,
+  });
+  const priceApplyRef = useRef(priceDraft.apply);
+  priceApplyRef.current = priceDraft.apply;
 
   const vehiclesQuery = useQuery({
     queryKey: queryKeys.vehicles(organisationId),
@@ -68,7 +90,10 @@ export function ApproveDriverTripDialog({
     mutationFn: () => {
       if (!trip) throw new Error("No trip");
       if (!vehicleId) throw new Error("Select a vehicle");
-      return approveDriverTrip(trip.id, vehicleId);
+      return approveDriverTrip(trip.id, vehicleId, {
+        unitPrice: priceApplyRef.current.price,
+        applyUnitPrice: priceApplyRef.current.apply,
+      });
     },
     onSuccess: () => {
       toast.success("Trip approved");
@@ -86,7 +111,7 @@ export function ApproveDriverTripDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Approve driver trip"
-      description={`Confirm or choose the vehicle for ${driverName}. Approval requires a vehicle.`}
+      description={`Confirm the vehicle and billed price for ${driverName}. Approval requires a vehicle.`}
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -126,6 +151,18 @@ export function ApproveDriverTripDialog({
               Pre-filled from this driver&apos;s current vehicle assignment.
             </p>
           ) : null}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="approve-price">Price (R)</Label>
+          <Input
+            id="approve-price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={priceDraft.value}
+            onChange={(event) => priceDraft.onChange(event.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{priceDraft.hint}</p>
         </div>
       </div>
     </FormDialog>

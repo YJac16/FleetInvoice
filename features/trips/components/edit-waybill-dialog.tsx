@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -14,10 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { TripAuditTimeline } from "@/features/trips/components/trip-audit-timeline";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import { listActiveCompanies } from "@/services/companies.service";
 import { updateStaffTrip } from "@/services/staff-trips.service";
+import { getTripInvoiceUnitPrice } from "@/services/route-prices.service";
 import {
   clearTripBillingOverride,
   getTripBillingOverride,
@@ -67,6 +69,7 @@ export function EditWaybillDialog({
   variant = "standard",
 }: EditWaybillDialogProps) {
   const queryClient = useQueryClient();
+  const [priceSeeded, setPriceSeeded] = useState(false);
   const [overrideAmount, setOverrideAmount] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
 
@@ -103,6 +106,34 @@ export function EditWaybillDialog({
     enabled: open && Boolean(trip?.id),
   });
 
+  const linePriceQuery = useQuery({
+    queryKey: ["trip-line-price", trip?.id ?? ""],
+    queryFn: () => getTripInvoiceUnitPrice(trip!.id),
+    enabled: open && Boolean(trip?.id),
+  });
+
+  const watchedCompanyId = form.watch("companyId");
+  const watchedArea = form.watch("areaText");
+  const watchedDate = form.watch("date");
+  const priceReady =
+    open && Boolean(trip?.id) && linePriceQuery.isFetched && overrideQuery.isFetched;
+  const priceDraft = useTripPriceDraft({
+    enabled: open && priceSeeded && Boolean(trip?.id),
+    resetKey: priceReady
+      ? `${trip?.id}|${linePriceQuery.data ?? ""}|${overrideQuery.data?.override_unit_price ?? ""}`
+      : "",
+    organisationId,
+    companyId: watchedCompanyId,
+    areaText: watchedArea,
+    tripDate: watchedDate,
+    existingUnitPrice: linePriceQuery.isFetched ? (linePriceQuery.data ?? null) : undefined,
+    overrideAmount: overrideQuery.isFetched
+      ? (overrideQuery.data?.override_unit_price ?? null)
+      : null,
+  });
+  const priceApplyRef = useRef(priceDraft.apply);
+  priceApplyRef.current = priceDraft.apply;
+
   const companyOptions = useMemo(
     () =>
       (companiesQuery.data ?? []).map((c) => ({
@@ -118,7 +149,10 @@ export function EditWaybillDialog({
   }, [trip]);
 
   useEffect(() => {
-    if (!open || !trip) return;
+    if (!open || !trip) {
+      setPriceSeeded(false);
+      return;
+    }
     const local = dayjs(trip.planned_start);
     form.reset({
       date: local.format("YYYY-MM-DD"),
@@ -136,6 +170,7 @@ export function EditWaybillDialog({
       existing?.override_unit_price != null ? String(existing.override_unit_price) : ""
     );
     setOverrideReason(existing?.reason ?? "");
+    setPriceSeeded(true);
   }, [open, trip, form, assignmentVehicleId, overrideQuery.data]);
 
   const saveMutation = useMutation({
@@ -152,6 +187,8 @@ export function EditWaybillDialog({
         notes: values.notes,
         vehicleId: values.vehicleId || undefined,
         editReason: values.editReason,
+        unitPrice: priceApplyRef.current.price,
+        applyUnitPrice: priceApplyRef.current.apply,
       });
     },
     onSuccess: () => {
@@ -267,6 +304,19 @@ export function EditWaybillDialog({
           <Input id="edit-area" {...form.register("areaText")} />
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-price">Price (R)</Label>
+          <Input
+            id="edit-price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={priceDraft.value}
+            onChange={(event) => priceDraft.onChange(event.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{priceDraft.hint}</p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="edit-pax">Pax</Label>
@@ -331,7 +381,8 @@ export function EditWaybillDialog({
         <div className="space-y-2 rounded-md border p-3">
           <p className="text-sm font-medium">Billing override (optional)</p>
           <p className="text-xs text-muted-foreground">
-            Beats the rate card on the invoice line. Requires a reason.
+            Still replaces the price above when the price matches this override. A normal price
+            change does not need a reason and is not printed on the invoice.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

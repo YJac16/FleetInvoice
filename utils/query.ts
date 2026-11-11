@@ -65,6 +65,7 @@ export const queryKeys = {
   invoiceLines: (orgId: string, invoiceId: string) =>
     ["invoice-lines", orgId, invoiceId] as const,
   rateCards: (orgId: string) => ["rate-cards", orgId] as const,
+  routePrices: (orgId: string) => ["route-prices", orgId] as const,
   payRates: (orgId: string) => ["pay-rates", orgId] as const,
   payrollRuns: (orgId: string) => ["payroll-runs", orgId] as const,
   payrollLines: (orgId: string, runId: string) =>

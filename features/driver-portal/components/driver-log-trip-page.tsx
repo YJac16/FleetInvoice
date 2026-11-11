@@ -25,6 +25,7 @@ import {
   DRIVER_PAIR_GRID,
   DRIVER_PAIR_GRID_STACK,
 } from "@/features/driver-portal/lib/driver-form-layout";
+import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
 import { listActiveCompanies } from "@/services/companies.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -45,6 +46,17 @@ export function DriverLogTripPage() {
   const [pax, setPax] = useState("1");
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
+  const areaText =
+    pickup.trim() && dropoff.trim() ? `${pickup.trim()} → ${dropoff.trim()}` : "";
+  const priceDraft = useTripPriceDraft({
+    enabled: Boolean(organisationId) && canSelf,
+    resetKey: organisationId ? `driver-${organisationId}` : "",
+    organisationId: organisationId ?? "",
+    companyId,
+    areaText,
+    tripDate: date,
+    existingUnitPrice: null,
+  });
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
@@ -91,7 +103,7 @@ export function DriverLogTripPage() {
       <div>
         <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          An admin assigns the vehicle when approving. Rate card applies after approval.
+          An admin assigns the vehicle and confirms the price when approving.
         </p>
       </div>
 
@@ -164,6 +176,18 @@ export function DriverLogTripPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="min-w-0 space-y-1.5">
+          <Label>Price (R)</Label>
+          <p className="text-sm font-medium text-foreground">
+            {priceDraft.suggestion?.unitAmount != null
+              ? priceDraft.suggestion.unitAmount.toFixed(2)
+              : "—"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {priceDraft.hint} An admin confirms the billed amount. You cannot change it here.
+          </p>
         </div>
 
         <div className={DRIVER_PAIR_GRID}>

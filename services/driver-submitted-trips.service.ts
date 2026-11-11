@@ -122,12 +122,15 @@ export async function countPendingDriverSubmissions(
 
 export async function approveDriverTrip(
   tripId: string,
-  vehicleId: string
+  vehicleId: string,
+  price?: { unitPrice: number | null; applyUnitPrice: boolean }
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("approve_driver_trip", {
     p_trip_id: tripId,
     p_vehicle_id: vehicleId,
+    p_unit_price: price?.applyUnitPrice ? price.unitPrice ?? null : null,
+    p_apply_unit_price: price?.applyUnitPrice ?? false,
   });
   if (error) throw error;
 }
