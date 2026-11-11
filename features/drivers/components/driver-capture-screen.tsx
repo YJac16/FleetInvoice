@@ -99,22 +99,20 @@ export function DriverCaptureScreen({ driverId }: { driverId?: string }) {
     return <AdminLoading label="Loading driver" rows={6} />;
   }
 
-  if (driverId && (driverQuery.isLoading || (driverQuery.isFetching && !driverQuery.data))) {
-    return <AdminLoading label="Loading driver" rows={8} />;
-  }
-
-  if (driverId && driverQuery.isError) {
-    return (
-      <AdminLoadError
-        error={driverQuery.error}
-        onRetry={() => {
-          void driverQuery.refetch();
-        }}
-      />
-    );
-  }
-
   if (driverId && !driverQuery.data) {
+    if (driverQuery.isLoading || driverQuery.isFetching) {
+      return <AdminLoading label="Loading driver" rows={8} />;
+    }
+    if (driverQuery.isError) {
+      return (
+        <AdminLoadError
+          error={driverQuery.error}
+          onRetry={() => {
+            void driverQuery.refetch();
+          }}
+        />
+      );
+    }
     return (
       <EmptyState title="Driver not found" description="This driver may belong to another organisation." />
     );

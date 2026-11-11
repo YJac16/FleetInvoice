@@ -211,7 +211,12 @@ export function ComplianceDocumentSection({
               Scan to capture vehicle details only — the RC image is not stored. Enter fields
               manually if scan is off.
             </p>
-          ) : docQuery.isLoading ? (
+          ) : docQuery.data ? (
+            <p className="text-xs text-muted-foreground">
+              On file · {docQuery.data.file_name ?? "document"} (
+              {new Date(docQuery.data.created_at).toLocaleDateString()})
+            </p>
+          ) : docQuery.isLoading || docQuery.isFetching ? (
             <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
               <GoOpsLoader size="xs" decorative />
               Loading document…
@@ -226,11 +231,6 @@ export function ComplianceDocumentSection({
               >
                 Try again
               </button>
-            </p>
-          ) : docQuery.data ? (
-            <p className="text-xs text-muted-foreground">
-              On file · {docQuery.data.file_name ?? "document"} (
-              {new Date(docQuery.data.created_at).toLocaleDateString()})
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">No document on file</p>

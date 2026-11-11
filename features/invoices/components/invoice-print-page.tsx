@@ -107,14 +107,25 @@ export function InvoicePrintPage({
     );
   }
 
+  const hasPreview =
+    orgQuery.data != null &&
+    invoiceQuery.data != null &&
+    linesQuery.data != null;
+  const companyStillNeeded =
+    Boolean(invoiceQuery.data?.company_id) &&
+    companyQuery.data == null &&
+    (companyQuery.isLoading || companyQuery.isFetching);
   const previewLoading =
-    orgQuery.isLoading ||
-    invoiceQuery.isLoading ||
-    linesQuery.isLoading ||
-    companyQuery.isLoading ||
+    companyStillNeeded ||
+    (!hasPreview &&
+      (orgQuery.isLoading ||
+        invoiceQuery.isLoading ||
+        linesQuery.isLoading ||
+        companyQuery.isLoading)) ||
     driverOverrideQuery.isLoading;
   const previewFailed =
-    orgQuery.isError || invoiceQuery.isError || linesQuery.isError;
+    !hasPreview &&
+    (orgQuery.isError || invoiceQuery.isError || linesQuery.isError);
   const previewRetrying =
     previewFailed &&
     (orgQuery.isFetching || invoiceQuery.isFetching || linesQuery.isFetching);

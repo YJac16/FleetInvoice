@@ -148,7 +148,7 @@ export function LocationInput({
         </div>
       ) : null}
 
-      {locationsQuery.isError ? (
+      {locationsQuery.isError && locationsQuery.data == null ? (
         <p className="text-xs text-muted-foreground">
           Places could not be loaded.{" "}
           <button

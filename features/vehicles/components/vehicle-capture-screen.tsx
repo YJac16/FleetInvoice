@@ -83,22 +83,20 @@ export function VehicleCaptureScreen({ vehicleId }: { vehicleId?: string }) {
     return <AdminLoading label="Loading vehicle" rows={6} />;
   }
 
-  if (vehicleId && (vehicleQuery.isLoading || (vehicleQuery.isFetching && !vehicleQuery.data))) {
-    return <AdminLoading label="Loading vehicle" rows={8} />;
-  }
-
-  if (vehicleId && vehicleQuery.isError) {
-    return (
-      <AdminLoadError
-        error={vehicleQuery.error}
-        onRetry={() => {
-          void vehicleQuery.refetch();
-        }}
-      />
-    );
-  }
-
   if (vehicleId && !vehicleQuery.data) {
+    if (vehicleQuery.isLoading || vehicleQuery.isFetching) {
+      return <AdminLoading label="Loading vehicle" rows={8} />;
+    }
+    if (vehicleQuery.isError) {
+      return (
+        <AdminLoadError
+          error={vehicleQuery.error}
+          onRetry={() => {
+            void vehicleQuery.refetch();
+          }}
+        />
+      );
+    }
     return (
       <EmptyState title="Vehicle not found" description="This vehicle may belong to another organisation." />
     );
