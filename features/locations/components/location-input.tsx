@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { GoOpsLoader } from "@/components/brand/goops-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,7 +76,12 @@ export function LocationInput({
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <Label className="inline-flex items-center gap-2">
+        {label}
+        {locationsQuery.isLoading ? (
+          <GoOpsLoader size="xs" label="Loading places" />
+        ) : null}
+      </Label>
       {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>
       ) : null}
@@ -140,6 +146,19 @@ export function LocationInput({
             </ul>
           ) : null}
         </div>
+      ) : null}
+
+      {locationsQuery.isError && locationsQuery.data == null ? (
+        <p className="text-xs text-muted-foreground">
+          Places could not be loaded.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void locationsQuery.refetch()}
+          >
+            Try again
+          </button>
+        </p>
       ) : null}
 
       {suggestion ? (

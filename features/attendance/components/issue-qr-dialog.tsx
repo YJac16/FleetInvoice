@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -204,13 +205,14 @@ export function IssueQrDialog({
               </SelectContent>
             </Select>
           </div>
-          <Button
+          <BusyButton
             type="button"
-            disabled={issueMutation.isPending}
+            pending={issueMutation.isPending}
+            pendingLabel="Issuing…"
             onClick={() => issueMutation.mutate()}
           >
-            {issueMutation.isPending ? "Issuing…" : "Issue QR"}
-          </Button>
+            Issue QR
+          </BusyButton>
         </div>
       )}
     </FormDialog>

@@ -6,10 +6,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
 import { Button } from "@/components/ui/button";
@@ -253,38 +253,48 @@ export function EntityCrudPage<T extends { id: string }>({
         </div>
       </div>
 
-      {query.isLoading ? (
-        <LoadingSkeleton />
-      ) : rows.length === 0 && !debouncedSearch ? (
-        <EmptyState
-          icon={EmptyIcon}
-          title={
-            listMode === "archived"
-              ? `No archived ${title.toLowerCase()}`
-              : `No ${title.toLowerCase()} yet`
-          }
-          description={
-            listMode === "archived"
-              ? "Archived records will appear here."
-              : "Create your first record to get started."
-          }
-          actionLabel={
-            canManage && create && listMode === "active"
-              ? createLabel
-              : undefined
-          }
-          onAction={
-            canManage && create && listMode === "active"
-              ? () => {
-                  setEditing(null);
-                  setDialogOpen(true);
-                }
-              : undefined
-          }
-        />
-      ) : (
-        <DataTable columns={actionColumns} data={rows} />
-      )}
+      <AdminQueryGate
+        label={`Loading ${title.toLowerCase()}`}
+        isLoading={query.isLoading}
+        isFetching={query.isFetching}
+        isError={query.isError}
+        data={query.data}
+        error={query.error}
+        onRetry={() => {
+          void query.refetch();
+        }}
+      >
+        {rows.length === 0 && !debouncedSearch ? (
+          <EmptyState
+            icon={EmptyIcon}
+            title={
+              listMode === "archived"
+                ? `No archived ${title.toLowerCase()}`
+                : `No ${title.toLowerCase()} yet`
+            }
+            description={
+              listMode === "archived"
+                ? "Archived records will appear here."
+                : "Create your first record to get started."
+            }
+            actionLabel={
+              canManage && create && listMode === "active"
+                ? createLabel
+                : undefined
+            }
+            onAction={
+              canManage && create && listMode === "active"
+                ? () => {
+                    setEditing(null);
+                    setDialogOpen(true);
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <DataTable columns={actionColumns} data={rows} />
+        )}
+      </AdminQueryGate>
 
       <FormDialog
         open={dialogOpen}

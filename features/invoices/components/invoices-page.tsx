@@ -13,12 +13,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -164,9 +165,14 @@ function GenerateDriverWeeklyInvoiceForm({
         </p>
       </div>
       <input type="hidden" {...form.register("period_end")} />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Generating…" : "Generate driver week"}
-      </Button>
+      <BusyButton
+        type="submit"
+        className="w-full"
+        pending={mutation.isPending}
+        pendingLabel="Generating…"
+      >
+        Generate driver week
+      </BusyButton>
     </form>
   );
 }
@@ -261,9 +267,14 @@ function GeneratePeriodInvoiceForm({
         </p>
       </div>
       <input type="hidden" {...form.register("period_end")} />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Generating…" : "Generate period invoice"}
-      </Button>
+      <BusyButton
+        type="submit"
+        className="w-full"
+        pending={mutation.isPending}
+        pendingLabel="Generating…"
+      >
+        Generate period invoice
+      </BusyButton>
     </form>
   );
 }
@@ -402,29 +413,41 @@ export function InvoicesPage({
                 Print
               </Button>
               {canManage && inv.status === "issued" ? (
-                <Button
+                <BusyButton
                   variant="outline"
                   size="sm"
                   disabled={statusMutation.isPending}
+                  pending={
+                    statusMutation.isPending &&
+                    statusMutation.variables?.id === inv.id &&
+                    statusMutation.variables?.status === "paid"
+                  }
+                  pendingLabel="Marking paid…"
                   onClick={() =>
                     statusMutation.mutate({ id: inv.id, status: "paid" })
                   }
                 >
                   Mark paid
-                </Button>
+                </BusyButton>
               ) : null}
               {canManage &&
               (inv.status === "draft" || inv.status === "issued") ? (
-                <Button
+                <BusyButton
                   variant="ghost"
                   size="sm"
                   disabled={statusMutation.isPending}
+                  pending={
+                    statusMutation.isPending &&
+                    statusMutation.variables?.id === inv.id &&
+                    statusMutation.variables?.status === "void"
+                  }
+                  pendingLabel="Voiding…"
                   onClick={() =>
                     statusMutation.mutate({ id: inv.id, status: "void" })
                   }
                 >
                   Void
-                </Button>
+                </BusyButton>
               ) : null}
             </div>
           );
@@ -588,16 +611,27 @@ export function InvoicesPage({
           title="No organisation"
           description="Select an organisation to view invoices."
         />
-      ) : showInvoicesSkeleton ? (
-        <LoadingSkeleton rows={5} />
       ) : (
-        <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
-          <DataTable
-            columns={columns}
-            data={filteredInvoices}
-            emptyMessage={listEmptyMessage}
-          />
-        </RangeQueryBody>
+        <AdminQueryGate
+          label="Loading invoices"
+          isLoading={showInvoicesSkeleton}
+          isFetching={invoicesQuery.isFetching}
+          isError={invoicesQuery.isError}
+          data={invoicesQuery.data}
+          error={invoicesQuery.error}
+          onRetry={() => {
+            void invoicesQuery.refetch();
+          }}
+          rows={5}
+        >
+          <RangeQueryBody query={invoicesQuery} refreshing={rangeRefreshing}>
+            <DataTable
+              columns={columns}
+              data={filteredInvoices}
+              emptyMessage={listEmptyMessage}
+            />
+          </RangeQueryBody>
+        </AdminQueryGate>
       )}
 
       {selectedId ? (
@@ -621,15 +655,25 @@ export function InvoicesPage({
               </Button>
             </div>
           </div>
-          {linesQuery.isLoading ? (
-            <LoadingSkeleton rows={3} />
-          ) : (
+          <AdminQueryGate
+            label="Loading invoice lines"
+            isLoading={linesQuery.isLoading}
+            isFetching={linesQuery.isFetching}
+            isError={linesQuery.isError}
+            data={linesQuery.data}
+            error={linesQuery.error}
+            onRetry={() => {
+              void linesQuery.refetch();
+            }}
+            rows={3}
+            size="md"
+          >
             <DataTable
               columns={lineColumns}
               data={lineTableData}
               emptyMessage="No lines on this invoice."
             />
-          )}
+          </AdminQueryGate>
         </div>
       ) : null}
 

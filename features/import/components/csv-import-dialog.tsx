@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 
 import { FormDialog } from "@/components/forms/form-dialog";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import {
   csvToObjects,
@@ -107,14 +108,14 @@ export function CsvImportDialog<TSchema extends z.ZodType>({
           <Button variant="outline" onClick={handleTemplateDownload}>
             Download template
           </Button>
-          <Button
-            disabled={!validRows.length || submitting}
+          <BusyButton
+            disabled={!validRows.length}
+            pending={submitting}
+            pendingLabel="Importing…"
             onClick={() => void handleImport()}
           >
-            {submitting
-              ? "Importing…"
-              : `Import ${validRows.length || ""}`.trim()}
-          </Button>
+            {`Import ${validRows.length || ""}`.trim()}
+          </BusyButton>
         </>
       }
     >

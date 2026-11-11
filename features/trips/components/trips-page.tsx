@@ -6,12 +6,12 @@ import { Bus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchBar } from "@/components/shared/search-bar";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
@@ -309,9 +309,17 @@ export function TripsPage() {
             <SearchBar value={search} onChange={setSearch} />
           </div>
 
-          {showTripsSkeleton ? (
-            <LoadingSkeleton />
-          ) : (
+          <AdminQueryGate
+            label="Loading trips"
+            isLoading={showTripsSkeleton}
+            isFetching={tripsQuery.isFetching}
+            isError={tripsQuery.isError}
+            data={tripsQuery.data}
+            error={tripsQuery.error}
+            onRetry={() => {
+              void tripsQuery.refetch();
+            }}
+          >
             <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
               {rows.length === 0 ? (
                 <EmptyState
@@ -333,7 +341,7 @@ export function TripsPage() {
                 <DataTable columns={columns} data={rows} />
               )}
             </RangeQueryBody>
-          )}
+          </AdminQueryGate>
         </>
       ) : null}
 

@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { EmptyState } from "@/components/shared/empty-state";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import {
   payRateSchema,
   type PayRateValues,
@@ -133,9 +133,9 @@ function PayRateForm({
         type="date"
       />
       <TextField control={form.control} name="notes" label="Notes" />
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting ? "Saving…" : "Save pay rate"}
-      </Button>
+      <BusyButton type="submit" className="w-full" pending={submitting} pendingLabel="Saving…">
+        Save pay rate
+      </BusyButton>
     </form>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { LocationInput } from "@/features/locations/components/location-input";
 import { normalizeAreaValue } from "@/features/locations/lib/location-match";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { listServiceLocations } from "@/services/locations.service";
 import { updateInvoiceLineArea } from "@/services/invoices.service";
@@ -66,13 +67,14 @@ export function InvoiceLineAreaEditor({
         label="Invoice AREA"
       />
       <div className="flex gap-2">
-        <Button
+        <BusyButton
           size="sm"
-          disabled={saveMutation.isPending}
+          pending={saveMutation.isPending}
+          pendingLabel="Saving…"
           onClick={() => saveMutation.mutate()}
         >
           Save
-        </Button>
+        </BusyButton>
         <Button
           size="sm"
           variant="ghost"

@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextAreaField, TextField } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { areaSchema, type AreaValues } from "@/features/areas/schemas/area";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
@@ -78,9 +78,9 @@ function AreaForm({
         label="Status"
         options={statusOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        Save
+      </BusyButton>
     </form>
   );
 }

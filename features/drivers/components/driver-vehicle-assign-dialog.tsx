@@ -22,7 +22,7 @@ import type { Driver } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 
 type Props = {
   open: boolean;
@@ -132,22 +132,25 @@ export function DriverVehicleAssignDialog({
         </Select>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
+          <BusyButton
             className="flex-1"
-            disabled={!vehicleId || assignMutation.isPending}
+            disabled={!vehicleId}
+            pending={assignMutation.isPending}
+            pendingLabel="Saving…"
             onClick={() => assignMutation.mutate()}
           >
-            {assignMutation.isPending ? "Saving…" : "Assign / change"}
-          </Button>
+            Assign / change
+          </BusyButton>
           {currentVehicleId ? (
-            <Button
+            <BusyButton
               variant="outline"
               className="flex-1"
-              disabled={unassignMutation.isPending}
+              pending={unassignMutation.isPending}
+              pendingLabel="Unassigning…"
               onClick={() => unassignMutation.mutate()}
             >
               Unassign
-            </Button>
+            </BusyButton>
           ) : null}
         </div>
       </div>

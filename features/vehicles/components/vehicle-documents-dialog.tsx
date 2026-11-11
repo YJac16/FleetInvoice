@@ -6,7 +6,8 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,9 +166,20 @@ export function VehicleDocumentsDialog({
       title={vehicle ? `Documents · ${vehicle.name}` : "Documents"}
       description="Track license disks, insurance, and other vehicle compliance files. Licence disc expiry for alerts is set on the vehicle record."
     >
-      {!vehicle ? null : docsQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
-      ) : (
+      {!vehicle ? null : (
+        <AdminQueryGate
+          label="Loading documents"
+          isLoading={docsQuery.isLoading}
+          isFetching={docsQuery.isFetching}
+          isError={docsQuery.isError}
+          data={docsQuery.data}
+          error={docsQuery.error}
+          onRetry={() => {
+            void docsQuery.refetch();
+          }}
+          rows={3}
+          size="md"
+        >
         <div className="space-y-6">
           {(docsQuery.data ?? []).length === 0 ? (
             <EmptyState
@@ -194,9 +206,10 @@ export function VehicleDocumentsDialog({
                           onChange={(e) => setEditExpiresAt(e.target.value)}
                         />
                         <div className="flex gap-2">
-                          <Button
+                          <BusyButton
                             size="sm"
-                            disabled={updateMutation.isPending}
+                            pending={updateMutation.isPending}
+                            pendingLabel="Saving…"
                             onClick={() =>
                               updateMutation.mutate({
                                 id: doc.id,
@@ -206,7 +219,7 @@ export function VehicleDocumentsDialog({
                             }
                           >
                             Save
-                          </Button>
+                          </BusyButton>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -325,16 +338,18 @@ export function VehicleDocumentsDialog({
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
               </div>
-              <Button
+              <BusyButton
                 className="w-full"
-                disabled={createMutation.isPending}
+                pending={createMutation.isPending}
+                pendingLabel="Saving…"
                 onClick={() => createMutation.mutate()}
               >
-                {createMutation.isPending ? "Saving…" : "Add document"}
-              </Button>
+                Add document
+              </BusyButton>
             </div>
           ) : null}
         </div>
+        </AdminQueryGate>
       )}
     </FormDialog>
   );

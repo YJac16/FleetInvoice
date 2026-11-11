@@ -1,5 +1,6 @@
 "use client";
 
+import { GoOpsLoader } from "@/components/brand/goops-loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +40,13 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={loading}>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={loading}
+            aria-busy={loading || undefined}
+            className={loading ? "disabled:opacity-100" : undefined}
+          >
+            {loading ? <GoOpsLoader size="xs" decorative /> : null}
             {loading ? "Working…" : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

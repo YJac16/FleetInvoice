@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,12 +118,14 @@ export function ApproveDriverTripDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={!vehicleId || approveMutation.isPending}
+          <BusyButton
+            disabled={!vehicleId}
+            pending={approveMutation.isPending}
+            pendingLabel="Approving…"
             onClick={() => approveMutation.mutate()}
           >
-            {approveMutation.isPending ? "Approving…" : "Approve trip"}
-          </Button>
+            Approve trip
+          </BusyButton>
         </>
       }
     >

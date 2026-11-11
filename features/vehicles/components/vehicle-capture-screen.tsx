@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { VehicleCaptureForm } from "@/features/vehicles/components/vehicle-capture-form";
@@ -80,14 +80,23 @@ export function VehicleCaptureScreen({ vehicleId }: { vehicleId?: string }) {
   }
 
   if (!organisationId) {
-    return <LoadingSkeleton rows={6} />;
-  }
-
-  if (vehicleId && vehicleQuery.isLoading) {
-    return <LoadingSkeleton rows={8} />;
+    return <AdminLoading label="Loading vehicle" rows={6} />;
   }
 
   if (vehicleId && !vehicleQuery.data) {
+    if (vehicleQuery.isLoading || (vehicleQuery.isFetching && vehicleQuery.isError)) {
+      return <AdminLoading label="Loading vehicle" rows={8} />;
+    }
+    if (vehicleQuery.isError) {
+      return (
+        <AdminLoadError
+          error={vehicleQuery.error}
+          onRetry={() => {
+            void vehicleQuery.refetch();
+          }}
+        />
+      );
+    }
     return (
       <EmptyState title="Vehicle not found" description="This vehicle may belong to another organisation." />
     );

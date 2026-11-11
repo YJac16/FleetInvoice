@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { InvoicePrintView } from "@/features/invoices/components/invoice-print-view";
 import { parseInvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
@@ -93,15 +93,50 @@ export function InvoicePrintPage({
     );
   }
 
-  if (
-    orgQuery.isLoading ||
-    invoiceQuery.isLoading ||
-    linesQuery.isLoading ||
-    companyQuery.isLoading
-  ) {
+  const hasPreview =
+    orgQuery.data != null &&
+    invoiceQuery.data != null &&
+    linesQuery.data != null;
+  const companyStillNeeded =
+    Boolean(invoiceQuery.data?.company_id) &&
+    companyQuery.data == null &&
+    companyQuery.isLoading;
+  const previewLoading =
+    companyStillNeeded ||
+    (!hasPreview &&
+      (orgQuery.isLoading ||
+        invoiceQuery.isLoading ||
+        linesQuery.isLoading ||
+        companyQuery.isLoading));
+  const previewFailed =
+    !hasPreview &&
+    (orgQuery.isError || invoiceQuery.isError || linesQuery.isError);
+  const previewRetrying =
+    previewFailed &&
+    (orgQuery.isFetching || invoiceQuery.isFetching || linesQuery.isFetching);
+
+  if (previewLoading || previewRetrying) {
     return (
       <div className="p-6">
-        <LoadingSkeleton rows={8} />
+        <AdminLoading label="Loading invoice preview" rows={8} />
+      </div>
+    );
+  }
+
+  if (previewFailed) {
+    return (
+      <div className="space-y-4 p-6">
+        <AdminLoadError
+          error={invoiceQuery.error ?? orgQuery.error ?? linesQuery.error}
+          onRetry={() => {
+            void orgQuery.refetch();
+            void invoiceQuery.refetch();
+            void linesQuery.refetch();
+          }}
+        />
+        <Link href={backHref} className="text-sm underline">
+          Back to invoices
+        </Link>
       </div>
     );
   }

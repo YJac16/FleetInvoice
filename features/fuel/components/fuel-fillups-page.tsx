@@ -7,10 +7,11 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SelectField, TextField, TextAreaField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
@@ -151,9 +152,14 @@ function LogFuelForm({
         type="datetime-local"
       />
       <TextAreaField control={form.control} name="notes" label="Notes" />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Saving…" : "Log fill-up"}
-      </Button>
+      <BusyButton
+        type="submit"
+        className="w-full"
+        pending={mutation.isPending}
+        pendingLabel="Saving…"
+      >
+        Log fill-up
+      </BusyButton>
     </form>
   );
 }
@@ -244,14 +250,25 @@ export function FuelFillupsPage({
           title="No organisation"
           description="Select an organisation to view fuel fill-ups."
         />
-      ) : fillupsQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={fillupsQuery.data ?? []}
-          emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
-        />
+        <AdminQueryGate
+          label="Loading fuel fill-ups"
+          isLoading={fillupsQuery.isLoading}
+          isFetching={fillupsQuery.isFetching}
+          isError={fillupsQuery.isError}
+          data={fillupsQuery.data}
+          error={fillupsQuery.error}
+          onRetry={() => {
+            void fillupsQuery.refetch();
+          }}
+          rows={5}
+        >
+          <DataTable
+            columns={columns}
+            data={fillupsQuery.data ?? []}
+            emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
+          />
+        </AdminQueryGate>
       )}
 
       {organisationId ? (

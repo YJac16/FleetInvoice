@@ -12,7 +12,7 @@ import {
   type VehicleValues,
 } from "@/features/vehicles/schemas/vehicle";
 import { SelectField, TextField } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import {
   ENTITY_STATUSES,
   STATUS_LABELS,
@@ -204,9 +204,9 @@ export function VehicleCaptureForm({
         />
       </CaptureSection>
 
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : submitLabel}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        {submitLabel}
+      </BusyButton>
     </form>
   );
 }

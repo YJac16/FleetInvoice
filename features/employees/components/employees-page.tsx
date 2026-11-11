@@ -12,6 +12,7 @@ import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { employeeImportSchema } from "@/features/import/schemas/import-schemas";
 import {
@@ -146,9 +147,9 @@ function EmployeeForm({
         label="Status"
         options={statusOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        Save
+      </BusyButton>
     </form>
   );
 }

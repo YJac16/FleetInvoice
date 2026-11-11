@@ -12,6 +12,7 @@ import {
   docTypeToScanSubject,
   SCAN_FIELD_MAP,
 } from "@/features/compliance/lib/scan-field-map";
+import { GoOpsLoader } from "@/components/brand/goops-loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { prepareComplianceUploadFile } from "@/lib/compliance/client/prepare-upload";
@@ -215,6 +216,22 @@ export function ComplianceDocumentSection({
               On file · {docQuery.data.file_name ?? "document"} (
               {new Date(docQuery.data.created_at).toLocaleDateString()})
             </p>
+          ) : docQuery.isLoading ? (
+            <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <GoOpsLoader size="xs" decorative />
+              Loading document…
+            </p>
+          ) : docQuery.isError ? (
+            <p className="text-xs text-muted-foreground">
+              Could not load this document.{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void docQuery.refetch()}
+              >
+                Try again
+              </button>
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">No document on file</p>
           )}
@@ -275,7 +292,7 @@ export function ComplianceDocumentSection({
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={rcScanOnly && !scanEnabled}
+                disabled={(rcScanOnly && !scanEnabled) || uploadMutation.isPending}
                 onClick={() => photoRef.current?.click()}
               >
                 <Camera className="mr-1 h-4 w-4" />
@@ -285,7 +302,7 @@ export function ComplianceDocumentSection({
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={rcScanOnly && !scanEnabled}
+                disabled={(rcScanOnly && !scanEnabled) || uploadMutation.isPending}
                 onClick={() => fileRef.current?.click()}
               >
                 <FileUp className="mr-1 h-4 w-4" />
@@ -294,9 +311,21 @@ export function ComplianceDocumentSection({
             </>
           ) : null}
           {scanEnabled && !rcScanOnly ? (
-            <Button type="button" size="sm" variant="secondary" onClick={() => void handleScanToFill()}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={uploadMutation.isPending}
+              onClick={() => void handleScanToFill()}
+            >
               Scan to fill
             </Button>
+          ) : null}
+          {uploadMutation.isPending ? (
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <GoOpsLoader size="xs" decorative />
+              Uploading…
+            </span>
           ) : null}
         </div>
       </div>
