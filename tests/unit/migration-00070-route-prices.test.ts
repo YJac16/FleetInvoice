@@ -29,7 +29,8 @@ describe("migration 00070 route price templates", () => {
     expect(sql).toMatch(/v_price_overridden := true/);
     expect(sql).toMatch(/v_override_reason := null/);
     expect(sql).toMatch(/when v_price_changed then null else line\.override_reason/);
-    expect(sql).toMatch(/Not authorised to sync this trip invoice line/);
+    expect(sql).toMatch(/before insert or update on public\.trips/);
+    expect(sql).toMatch(/'dispatcher', 'supervisor'/);
     expect(sql).toMatch(
       /revoke all on function public\.sync_staff_trip_invoice_line\(uuid, boolean\) from public, anon, authenticated/
     );
@@ -91,5 +92,24 @@ describe("migration 00070 route price templates", () => {
       expect(sql).toContain(`, ${amount},`);
     }
     expect(sql.match(/Any route \(flat template\)/g)?.length).toBe(4);
+  });
+});
+
+describe("migration 00071 invoice sync auth", () => {
+  const followUp = readFileSync(
+    path.join(root, "supabase/migrations/00071_invoice_sync_auth.sql"),
+    "utf8"
+  );
+
+  it("blocks planted prices on insert and lets dispatchers cancel", () => {
+    expect(followUp).toMatch(/before insert or update on public\.trips/);
+    expect(followUp).toMatch(/tg_op = 'INSERT'/);
+    expect(followUp).toMatch(/'dispatcher', 'supervisor'/);
+    expect(followUp).toMatch(
+      /revoke all on function public\.sync_staff_trip_invoice_line\(uuid, boolean\) from public, anon, authenticated/
+    );
+    expect(followUp).not.toMatch(
+      /grant execute on function public\.sync_staff_trip_invoice_line\(uuid, boolean\) to authenticated/
+    );
   });
 });

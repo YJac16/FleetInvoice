@@ -185,14 +185,20 @@ language plpgsql
 set search_path = pg_catalog, public
 as $$
 begin
-  if current_user in ('authenticated', 'anon', 'authenticator')
-     and (
-       new.manual_unit_price is distinct from old.manual_unit_price
+  if current_user in ('authenticated', 'anon', 'authenticator') then
+    if tg_op = 'INSERT' then
+      if new.manual_unit_price is not null
+         or new.manual_price_area_key is not null
+         or coalesce(new.reprice_on_next_sync, false)
+      then
+        raise exception 'Trip price columns can only be changed by staff billing actions';
+      end if;
+    elsif new.manual_unit_price is distinct from old.manual_unit_price
        or new.manual_price_area_key is distinct from old.manual_price_area_key
        or new.reprice_on_next_sync is distinct from old.reprice_on_next_sync
-     )
-  then
-    raise exception 'Trip price columns can only be changed by staff billing actions';
+    then
+      raise exception 'Trip price columns can only be changed by staff billing actions';
+    end if;
   end if;
   return new;
 end;
@@ -202,7 +208,7 @@ revoke all on function public.trips_reject_direct_billing_price() from public, a
 
 drop trigger if exists trips_reject_direct_billing_price on public.trips;
 create trigger trips_reject_direct_billing_price
-  before update on public.trips
+  before insert or update on public.trips
   for each row
   execute function public.trips_reject_direct_billing_price();
 
@@ -598,11 +604,19 @@ begin
     return null;
   end if;
 
-  -- Internal helper (00055): not granted to authenticated. If it is called
-  -- anyway, only org staff, or the assigned driver syncing (not removing)
-  -- their own trip, may proceed. auth.uid() null covers service_role jobs.
+  -- Internal helper (00055): not granted to authenticated. Dispatchers and
+  -- supervisors may cancel a trip, which removes the draft line, so they are
+  -- included. An assigned driver may sync their own trip but not remove a line.
+  -- auth.uid() null covers service_role jobs and security-definer owners.
   if auth.uid() is not null
-     and not public.staff_can_manage_trips(t.organisation_id) then
+     and not (
+       public.is_platform_owner()
+       or public.has_org_role_names(
+         t.organisation_id,
+         array['organisation_admin', 'manager', 'dispatcher', 'supervisor']
+       )
+     )
+  then
     if p_remove
        or not exists (
          select 1
