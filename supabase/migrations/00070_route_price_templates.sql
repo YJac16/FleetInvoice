@@ -175,6 +175,43 @@ comment on column public.trips.manual_price_area_key is
 comment on column public.trips.reprice_on_next_sync is
   'Set when the route changes so the next invoice sync may pre-fill. Cleared by sync. Existing rows stay false.';
 
+-- Table-level UPDATE is already granted to staff, including supervisors. A
+-- column revoke would not stick while that grant remains, so block direct
+-- writes of the billed-price columns. Security definer RPCs run as the owner
+-- and are not subject to this check.
+create or replace function public.trips_reject_direct_billing_price()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  if current_user in ('authenticated', 'anon', 'authenticator') then
+    if tg_op = 'INSERT' then
+      if new.manual_unit_price is not null
+         or new.manual_price_area_key is not null
+         or coalesce(new.reprice_on_next_sync, false)
+      then
+        raise exception 'Trip price columns can only be changed by staff billing actions';
+      end if;
+    elsif new.manual_unit_price is distinct from old.manual_unit_price
+       or new.manual_price_area_key is distinct from old.manual_price_area_key
+       or new.reprice_on_next_sync is distinct from old.reprice_on_next_sync
+    then
+      raise exception 'Trip price columns can only be changed by staff billing actions';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.trips_reject_direct_billing_price() from public, anon, authenticated;
+
+drop trigger if exists trips_reject_direct_billing_price on public.trips;
+create trigger trips_reject_direct_billing_price
+  before insert or update on public.trips
+  for each row
+  execute function public.trips_reject_direct_billing_price();
+
 alter table public.invoice_lines
   add column if not exists route_price_id uuid references public.route_prices (id) on delete set null,
   add column if not exists priced_area_key text;
@@ -567,6 +604,37 @@ begin
     return null;
   end if;
 
+  -- Internal helper (00055): not granted to authenticated. Dispatchers and
+  -- supervisors may cancel a trip, which removes the draft line, so they are
+  -- included. An assigned driver may sync their own trip but not remove a line.
+  -- auth.uid() null covers service_role jobs and security-definer owners.
+  if auth.uid() is not null
+     and not (
+       public.is_platform_owner()
+       or public.has_org_role_names(
+         t.organisation_id,
+         array['organisation_admin', 'manager', 'dispatcher', 'supervisor']
+       )
+     )
+  then
+    if p_remove
+       or not exists (
+         select 1
+         from public.trip_assignments ta
+         join public.drivers d
+           on d.id = ta.driver_id
+          and d.deleted_at is null
+          and d.profile_id = auth.uid()
+         where ta.trip_id = t.id
+           and ta.organisation_id = t.organisation_id
+           and ta.deleted_at is null
+           and ta.released_at is null
+       )
+    then
+      raise exception 'Not authorised to sync this trip invoice line';
+    end if;
+  end if;
+
   select il.id, il.invoice_id
   into v_line_id, v_old_invoice_id
   from public.invoice_lines il
@@ -864,8 +932,8 @@ begin
 end;
 $$;
 
-revoke all on function public.sync_staff_trip_invoice_line(uuid, boolean) from public, anon;
-grant execute on function public.sync_staff_trip_invoice_line(uuid, boolean) to authenticated;
+revoke all on function public.sync_staff_trip_invoice_line(uuid, boolean) from public, anon, authenticated;
+grant execute on function public.sync_staff_trip_invoice_line(uuid, boolean) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Draft line edit: a changed price is overridden with an empty reason
