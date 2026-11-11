@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -25,6 +25,7 @@ import {
   DRIVER_PAIR_GRID,
   DRIVER_PAIR_GRID_STACK,
 } from "@/features/driver-portal/lib/driver-form-layout";
+import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
 import { listActiveCompanies } from "@/services/companies.service";
 import { getErrorMessage } from "@/utils/errors";
@@ -45,6 +46,19 @@ export function DriverLogTripPage() {
   const [pax, setPax] = useState("1");
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
+  const areaText =
+    pickup.trim() && dropoff.trim() ? `${pickup.trim()} → ${dropoff.trim()}` : "";
+  const priceDraft = useTripPriceDraft({
+    enabled: Boolean(organisationId) && canSelf,
+    resetKey: organisationId ? `driver-${organisationId}` : "",
+    organisationId: organisationId ?? "",
+    companyId,
+    areaText,
+    tripDate: date,
+    existingUnitPrice: null,
+  });
+  const priceApplyRef = useRef(priceDraft.apply);
+  priceApplyRef.current = priceDraft.apply;
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
@@ -64,6 +78,8 @@ export function DriverLogTripPage() {
         paxCount: Number(pax),
         totalKm: Number(km),
         notes,
+        unitPrice: priceApplyRef.current.price,
+        applyUnitPrice: priceApplyRef.current.apply,
       }),
     onSuccess: (result) => {
       if (result.duplicateWarning) {
@@ -91,7 +107,8 @@ export function DriverLogTripPage() {
       <div>
         <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          An admin assigns the vehicle when approving. Rate card applies after approval.
+          An admin assigns the vehicle when approving. The price starts from the route default,
+          or the company rate when no route price is set. Change it if this trip is different.
         </p>
       </div>
 
@@ -164,6 +181,20 @@ export function DriverLogTripPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor="log-price">Price (R)</Label>
+          <Input
+            id="log-price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={priceDraft.value}
+            onChange={(event) => priceDraft.onChange(event.target.value)}
+            className="w-full min-w-0"
+          />
+          <p className="text-xs text-muted-foreground">{priceDraft.hint}</p>
         </div>
 
         <div className={DRIVER_PAIR_GRID}>

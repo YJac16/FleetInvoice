@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import { listActiveCompanies } from "@/services/companies.service";
 import { listDrivers } from "@/services/drivers.service";
@@ -49,6 +50,19 @@ export function AdminManualTripDialog({
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
   const [markCompleted, setMarkCompleted] = useState(true);
+  const areaText =
+    pickup.trim() && dropoff.trim() ? `${pickup.trim()} → ${dropoff.trim()}` : "";
+  const priceDraft = useTripPriceDraft({
+    enabled: open,
+    resetKey: open ? "create-trip" : "",
+    organisationId,
+    companyId,
+    areaText,
+    tripDate: date,
+    existingUnitPrice: null,
+  });
+  const priceApplyRef = useRef(priceDraft.apply);
+  priceApplyRef.current = priceDraft.apply;
 
   const driversQuery = useQuery({
     queryKey: queryKeys.drivers(organisationId),
@@ -83,6 +97,8 @@ export function AdminManualTripDialog({
         totalKm: Number(km),
         notes,
         markCompleted,
+        unitPrice: priceApplyRef.current.price,
+        applyUnitPrice: priceApplyRef.current.apply,
       }),
     onSuccess: (result) => {
       if (result.duplicateWarning) {
@@ -175,6 +191,19 @@ export function AdminManualTripDialog({
             <Label>Drop-off</Label>
             <Input value={dropoff} onChange={(e) => setDropoff(e.target.value)} />
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="manual-price">Price (R)</Label>
+          <Input
+            id="manual-price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={priceDraft.value}
+            onChange={(e) => priceDraft.onChange(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{priceDraft.hint}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

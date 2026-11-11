@@ -192,6 +192,8 @@ export async function updateStaffTrip(
     notes?: string;
     vehicleId?: string;
     editReason: string;
+    unitPrice?: number | null;
+    applyUnitPrice?: boolean;
   }
 ): Promise<StaffTrip> {
   const supabase = createClient();
@@ -206,6 +208,8 @@ export async function updateStaffTrip(
     p_notes: fields.notes ?? null,
     p_vehicle_id: fields.vehicleId ?? null,
     p_edit_reason: fields.editReason,
+    p_unit_price: fields.applyUnitPrice ? fields.unitPrice ?? null : null,
+    p_apply_unit_price: fields.applyUnitPrice ?? false,
   });
   if (error) throw error;
   return data as StaffTrip;

@@ -112,6 +112,7 @@ export function InvoiceDraftLineEditor({
       </div>
       <p className="text-xs text-muted-foreground">
         Amount preview: <span className="font-medium text-foreground">R {previewAmount}</span>
+        . Changing the price applies to this line only and is not printed as a reason.
       </p>
       <div className="flex gap-2">
         <Button

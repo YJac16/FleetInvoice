@@ -92,6 +92,8 @@ export async function adminCreateStaffTrip(params: {
   totalKm: number;
   notes?: string;
   markCompleted: boolean;
+  unitPrice?: number | null;
+  applyUnitPrice?: boolean;
 }): Promise<{ tripId: string; duplicateWarning: boolean }> {
   const supabase = createClient();
   const plannedStart = `${params.date}T${params.time}:00+02:00`;
@@ -107,6 +109,8 @@ export async function adminCreateStaffTrip(params: {
     p_total_km: params.totalKm,
     p_notes: params.notes ?? null,
     p_mark_completed: params.markCompleted,
+    p_unit_price: params.applyUnitPrice ? params.unitPrice ?? null : null,
+    p_apply_unit_price: params.applyUnitPrice ?? false,
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as

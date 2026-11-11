@@ -356,7 +356,38 @@ export type InvoiceLine = {
   amount: number;
   price_overridden?: boolean;
   override_reason?: string | null;
+  route_price_id?: string | null;
+  priced_area_key?: string | null;
   created_at: string;
+};
+
+export type RoutePriceMatchKind =
+  | "exact"
+  | "anchor"
+  | "within"
+  | "either"
+  | "company";
+
+export type RoutePrice = {
+  id: string;
+  organisation_id: string;
+  company_id: string;
+  label: string;
+  match_kind: RoutePriceMatchKind;
+  stops: string[];
+  anchor_place: string | null;
+  places: string[];
+  bidirectional: boolean;
+  unit_amount: number;
+  currency: string;
+  notes: string | null;
+  priority: number;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  companies?: Pick<Company, "id" | "name"> | null;
 };
 
 export type RateCard = {

@@ -14,6 +14,8 @@ export type SubmitDriverTripInput = {
   paxCount: number;
   totalKm: number;
   notes?: string;
+  unitPrice?: number | null;
+  applyUnitPrice?: boolean;
 };
 
 export type SubmitDriverTripResult = {
@@ -38,6 +40,8 @@ export async function submitDriverTrip(
     p_pax_count: input.paxCount,
     p_total_km: input.totalKm,
     p_notes: input.notes ?? null,
+    p_unit_price: input.applyUnitPrice ? input.unitPrice ?? null : null,
+    p_apply_unit_price: input.applyUnitPrice ?? false,
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as
