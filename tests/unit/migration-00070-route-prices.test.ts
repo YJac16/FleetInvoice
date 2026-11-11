@@ -31,6 +31,7 @@ describe("migration 00070 route price templates", () => {
     expect(sql).toMatch(/when v_price_changed then null else line\.override_reason/);
     expect(sql).toMatch(/reprice_on_next_sync/);
     expect(sql).toMatch(/elsif s ~\* '\\sto\\s'/);
+    expect(sql).toMatch(/Driver submissions cannot set manual_unit_price/);
   });
 
   it("does not rewrite rate cards or existing invoice totals in the seed", () => {

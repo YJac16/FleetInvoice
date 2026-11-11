@@ -169,7 +169,7 @@ alter table public.trips
   check (manual_unit_price is null or manual_unit_price >= 0);
 
 comment on column public.trips.manual_unit_price is
-  'Per-trip price typed by staff or a driver. Empty means use the route template or rate card. Not an invoice override reason.';
+  'Per-trip price typed by staff. Empty means use the route template or rate card. Drivers cannot set this. Not an invoice override reason.';
 comment on column public.trips.manual_price_area_key is
   'Normalized route key the typed price belongs to. A route change clears it.';
 comment on column public.trips.reprice_on_next_sync is
@@ -1451,9 +1451,7 @@ create or replace function public.submit_driver_trip(
   p_company_id uuid,
   p_pax_count int,
   p_total_km numeric,
-  p_notes text default null,
-  p_unit_price numeric default null,
-  p_apply_unit_price boolean default false
+  p_notes text default null
 )
 returns table (trip_id uuid, duplicate_warning boolean)
 language plpgsql
@@ -1487,10 +1485,6 @@ begin
   v_dropoff := trim(coalesce(p_dropoff, ''));
   if v_pickup = '' or v_dropoff = '' then
     raise exception 'Pickup and drop-off are required';
-  end if;
-
-  if p_apply_unit_price and p_unit_price is not null and p_unit_price < 0 then
-    raise exception 'Price cannot be negative';
   end if;
 
   if p_pax_count is null or p_pax_count < 0 then
@@ -1559,11 +1553,8 @@ begin
     null,
     null,
     auth.uid(),
-    case when p_apply_unit_price then p_unit_price else null end,
-    case
-      when p_apply_unit_price and p_unit_price is not null then public.route_area_key(v_area)
-      else null
-    end
+    null,
+    null
   )
   returning id into v_trip_id;
 
@@ -1605,11 +1596,176 @@ end;
 $$;
 
 revoke all on function public.submit_driver_trip(
-  uuid, timestamptz, text, text, uuid, int, numeric, text, numeric, boolean
+  uuid, timestamptz, text, text, uuid, int, numeric, text
 ) from public, anon;
 grant execute on function public.submit_driver_trip(
-  uuid, timestamptz, text, text, uuid, int, numeric, text, numeric, boolean
+  uuid, timestamptz, text, text, uuid, int, numeric, text
 ) to authenticated;
+
+-- Drivers cannot set the billed price. Staff confirm or change it on approval.
+comment on function public.submit_driver_trip(
+  uuid, timestamptz, text, text, uuid, int, numeric, text
+) is
+  'Driver submissions cannot set manual_unit_price. Staff set the billed amount.';
+
+-- ---------------------------------------------------------------------------
+-- approve_driver_trip — staff see and may change the billed price before sync
+-- ---------------------------------------------------------------------------
+
+drop function if exists public.approve_driver_trip(uuid, uuid);
+
+create or replace function public.approve_driver_trip(
+  p_trip_id uuid,
+  p_vehicle_id uuid,
+  p_unit_price numeric default null,
+  p_apply_unit_price boolean default false
+)
+returns public.trips
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  t public.trips%rowtype;
+  v_old_vehicle uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if p_vehicle_id is null then
+    raise exception 'Vehicle is required to approve this trip';
+  end if;
+
+  if p_apply_unit_price and p_unit_price is not null and p_unit_price < 0 then
+    raise exception 'Price cannot be negative';
+  end if;
+
+  select * into t from public.trips where id = p_trip_id and deleted_at is null;
+  if not found then
+    raise exception 'Trip not found';
+  end if;
+
+  if not public.staff_can_manage_trips(t.organisation_id) then
+    raise exception 'Not authorised to approve driver trips';
+  end if;
+
+  if not t.submitted_by_driver or t.approved_at is not null then
+    raise exception 'Trip is not a pending driver submission';
+  end if;
+
+  if coalesce(trim(t.rejected_reason), '') <> '' then
+    raise exception 'Trip was rejected; driver must resubmit';
+  end if;
+
+  if not exists (
+    select 1 from public.vehicles v
+    where v.id = p_vehicle_id
+      and v.organisation_id = t.organisation_id
+      and v.deleted_at is null
+      and v.status = 'active'
+  ) then
+    raise exception 'Vehicle not found or inactive';
+  end if;
+
+  select ta.vehicle_id
+  into v_old_vehicle
+  from public.trip_assignments ta
+  where ta.trip_id = p_trip_id
+    and ta.organisation_id = t.organisation_id
+    and ta.deleted_at is null
+    and ta.released_at is null
+  limit 1;
+
+  update public.trip_assignments
+  set vehicle_id = p_vehicle_id
+  where trip_id = p_trip_id
+    and organisation_id = t.organisation_id
+    and deleted_at is null
+    and released_at is null;
+
+  perform public.log_trip_audit(
+    t.organisation_id,
+    p_trip_id,
+    'vehicle_id',
+    v_old_vehicle::text,
+    p_vehicle_id::text,
+    'Assigned on driver trip approval'
+  );
+
+  perform public.assert_staff_waybill_billing_ready(
+    t.organisation_id,
+    t.company_id,
+    t.planned_start
+  );
+
+  update public.trips
+  set
+    approved_by = auth.uid(),
+    approved_at = timezone('utc', now()),
+    rejected_reason = null,
+    status = 'completed',
+    staff_completed_at = timezone('utc', now()),
+    opening_km = 0,
+    closing_km = coalesce(total_km, 0),
+    total_km = coalesce(total_km, 0),
+    manual_unit_price = case
+      when p_apply_unit_price and p_unit_price is not null then p_unit_price
+      else null
+    end,
+    manual_price_area_key = case
+      when p_apply_unit_price and p_unit_price is not null
+        then public.route_area_key(coalesce(t.area_text, ''))
+      else null
+    end
+  where id = p_trip_id
+  returning * into t;
+
+  if p_apply_unit_price and p_unit_price is not null then
+    perform public.log_trip_audit(
+      t.organisation_id,
+      p_trip_id,
+      'manual_unit_price',
+      null,
+      p_unit_price::text,
+      'Set on driver trip approval'
+    );
+  end if;
+
+  perform public.log_trip_audit(
+    t.organisation_id,
+    p_trip_id,
+    'submission_status',
+    'pending',
+    'approved',
+    null
+  );
+
+  insert into public.trip_events (
+    organisation_id,
+    trip_id,
+    event_type,
+    actor_id,
+    notes,
+    metadata
+  )
+  values (
+    t.organisation_id,
+    p_trip_id,
+    'completed'::public.trip_event_type,
+    auth.uid(),
+    'Driver submission approved',
+    jsonb_build_object('driver_submission', true, 'vehicle_id', p_vehicle_id)
+  );
+
+  perform public.sync_staff_trip_invoice_line(p_trip_id, false);
+
+  return t;
+end;
+$$;
+
+revoke all on function public.approve_driver_trip(uuid, uuid, numeric, boolean) from public, anon;
+grant execute on function public.approve_driver_trip(uuid, uuid, numeric, boolean) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Seed defaults from the 11 Nov 2026 pricing reference.

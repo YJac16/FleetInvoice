@@ -14,8 +14,6 @@ export type SubmitDriverTripInput = {
   paxCount: number;
   totalKm: number;
   notes?: string;
-  unitPrice?: number | null;
-  applyUnitPrice?: boolean;
 };
 
 export type SubmitDriverTripResult = {
@@ -40,8 +38,6 @@ export async function submitDriverTrip(
     p_pax_count: input.paxCount,
     p_total_km: input.totalKm,
     p_notes: input.notes ?? null,
-    p_unit_price: input.applyUnitPrice ? input.unitPrice ?? null : null,
-    p_apply_unit_price: input.applyUnitPrice ?? false,
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as
@@ -126,12 +122,15 @@ export async function countPendingDriverSubmissions(
 
 export async function approveDriverTrip(
   tripId: string,
-  vehicleId: string
+  vehicleId: string,
+  price?: { unitPrice: number | null; applyUnitPrice: boolean }
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("approve_driver_trip", {
     p_trip_id: tripId,
     p_vehicle_id: vehicleId,
+    p_unit_price: price?.applyUnitPrice ? price.unitPrice ?? null : null,
+    p_apply_unit_price: price?.applyUnitPrice ?? false,
   });
   if (error) throw error;
 }

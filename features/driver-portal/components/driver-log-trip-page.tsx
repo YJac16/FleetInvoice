@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
@@ -57,8 +57,6 @@ export function DriverLogTripPage() {
     tripDate: date,
     existingUnitPrice: null,
   });
-  const priceApplyRef = useRef(priceDraft.apply);
-  priceApplyRef.current = priceDraft.apply;
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
@@ -78,8 +76,6 @@ export function DriverLogTripPage() {
         paxCount: Number(pax),
         totalKm: Number(km),
         notes,
-        unitPrice: priceApplyRef.current.price,
-        applyUnitPrice: priceApplyRef.current.apply,
       }),
     onSuccess: (result) => {
       if (result.duplicateWarning) {
@@ -107,8 +103,7 @@ export function DriverLogTripPage() {
       <div>
         <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          An admin assigns the vehicle when approving. The price starts from the route default,
-          or the company rate when no route price is set. Change it if this trip is different.
+          An admin assigns the vehicle and confirms the price when approving.
         </p>
       </div>
 
@@ -184,17 +179,15 @@ export function DriverLogTripPage() {
         </div>
 
         <div className="min-w-0 space-y-1.5">
-          <Label htmlFor="log-price">Price (R)</Label>
-          <Input
-            id="log-price"
-            type="number"
-            min={0}
-            step="0.01"
-            value={priceDraft.value}
-            onChange={(event) => priceDraft.onChange(event.target.value)}
-            className="w-full min-w-0"
-          />
-          <p className="text-xs text-muted-foreground">{priceDraft.hint}</p>
+          <Label>Price (R)</Label>
+          <p className="text-sm font-medium text-foreground">
+            {priceDraft.suggestion?.unitAmount != null
+              ? priceDraft.suggestion.unitAmount.toFixed(2)
+              : "—"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {priceDraft.hint} An admin confirms the billed amount. You cannot change it here.
+          </p>
         </div>
 
         <div className={DRIVER_PAIR_GRID}>
