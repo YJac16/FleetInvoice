@@ -268,7 +268,7 @@ export function SubscriptionsPage() {
         description="Vehicle-based plans in South African Rand. Extra vehicles are a soft cap — we nudge you to upgrade before you hit the ceiling."
       />
 
-      {plansQuery.isError ? (
+      {plansQuery.isError && plansQuery.data == null ? (
         <AdminLoadError
           title="Could not load plans"
           description="Check that migration 00016 is applied and you can read active plans."

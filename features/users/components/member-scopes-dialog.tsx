@@ -126,6 +126,10 @@ export function MemberScopesDialog({
     (company) => company.id !== billToCompanyId
   );
   const alreadyScoped = scopes.length >= 1;
+  const hasScopeData =
+    companiesQuery.data != null &&
+    organisationQuery.data != null &&
+    scopesQuery.data != null;
   const companyName = (id: string) =>
     companies.find((c) => c.id === id)?.name ?? id;
 
@@ -143,27 +147,24 @@ export function MemberScopesDialog({
       <AdminQueryGate
         label="Loading company access"
         isLoading={
-          companiesQuery.isLoading ||
-          organisationQuery.isLoading ||
-          scopesQuery.isLoading
+          !hasScopeData &&
+          (companiesQuery.isLoading ||
+            organisationQuery.isLoading ||
+            scopesQuery.isLoading)
         }
         isFetching={
-          companiesQuery.isFetching ||
-          organisationQuery.isFetching ||
-          scopesQuery.isFetching
+          !hasScopeData &&
+          (companiesQuery.isFetching ||
+            organisationQuery.isFetching ||
+            scopesQuery.isFetching)
         }
         isError={
-          companiesQuery.isError ||
-          organisationQuery.isError ||
-          scopesQuery.isError
+          !hasScopeData &&
+          (companiesQuery.isError ||
+            organisationQuery.isError ||
+            scopesQuery.isError)
         }
-        data={
-          companiesQuery.isSuccess &&
-          organisationQuery.isSuccess &&
-          scopesQuery.isSuccess
-            ? scopesQuery.data
-            : undefined
-        }
+        data={hasScopeData ? scopesQuery.data : undefined}
         error={companiesQuery.error ?? organisationQuery.error ?? scopesQuery.error}
         onRetry={() => {
           void companiesQuery.refetch();
