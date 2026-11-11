@@ -30,6 +30,9 @@ describe("migration 00071 driver price privacy and stops", () => {
     expect(sql).toMatch(/add column if not exists route_stops jsonb/);
     expect(sql).toMatch(/trip_is_multi_stop/);
     expect(sql).toMatch(/No company or route price is applied/);
+    expect(sql).toMatch(
+      /if public\.trip_is_multi_stop\(t\.route_stops\) then[\s\S]*resolve_invoice_bill_to_company_id/
+    );
     expect(sql).toMatch(/format_route_stop_area/);
     expect(sql).not.toMatch(/update public\.trips\s+set route_stops/i);
     expect(sql).not.toMatch(/update public\.rate_cards/i);

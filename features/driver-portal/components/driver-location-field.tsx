@@ -58,6 +58,7 @@ export function DriverLocationField({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mapMatches, setMapMatches] = useState<MapPlaceSuggestion[]>([]);
+  const [mapSearching, setMapSearching] = useState(false);
   const [checking, setChecking] = useState(false);
 
   const suggestions = useMemo(
@@ -66,23 +67,38 @@ export function DriverLocationField({
   );
 
   useEffect(() => {
-    if (!mapsEnabled || query.trim().length < 2) {
+    const searched = query.trim();
+    if (!mapsEnabled || searched.length < 2) {
       setMapMatches([]);
+      setMapSearching(false);
       return;
     }
+    let cancelled = false;
+    setMapSearching(true);
     const handle = window.setTimeout(() => {
-      void searchMapPlaces(query.trim(), sessionToken.current)
-        .then((matches) => setMapMatches(matches))
-        .catch(() => setMapMatches([]));
+      void searchMapPlaces(searched, sessionToken.current)
+        .then((matches) => {
+          if (!cancelled) setMapMatches(matches);
+        })
+        .catch(() => {
+          if (!cancelled) setMapMatches([]);
+        })
+        .finally(() => {
+          if (!cancelled) setMapSearching(false);
+        });
     }, 350);
-    return () => window.clearTimeout(handle);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
   }, [mapsEnabled, query]);
 
-  const exactCatalogue = suggestions.some(
-    (location) => location.name.toLowerCase() === query.trim().toLowerCase()
-  );
   const showTypedFallback =
-    query.trim().length >= 2 && !exactCatalogue && !checking;
+    query.trim().length >= 2 &&
+    suggestions.length === 0 &&
+    mapMatches.length === 0 &&
+    !mapSearching &&
+    !checking;
 
   async function chooseCatalogue(location: ServiceLocation) {
     onChange({
@@ -255,6 +271,14 @@ export function DriverLocationField({
               ) : null}
               {suggestions.length === 0 &&
               mapMatches.length === 0 &&
+              mapSearching ? (
+                <li className="px-3 py-3 text-sm text-muted-foreground">
+                  Checking the map…
+                </li>
+              ) : null}
+              {suggestions.length === 0 &&
+              mapMatches.length === 0 &&
+              !mapSearching &&
               !showTypedFallback ? (
                 <li className="px-3 py-3 text-sm text-muted-foreground">
                   Keep typing to search places.
