@@ -246,7 +246,7 @@ begin
     return regexp_split_to_array(s, '\s*(→|->|-->|—>|–>)\s*');
   elsif position(' / ' in s) > 0 then
     return regexp_split_to_array(s, '\s*/\s*');
-  elsif s ~ '\sto\s' then
+  elsif s ~* '\sto\s' then
     return regexp_split_to_array(s, '\s+[Tt][Oo]\s+');
   else
     return array[s];

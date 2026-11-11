@@ -9,9 +9,10 @@ export type TripPriceApply = {
 
 /**
  * Decide what to send with a trip save.
- * A typed amount that differs from the suggestion is stored on the trip.
- * Matching the suggestion clears that typed amount.
- * Matching an existing billing override leaves that override alone.
+ * A typed amount is stored on the trip, including when it matches the suggestion
+ * but differs from the invoice line already saved. Matching the suggestion on a
+ * new trip clears any typed price so the server can apply the route default.
+ * An unchanged line, or a price that still matches a billing override, is left alone.
  */
 export function tripPriceApplyArgs(input: {
   entered: string;
@@ -34,8 +35,14 @@ export function tripPriceApplyArgs(input: {
   if (input.overrideAmount != null && moneyEqual(amount, input.overrideAmount)) {
     return { apply: false, price: null };
   }
+  const rounded = Math.round(amount * 100) / 100;
   if (input.suggestion != null && moneyEqual(amount, input.suggestion)) {
+    // The line already has a different amount. Store the suggestion explicitly
+    // so sync does not keep that snapshot when the route itself did not change.
+    if (input.existingUnitPrice != null && !moneyEqual(amount, input.existingUnitPrice)) {
+      return { apply: true, price: rounded };
+    }
     return { apply: true, price: null };
   }
-  return { apply: true, price: Math.round(amount * 100) / 100 };
+  return { apply: true, price: rounded };
 }

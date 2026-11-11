@@ -145,6 +145,7 @@ describe("splitRouteStops", () => {
     expect(splitRouteStops("Airport → Cullinan")).toEqual(["Airport", "Cullinan"]);
     expect(splitRouteStops("Airport -> Cullinan")).toEqual(["Airport", "Cullinan"]);
     expect(splitRouteStops("Airport to Cullinan")).toEqual(["Airport", "Cullinan"]);
+    expect(splitRouteStops("Airport TO Cullinan")).toEqual(["Airport", "Cullinan"]);
     expect(splitRouteStops("A → B → C")).toEqual(["A", "B", "C"]);
     expect(routeAreaKey("CTIA → The Commodore")).toBe("airport|commodore");
   });
@@ -256,12 +257,15 @@ describe("chooseTripUnitPrice", () => {
 });
 
 describe("tripPriceApplyArgs", () => {
-  it("stores a typed price and clears it when the suggestion is accepted", () => {
+  it("stores a typed price, including the suggestion when the saved line differs", () => {
     expect(
       tripPriceApplyArgs({ entered: "500", suggestion: 410, existingUnitPrice: 410 })
     ).toEqual({ apply: true, price: 500 });
     expect(
-      tripPriceApplyArgs({ entered: "410", suggestion: 410, existingUnitPrice: 450, routeChanged: true })
+      tripPriceApplyArgs({ entered: "410", suggestion: 410, existingUnitPrice: 450 })
+    ).toEqual({ apply: true, price: 410 });
+    expect(
+      tripPriceApplyArgs({ entered: "410", suggestion: 410, existingUnitPrice: null })
     ).toEqual({ apply: true, price: null });
   });
 
