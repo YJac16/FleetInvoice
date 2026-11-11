@@ -3,7 +3,6 @@
 import { MapPin, Users } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/status-badge";
-import { STAFF_TRANSPORT_FLAT_RATE_ZAR } from "@/lib/constants";
 import type { StaffTrip } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -12,12 +11,12 @@ import {
   isSameDayInTz,
   nowInDriverTz,
 } from "@/features/driver-portal/lib/dates";
+import { formatDriverRoute } from "@/features/trips/lib/route-stops";
 import { tripCompanyLabel } from "@/features/trips/lib/trip-display";
 
 type StaffTripCardProps = {
   trip: StaffTrip;
   compact?: boolean;
-  showRate?: boolean;
   /** Hide status badge when a timeline is shown elsewhere */
   hideStatus?: boolean;
   onClick?: () => void;
@@ -27,7 +26,6 @@ type StaffTripCardProps = {
 export function StaffTripCard({
   trip,
   compact,
-  showRate,
   hideStatus,
   onClick,
   className,
@@ -36,7 +34,11 @@ export function StaffTripCard({
   const companyLabel = tripCompanyLabel(trip)?.trim() ?? "";
   const company =
     companyLabel && companyLabel !== "—" && companyLabel !== "-" ? companyLabel : null;
-  const areaText = trip.area_text?.trim() || trip.service_locations?.trim() || "";
+  const areaText =
+    formatDriverRoute(trip) ||
+    trip.area_text?.trim() ||
+    trip.service_locations?.trim() ||
+    "";
   const area = areaText === "—" || areaText === "-" ? "" : areaText;
   const Wrapper = onClick ? "button" : "div";
 
@@ -89,9 +91,6 @@ export function StaffTripCard({
             ) : null}
             {trip.total_km != null ? (
               <span className="text-foreground">Total {trip.total_km} km</span>
-            ) : null}
-            {showRate ? (
-              <span>R{STAFF_TRANSPORT_FLAT_RATE_ZAR}</span>
             ) : null}
           </div>
         </div>

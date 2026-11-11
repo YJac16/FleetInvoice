@@ -19,17 +19,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveSelectLabel } from "@/components/forms/select-label";
+import {
+  DriverLocationField,
+  emptyStop,
+  type ChosenStop,
+} from "@/features/driver-portal/components/driver-location-field";
 import {
   DRIVER_DATETIME_INPUT,
   DRIVER_PAIR_CELL,
   DRIVER_PAIR_GRID,
   DRIVER_PAIR_GRID_STACK,
 } from "@/features/driver-portal/lib/driver-form-layout";
-import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
+import { fetchPlacesLookupEnabled } from "@/features/locations/lib/places-client";
 import { submitDriverTrip } from "@/services/driver-submitted-trips.service";
-import { listActiveCompanies } from "@/services/companies.service";
+import {
+  listActiveCompanies,
+} from "@/services/companies.service";
+import { listServiceLocations } from "@/services/locations.service";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
+
+function stopPayload(stop: ChosenStop) {
+  return {
+    name: stop.name.trim(),
+    placeId: stop.placeId,
+    lat: stop.lat,
+    lng: stop.lng,
+    source: stop.source || null,
+  };
+}
 
 export function DriverLogTripPage() {
   const { can } = useOrg();
@@ -40,23 +59,13 @@ export function DriverLogTripPage() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("08:00");
-  const [pickup, setPickup] = useState("");
-  const [dropoff, setDropoff] = useState("");
+  const [pickup, setPickup] = useState<ChosenStop>(emptyStop);
+  const [dropoff, setDropoff] = useState<ChosenStop>(emptyStop);
+  const [extraStops, setExtraStops] = useState<ChosenStop[]>([]);
   const [companyId, setCompanyId] = useState("");
   const [pax, setPax] = useState("1");
   const [km, setKm] = useState("");
   const [notes, setNotes] = useState("");
-  const areaText =
-    pickup.trim() && dropoff.trim() ? `${pickup.trim()} → ${dropoff.trim()}` : "";
-  const priceDraft = useTripPriceDraft({
-    enabled: Boolean(organisationId) && canSelf,
-    resetKey: organisationId ? `driver-${organisationId}` : "",
-    organisationId: organisationId ?? "",
-    companyId,
-    areaText,
-    tripDate: date,
-    existingUnitPrice: null,
-  });
 
   const companiesQuery = useQuery({
     queryKey: organisationId ? queryKeys.companies(organisationId) : ["companies", "none"],
@@ -64,19 +73,50 @@ export function DriverLogTripPage() {
     enabled: Boolean(organisationId) && canSelf,
   });
 
+  const locationsQuery = useQuery({
+    queryKey: organisationId
+      ? ["service-locations", organisationId]
+      : ["service-locations", "none"],
+    queryFn: () => listServiceLocations(organisationId!),
+    enabled: Boolean(organisationId) && canSelf,
+  });
+
+  const placesQuery = useQuery({
+    queryKey: ["places-config"],
+    queryFn: fetchPlacesLookupEnabled,
+    enabled: canSelf,
+    staleTime: 60_000,
+  });
+
+  const companyOptions = useMemo(
+    () =>
+      (companiesQuery.data ?? []).map((company) => ({
+        value: company.id,
+        label: company.name,
+      })),
+    [companiesQuery.data]
+  );
+
   const submitMutation = useMutation({
-    mutationFn: () =>
-      submitDriverTrip({
+    mutationFn: () => {
+      const stops = [pickup, ...extraStops, dropoff];
+      if (stops.some((stop) => !stop.name.trim())) {
+        throw new Error("Choose a place for every stop");
+      }
+      if (!companyId) throw new Error("Select a company");
+      return submitDriverTrip({
         organisationId: organisationId!,
         date,
         time,
-        pickup,
-        dropoff,
+        pickup: pickup.name.trim(),
+        dropoff: dropoff.name.trim(),
+        stops: stops.map(stopPayload),
         companyId,
         paxCount: Number(pax),
         totalKm: Number(km),
         notes,
-      }),
+      });
+    },
     onSuccess: (result) => {
       if (result.duplicateWarning) {
         toast.warning(
@@ -98,12 +138,15 @@ export function DriverLogTripPage() {
     );
   }
 
+  const locations = locationsQuery.data ?? [];
+  const mapsEnabled = placesQuery.data === true;
+
   return (
     <div className="min-w-0 space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          An admin assigns the vehicle and confirms the price when approving.
+          An admin assigns the vehicle when approving.
         </p>
       </div>
 
@@ -139,55 +182,88 @@ export function DriverLogTripPage() {
           </div>
         </div>
 
-        <div className="min-w-0 space-y-1.5">
-          <Label htmlFor="log-pickup">Pickup</Label>
-          <Input
-            id="log-pickup"
-            value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-            className="w-full min-w-0"
-            required
-          />
-        </div>
-        <div className="min-w-0 space-y-1.5">
-          <Label htmlFor="log-dropoff">Drop-off</Label>
-          <Input
-            id="log-dropoff"
-            value={dropoff}
-            onChange={(e) => setDropoff(e.target.value)}
-            className="w-full min-w-0"
-            required
-          />
-        </div>
+        <DriverLocationField
+          organisationId={organisationId}
+          label="Pickup"
+          value={pickup}
+          onChange={setPickup}
+          locations={locations}
+          mapsEnabled={mapsEnabled}
+          required
+        />
+
+        {extraStops.map((stop, index) => (
+          <div key={`stop-${index}`} className="space-y-1">
+            <DriverLocationField
+              organisationId={organisationId}
+              label={`Stop ${index + 2}`}
+              value={stop}
+              onChange={(next) =>
+                setExtraStops((current) =>
+                  current.map((item, itemIndex) =>
+                    itemIndex === index ? next : item
+                  )
+                )
+              }
+              locations={locations}
+              mapsEnabled={mapsEnabled}
+              required
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 px-2 text-muted-foreground"
+              onClick={() =>
+                setExtraStops((current) =>
+                  current.filter((_, itemIndex) => itemIndex !== index)
+                )
+              }
+            >
+              Remove stop
+            </Button>
+          </div>
+        ))}
+
+        <DriverLocationField
+          organisationId={organisationId}
+          label={extraStops.length > 0 ? "Final drop-off" : "Drop-off"}
+          value={dropoff}
+          onChange={setDropoff}
+          locations={locations}
+          mapsEnabled={mapsEnabled}
+          required
+        />
+
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full"
+          onClick={() => setExtraStops((current) => [...current, emptyStop()])}
+        >
+          Add another stop
+        </Button>
 
         <div className="min-w-0 space-y-1.5">
           <Label htmlFor="log-company">Company</Label>
           <Select
-            value={companyId}
+            items={companyOptions}
+            value={companyId || null}
             onValueChange={(value) => setCompanyId(value ?? "")}
             required
           >
             <SelectTrigger id="log-company" className="w-full min-w-0 max-w-full">
-              <SelectValue placeholder="Select company" />
+              <SelectValue placeholder="Select company">
+                {(value) => resolveSelectLabel(companyOptions, value, "Select company")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(companiesQuery.data ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              {companyOptions.map((company) => (
+                <SelectItem key={company.value} value={company.value}>
+                  {company.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="min-w-0 space-y-1.5">
-          <Label>Price (R)</Label>
-          <p className="text-sm font-medium text-foreground">
-            {priceDraft.suggestion?.unitAmount != null
-              ? priceDraft.suggestion.unitAmount.toFixed(2)
-              : "—"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {priceDraft.hint} An admin confirms the billed amount. You cannot change it here.
-          </p>
         </div>
 
         <div className={DRIVER_PAIR_GRID}>

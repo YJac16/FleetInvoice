@@ -36,6 +36,8 @@ export function useTripPriceDraft(options: {
   /** Undefined while the existing line price is still loading. */
   existingUnitPrice: number | null | undefined;
   overrideAmount?: number | null;
+  /** Three or more stops: do not suggest a company or route price. */
+  stopCount?: number;
 }) {
   const [value, setValue] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -44,6 +46,8 @@ export function useTripPriceDraft(options: {
   const initialRoute = useRef<string | null>(null);
   const routeKey = `${options.companyId}|${options.areaText.trim()}`;
 
+  const multiStop = (options.stopCount ?? 0) >= 3;
+
   const suggestionQuery = useQuery({
     queryKey: [
       "suggest-trip-price",
@@ -51,6 +55,7 @@ export function useTripPriceDraft(options: {
       options.companyId,
       options.areaText,
       options.tripDate ?? "",
+      multiStop ? "multi" : "single",
     ],
     queryFn: () =>
       suggestTripUnitPrice({
@@ -61,6 +66,7 @@ export function useTripPriceDraft(options: {
       }),
     enabled:
       options.enabled &&
+      !multiStop &&
       Boolean(options.organisationId && options.companyId && options.areaText.trim()),
   });
 
@@ -132,7 +138,9 @@ export function useTripPriceDraft(options: {
       setValue(next);
     },
     suggestion,
-    hint: tripPriceHint(suggestion, suggestionQuery.isFetching),
+    hint: multiStop
+      ? "Several stops on this trip. Enter the billed amount. No company or route price is applied."
+      : tripPriceHint(suggestion, suggestionQuery.isFetching),
     apply,
   };
 }

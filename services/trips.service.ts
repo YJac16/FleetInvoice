@@ -1,3 +1,4 @@
+import { TRIP_ROW_COLUMNS } from "@/features/trips/lib/trip-row-columns";
 import type { ResolvedDateRange } from "@/lib/date-range/sast-range";
 import { plannedStartBoundsForRange } from "@/lib/date-range/supabase-bounds";
 import { createClient } from "@/lib/supabase/client";
@@ -14,8 +15,7 @@ import type { Trip } from "@/types";
 
 const TABLE = "trips";
 
-const TRIP_SELECT =
-  "*, routes:route_id (name), companies:company_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
+const TRIP_SELECT = `${TRIP_ROW_COLUMNS}, routes:route_id (name), companies:company_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))`;
 
 export type ListTripsOptions = ListTenantOptions & {
   dateRange?: ResolvedDateRange;

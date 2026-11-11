@@ -12,6 +12,7 @@ import {
   driverSubmissionStatus,
   listMyDriverSubmissions,
 } from "@/services/driver-submitted-trips.service";
+import { formatDriverRoute } from "@/features/trips/lib/route-stops";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
 import { cn } from "@/lib/utils";
@@ -98,7 +99,9 @@ export function DriverSubmissionsPage() {
                 <p className="mt-1 text-muted-foreground">
                   {formatDateTime(trip.planned_start)}
                 </p>
-                <p className="mt-2 break-words text-foreground">{trip.area_text}</p>
+                <p className="mt-2 break-words text-foreground">
+                  {formatDriverRoute(trip) || trip.area_text}
+                </p>
                 {trip.rejected_reason ? (
                   <p className="mt-2 break-words text-xs text-red-700 dark:text-red-300">
                     {trip.rejected_reason}

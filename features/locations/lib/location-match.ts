@@ -5,6 +5,7 @@ export type ServiceLocation = {
   aliases: string[];
   region: string;
   status: string;
+  needs_review?: boolean;
 };
 
 export const LOCATION_AREA_SEPARATOR = " / ";
