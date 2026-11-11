@@ -59,6 +59,7 @@ export function DriverLocationField({
   const [open, setOpen] = useState(false);
   const [mapMatches, setMapMatches] = useState<MapPlaceSuggestion[]>([]);
   const [mapSearching, setMapSearching] = useState(false);
+  const [mapPickFailed, setMapPickFailed] = useState(false);
   const [checking, setChecking] = useState(false);
 
   const suggestions = useMemo(
@@ -74,6 +75,7 @@ export function DriverLocationField({
       return;
     }
     let cancelled = false;
+    setMapPickFailed(false);
     setMapSearching(true);
     const handle = window.setTimeout(() => {
       void searchMapPlaces(searched, sessionToken.current)
@@ -96,9 +98,9 @@ export function DriverLocationField({
   const showTypedFallback =
     query.trim().length >= 2 &&
     suggestions.length === 0 &&
-    mapMatches.length === 0 &&
     !mapSearching &&
-    !checking;
+    !checking &&
+    (mapMatches.length === 0 || mapPickFailed);
 
   async function chooseCatalogue(location: ServiceLocation) {
     onChange({
@@ -118,10 +120,12 @@ export function DriverLocationField({
     try {
       const verified = await verifyMapPlace(match.placeId, sessionToken.current);
       if (!verified) {
+        setMapPickFailed(true);
         toast.error("Could not check that place. Pick one from the list or type it.");
         return;
       }
       if ("outside" in verified) {
+        setMapPickFailed(true);
         toast.error(
           "That place is outside the Cape Town area. Pick a listed place, or type a name for an admin to review."
         );
@@ -147,6 +151,7 @@ export function DriverLocationField({
       setMapMatches([]);
       sessionToken.current = crypto.randomUUID();
     } catch {
+      setMapPickFailed(true);
       toast.error("Could not save that place. You can still type it.");
     } finally {
       setChecking(false);
