@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -71,13 +71,15 @@ export function ServiceLocationsSettings({
               placeholder="e.g. Nyanga"
               onChange={(e) => setName(e.target.value)}
             />
-            <Button
+            <BusyButton
               type="button"
-              disabled={!name.trim() || createMutation.isPending}
+              disabled={!name.trim()}
+              pending={createMutation.isPending}
+              pendingLabel="Adding…"
               onClick={() => createMutation.mutate()}
             >
               Add
-            </Button>
+            </BusyButton>
           </div>
         </div>
         {orgLocations.length > 0 ? (

@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { GoOpsLoader } from "@/components/brand/goops-loader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminManualTripDialog } from "@/features/trips/components/admin-manual-trip-dialog";
@@ -80,8 +81,19 @@ export function PendingDriverTripsPanel({
     );
   }
 
-  if (query.isLoading) {
-    return <LoadingSkeleton rows={5} />;
+  if (query.isLoading || (query.isFetching && query.data == null)) {
+    return <AdminLoading label="Loading approvals" rows={5} />;
+  }
+
+  if (query.isError && query.data == null) {
+    return (
+      <AdminLoadError
+        error={query.error}
+        onRetry={() => {
+          void query.refetch();
+        }}
+      />
+    );
   }
 
   const trips = query.data ?? [];
@@ -199,8 +211,11 @@ export function PendingDriverTripsPanel({
             <AlertDialogAction
               onClick={() => rejectMutation.mutate()}
               disabled={!rejectReason.trim() || rejectMutation.isPending}
+              aria-busy={rejectMutation.isPending || undefined}
+              className={rejectMutation.isPending ? "disabled:opacity-100" : undefined}
             >
-              Reject
+              {rejectMutation.isPending ? <GoOpsLoader size="xs" decorative /> : null}
+              {rejectMutation.isPending ? "Rejecting…" : "Reject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

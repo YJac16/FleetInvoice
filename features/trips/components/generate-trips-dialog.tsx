@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -140,14 +140,16 @@ export function GenerateTripsDialog({
           </p>
         ) : null}
 
-        <Button
+        <BusyButton
           type="button"
           className="w-full"
-          disabled={!from || !to || generateMutation.isPending}
+          disabled={!from || !to}
+          pending={generateMutation.isPending}
+          pendingLabel="Generating…"
           onClick={() => generateMutation.mutate()}
         >
-          {generateMutation.isPending ? "Generating…" : "Generate trips"}
-        </Button>
+          Generate trips
+        </BusyButton>
       </div>
     </FormDialog>
   );

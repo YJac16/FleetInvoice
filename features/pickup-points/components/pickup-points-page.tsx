@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextAreaField, TextField } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import {
   pickupPointSchema,
   type PickupPointValues,
@@ -121,9 +121,9 @@ function PickupPointForm({
         label="Status"
         options={statusOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        Save
+      </BusyButton>
     </form>
   );
 }

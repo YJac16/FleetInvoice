@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +25,8 @@ type PlanCardProps = {
   plan: PlanWithModules;
   isCurrent: boolean;
   onCheckout?: () => void;
+  checkoutPending?: boolean;
+  checkoutDisabled?: boolean;
   checkoutEnabled?: boolean;
 };
 
@@ -31,6 +34,8 @@ export function PlanCard({
   plan,
   isCurrent,
   onCheckout,
+  checkoutPending = false,
+  checkoutDisabled = false,
   checkoutEnabled = false,
 }: PlanCardProps) {
   const recommended = isRecommendedPlan(plan.code);
@@ -91,9 +96,16 @@ export function PlanCard({
             Current plan
           </Button>
         ) : checkoutEnabled && onCheckout ? (
-          <Button size="sm" variant={recommended ? "default" : "outline"} onClick={onCheckout}>
+          <BusyButton
+            size="sm"
+            variant={recommended ? "default" : "outline"}
+            pending={checkoutPending}
+            pendingLabel="Starting…"
+            disabled={checkoutDisabled}
+            onClick={onCheckout}
+          >
             Start checkout
-          </Button>
+          </BusyButton>
         ) : (
           <p className="text-xs text-muted-foreground">
             Invite-only — ask your {APP_NAME} contact to change plan.

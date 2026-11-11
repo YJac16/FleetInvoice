@@ -6,11 +6,12 @@ import { Building, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -67,9 +68,14 @@ function OrganisationForm({
         label="Slug"
         placeholder="acme-transport"
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : mode === "create" ? "Create" : "Save changes"}
-      </Button>
+      <BusyButton
+        type="submit"
+        pending={submitting}
+        pendingLabel={mode === "create" ? "Creating…" : "Saving…"}
+        className="w-full"
+      >
+        {mode === "create" ? "Create" : "Save changes"}
+      </BusyButton>
     </form>
   );
 }
@@ -77,7 +83,8 @@ function OrganisationForm({
 export function OrganisationsPage() {
   const { can } = useOrg();
   const canManage = can("organisations:manage");
-  const { data, isLoading } = useOrganisations();
+  const orgsQuery = useOrganisations();
+  const { data, isLoading } = orgsQuery;
   const createMutation = useCreateOrganisation();
   const updateMutation = useUpdateOrganisation();
   const deleteMutation = useSoftDeleteOrganisation();
@@ -155,9 +162,18 @@ export function OrganisationsPage() {
         }
       />
 
-      {isLoading ? (
-        <LoadingSkeleton />
-      ) : rows.length === 0 ? (
+      <AdminQueryGate
+        label="Loading organisations"
+        isLoading={isLoading}
+        isFetching={orgsQuery.isFetching}
+        isError={orgsQuery.isError}
+        data={orgsQuery.data}
+        error={orgsQuery.error}
+        onRetry={() => {
+          void orgsQuery.refetch();
+        }}
+      >
+      {rows.length === 0 ? (
         <EmptyState
           icon={Building}
           title="No organisations yet"
@@ -175,6 +191,7 @@ export function OrganisationsPage() {
       ) : (
         <DataTable columns={columns} data={rows} />
       )}
+      </AdminQueryGate>
 
       <FormDialog
         open={dialogOpen}

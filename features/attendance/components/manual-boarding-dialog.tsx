@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -143,14 +143,15 @@ export function ManualBoardingDialog({
             placeholder="QR unreadable, device failure, etc."
           />
         </div>
-        <Button
+        <BusyButton
           type="button"
-          disabled={mutation.isPending}
+          pending={mutation.isPending}
+          pendingLabel="Saving…"
           onClick={() => mutation.mutate()}
           className="w-full"
         >
-          {mutation.isPending ? "Saving…" : "Record boarding"}
-        </Button>
+          Record boarding
+        </BusyButton>
       </div>
     </FormDialog>
   );

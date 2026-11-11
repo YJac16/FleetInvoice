@@ -7,12 +7,13 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { TextField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -85,9 +86,14 @@ function GeneratePayrollForm({
         label="Period end (exclusive)"
         type="date"
       />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Generating…" : "Generate payroll run"}
-      </Button>
+      <BusyButton
+        type="submit"
+        className="w-full"
+        pending={mutation.isPending}
+        pendingLabel="Generating…"
+      >
+        Generate payroll run
+      </BusyButton>
     </form>
   );
 }
@@ -174,28 +180,40 @@ export function PayrollPage() {
                 Lines
               </Button>
               {canManage && run.status === "draft" ? (
-                <Button
+                <BusyButton
                   variant="outline"
                   size="sm"
                   disabled={actionMutation.isPending}
+                  pending={
+                    actionMutation.isPending &&
+                    actionMutation.variables?.id === run.id &&
+                    actionMutation.variables?.action === "finalize"
+                  }
+                  pendingLabel="Finalizing…"
                   onClick={() =>
                     actionMutation.mutate({ id: run.id, action: "finalize" })
                   }
                 >
                   Finalize
-                </Button>
+                </BusyButton>
               ) : null}
               {canManage && run.status !== "void" ? (
-                <Button
+                <BusyButton
                   variant="ghost"
                   size="sm"
                   disabled={actionMutation.isPending}
+                  pending={
+                    actionMutation.isPending &&
+                    actionMutation.variables?.id === run.id &&
+                    actionMutation.variables?.action === "void"
+                  }
+                  pendingLabel="Voiding…"
                   onClick={() =>
                     actionMutation.mutate({ id: run.id, action: "void" })
                   }
                 >
                   Void
-                </Button>
+                </BusyButton>
               ) : null}
             </div>
           );
@@ -262,14 +280,25 @@ export function PayrollPage() {
           title="No organisation"
           description="Select an organisation to view payroll."
         />
-      ) : runsQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={runsQuery.data ?? []}
-          emptyMessage="No payroll runs yet. Add pay rates, then generate a period."
-        />
+        <AdminQueryGate
+          label="Loading payroll"
+          isLoading={runsQuery.isLoading}
+          isFetching={runsQuery.isFetching}
+          isError={runsQuery.isError}
+          data={runsQuery.data}
+          error={runsQuery.error}
+          onRetry={() => {
+            void runsQuery.refetch();
+          }}
+          rows={5}
+        >
+          <DataTable
+            columns={columns}
+            data={runsQuery.data ?? []}
+            emptyMessage="No payroll runs yet. Add pay rates, then generate a period."
+          />
+        </AdminQueryGate>
       )}
 
       {selectedId ? (
@@ -280,15 +309,25 @@ export function PayrollPage() {
               Close
             </Button>
           </div>
-          {linesQuery.isLoading ? (
-            <LoadingSkeleton rows={3} />
-          ) : (
+          <AdminQueryGate
+            label="Loading payroll lines"
+            isLoading={linesQuery.isLoading}
+            isFetching={linesQuery.isFetching}
+            isError={linesQuery.isError}
+            data={linesQuery.data}
+            error={linesQuery.error}
+            onRetry={() => {
+              void linesQuery.refetch();
+            }}
+            rows={3}
+            size="md"
+          >
             <DataTable
               columns={lineColumns}
               data={linesQuery.data ?? []}
               emptyMessage="No lines on this run."
             />
-          )}
+          </AdminQueryGate>
         </div>
       ) : null}
 

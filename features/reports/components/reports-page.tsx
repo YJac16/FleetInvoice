@@ -7,12 +7,13 @@ import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { SelectField } from "@/components/forms/form-fields";
 import { SastDateField } from "@/components/shared/sast-date-input";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -529,28 +530,44 @@ export function ReportsPage({
           options={OWNER_FILTERS.map((o) => ({ value: o, label: OWNER_FILTER_LABELS[o] }))}
         />
         <div className="flex items-end">
-          <Button type="submit" className="w-full">
+          <BusyButton
+            type="submit"
+            className="w-full"
+            pending={reportQuery.isFetching}
+            pendingLabel="Running…"
+          >
             Run report
-          </Button>
+          </BusyButton>
         </div>
       </form>
 
-      {reportQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
-      ) : reportQuery.data ? (
-        <ReportResults
-          key={`${applied?.report_type}:${applied?.owner}`}
-          report={reportQuery.data}
-          hidePayroll={hidePayroll}
-          includeFuelAmounts={canViewFuelCost}
-          owner={applied?.owner ?? "all"}
-        />
-      ) : (
-        <EmptyState
-          title="No report yet"
-          description="Choose a report type and period, then run."
-        />
-      )}
+      <AdminQueryGate
+        label="Loading report"
+        isLoading={reportQuery.isLoading}
+        isFetching={reportQuery.isFetching}
+        isError={reportQuery.isError}
+        data={reportQuery.data}
+        error={reportQuery.error}
+        onRetry={() => {
+          void reportQuery.refetch();
+        }}
+        rows={5}
+      >
+        {reportQuery.data ? (
+          <ReportResults
+            key={`${applied?.report_type}:${applied?.owner}`}
+            report={reportQuery.data}
+            hidePayroll={hidePayroll}
+            includeFuelAmounts={canViewFuelCost}
+            owner={applied?.owner ?? "all"}
+          />
+        ) : (
+          <EmptyState
+            title="No report yet"
+            description="Choose a report type and period, then run."
+          />
+        )}
+      </AdminQueryGate>
     </div>
   );
 }

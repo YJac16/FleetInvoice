@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -73,7 +74,16 @@ export function AdminNotificationBell() {
           <SheetTitle>Compliance alerts</SheetTitle>
         </SheetHeader>
         <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
-          {notifications.length === 0 ? (
+          {notificationsQuery.isLoading && notificationsQuery.data == null ? (
+            <AdminLoading label="Loading alerts" rows={3} size="md" />
+          ) : notificationsQuery.isError && notificationsQuery.data == null ? (
+            <AdminLoadError
+              error={notificationsQuery.error}
+              onRetry={() => {
+                void notificationsQuery.refetch();
+              }}
+            />
+          ) : notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground">No alerts yet.</p>
           ) : (
             <ul className="space-y-2 pr-2">

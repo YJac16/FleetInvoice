@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { listTripAudit } from "@/services/trip-admin.service";
 import { formatDateTime } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -16,8 +16,19 @@ export function TripAuditTimeline({ tripId, enabled }: { tripId: string; enabled
 
   if (!enabled) return null;
 
-  if (auditQuery.isLoading) {
-    return <LoadingSkeleton rows={2} />;
+  if (auditQuery.isLoading || (auditQuery.isFetching && auditQuery.data == null)) {
+    return <AdminLoading label="Loading audit" rows={2} size="md" />;
+  }
+
+  if (auditQuery.isError && auditQuery.data == null) {
+    return (
+      <AdminLoadError
+        error={auditQuery.error}
+        onRetry={() => {
+          void auditQuery.refetch();
+        }}
+      />
+    );
   }
 
   const rows = auditQuery.data ?? [];

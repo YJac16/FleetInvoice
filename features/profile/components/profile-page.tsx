@@ -9,6 +9,8 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { AdminLoading } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { DriverThemeControl } from "@/features/driver-portal/components/driver-theme-control";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -159,7 +161,11 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
       />
 
       {profileQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
+        variant === "ops" ? (
+          <AdminLoading label="Loading profile" rows={3} />
+        ) : (
+          <LoadingSkeleton rows={3} />
+        )
       ) : (
         <div className="max-w-lg space-y-6">
           <div className="flex items-center gap-4">
@@ -185,15 +191,28 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
                   e.target.value = "";
                 }}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={avatarMutation.isPending}
-                onClick={() => fileRef.current?.click()}
-              >
-                {avatarMutation.isPending ? "Uploading…" : "Change photo"}
-              </Button>
+              {variant === "ops" ? (
+                <BusyButton
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  pending={avatarMutation.isPending}
+                  pendingLabel="Uploading…"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Change photo
+                </BusyButton>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={avatarMutation.isPending}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {avatarMutation.isPending ? "Uploading…" : "Change photo"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -223,9 +242,19 @@ export function ProfilePage({ variant = "ops" }: ProfilePageProps) {
                 {profileQuery.data?.email ?? "—"}
               </span>
             </p>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Saving…" : "Save changes"}
-            </Button>
+            {variant === "ops" ? (
+              <BusyButton
+                type="submit"
+                pending={updateMutation.isPending}
+                pendingLabel="Saving…"
+              >
+                Save changes
+              </BusyButton>
+            ) : (
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving…" : "Save changes"}
+              </Button>
+            )}
           </form>
 
           <p className="text-sm text-muted-foreground">

@@ -5,10 +5,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,20 +196,33 @@ export function WhiteLabelPage() {
             />
           </div>
         </div>
-        <Button type="submit" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Saving…" : "Save config"}
-        </Button>
+        <BusyButton
+          type="submit"
+          pending={saveMutation.isPending}
+          pendingLabel="Saving…"
+        >
+          Save config
+        </BusyButton>
       </form>
 
-      {configsQuery.isLoading ? (
-        <LoadingSkeleton rows={4} />
-      ) : (
+      <AdminQueryGate
+        label="Loading white-label hosts"
+        isLoading={configsQuery.isLoading}
+        isFetching={configsQuery.isFetching}
+        isError={configsQuery.isError}
+        data={configsQuery.data}
+        error={configsQuery.error}
+        onRetry={() => {
+          void configsQuery.refetch();
+        }}
+        rows={4}
+      >
         <DataTable
           columns={columns}
           data={configsQuery.data ?? []}
           emptyMessage="No white-label hosts yet."
         />
-      )}
+      </AdminQueryGate>
     </div>
   );
 }

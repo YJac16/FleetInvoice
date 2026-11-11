@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -127,14 +127,16 @@ export function AssignTripDialog({
           </Select>
         </div>
 
-        <Button
+        <BusyButton
           type="button"
           className="w-full"
-          disabled={!driverId || assignMutation.isPending}
+          disabled={!driverId}
+          pending={assignMutation.isPending}
+          pendingLabel="Assigning…"
           onClick={() => assignMutation.mutate()}
         >
-          {assignMutation.isPending ? "Assigning…" : "Assign trip"}
-        </Button>
+          Assign trip
+        </BusyButton>
       </div>
     </FormDialog>
   );

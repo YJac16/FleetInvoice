@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { LocationInput } from "@/features/locations/components/location-input";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { listServiceLocations } from "@/services/locations.service";
 import { updateTripServiceLocations } from "@/services/trips.service";
 import { normalizeAreaValue } from "@/features/locations/lib/location-match";
@@ -82,13 +82,14 @@ export function TripLocationsDialog({
           onChange={setValue}
           description="Pick Cape Town suburbs and townships. Use multiple for multi-drop runs."
         />
-        <Button
+        <BusyButton
           className="w-full"
-          disabled={saveMutation.isPending}
+          pending={saveMutation.isPending}
+          pendingLabel="Saving…"
           onClick={() => saveMutation.mutate()}
         >
-          {saveMutation.isPending ? "Saving…" : "Save locations"}
-        </Button>
+          Save locations
+        </BusyButton>
       </div>
     </FormDialog>
   );

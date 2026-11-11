@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { EmptyState } from "@/components/shared/empty-state";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -172,9 +172,9 @@ function RoutePriceForm({
         <input type="checkbox" {...form.register("active")} />
         Active
       </label>
-      <Button type="submit" className="w-full" disabled={submitting}>
-        {submitting ? "Saving…" : "Save route price"}
-      </Button>
+      <BusyButton type="submit" className="w-full" pending={submitting} pendingLabel="Saving…">
+        Save route price
+      </BusyButton>
     </form>
   );
 }

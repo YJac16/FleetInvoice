@@ -7,7 +7,8 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,9 +161,20 @@ export function RouteStopsDialog({
       title={route ? `Stops · ${route.name}` : "Stops"}
       description="Order the stops along this route. Each stop is a site, a pickup point, or both."
     >
-      {!route ? null : stopsQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
-      ) : (
+      {!route ? null : (
+        <AdminQueryGate
+          label="Loading stops"
+          isLoading={stopsQuery.isLoading}
+          isFetching={stopsQuery.isFetching}
+          isError={stopsQuery.isError}
+          data={stopsQuery.data}
+          error={stopsQuery.error}
+          onRetry={() => {
+            void stopsQuery.refetch();
+          }}
+          rows={3}
+          size="md"
+        >
         <div className="space-y-4">
           {rows.length === 0 ? (
             <EmptyState
@@ -311,17 +323,19 @@ export function RouteStopsDialog({
                 <Plus className="size-4" />
                 Add stop
               </Button>
-              <Button
+              <BusyButton
                 type="button"
                 className="w-full sm:flex-1"
-                disabled={saveMutation.isPending}
+                pending={saveMutation.isPending}
+                pendingLabel="Saving…"
                 onClick={handleSave}
               >
-                {saveMutation.isPending ? "Saving…" : "Save stops"}
-              </Button>
+                Save stops
+              </BusyButton>
             </div>
           ) : null}
         </div>
+        </AdminQueryGate>
       )}
     </FormDialog>
   );

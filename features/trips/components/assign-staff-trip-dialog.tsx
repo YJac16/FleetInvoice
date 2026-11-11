@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField } from "@/components/forms/form-fields";
 import { resolveSelectLabel } from "@/components/forms/select-label";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -280,15 +281,6 @@ export function AssignStaffTripDialog({
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  const primaryLabel =
-    mode === "send"
-      ? submitMutation.isPending
-        ? "Sending…"
-        : "Send to driver"
-      : submitMutation.isPending
-        ? "Saving…"
-        : "Backfill completed";
-
   const showVehicleField = mode === "backfill";
 
   return (
@@ -306,12 +298,14 @@ export function AssignStaffTripDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={submitMutation.isPending || billingProblems.length > 0}
+          <BusyButton
+            disabled={billingProblems.length > 0}
+            pending={submitMutation.isPending}
+            pendingLabel={mode === "send" ? "Sending…" : "Saving…"}
             onClick={form.handleSubmit((values) => submitMutation.mutate(values))}
           >
-            {primaryLabel}
-          </Button>
+            {mode === "send" ? "Send to driver" : "Backfill completed"}
+          </BusyButton>
         </>
       }
     >

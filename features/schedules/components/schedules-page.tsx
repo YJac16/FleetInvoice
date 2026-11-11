@@ -14,7 +14,7 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   scheduleSchema,
@@ -165,9 +165,9 @@ function ScheduleForm({
         label="Status"
         options={statusOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Save"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        Save
+      </BusyButton>
     </form>
   );
 }
