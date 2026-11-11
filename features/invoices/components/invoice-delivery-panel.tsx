@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,15 +138,17 @@ export function InvoiceDeliveryPanel({
             </p>
           ) : null}
 
-          <Button
-            className="mt-4 gap-2"
+          <BusyButton
+            className="mt-4"
             variant="outline"
-            disabled={sending || !emailDeliveryConfigured}
+            disabled={!emailDeliveryConfigured}
+            pending={sending}
+            pendingLabel="Sending…"
             onClick={() => void handleSend()}
           >
             <Mail className="size-4" />
-            {sending ? "Sending…" : "Send email"}
-          </Button>
+            Send email
+          </BusyButton>
         </div>
       ) : null}
     </div>

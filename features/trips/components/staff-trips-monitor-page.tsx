@@ -14,11 +14,11 @@ import { toast } from "sonner";
 import { useOrg } from "@/components/layout/org-context";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import {
@@ -303,9 +303,19 @@ export function StaffTripsMonitorPage() {
               </p>
             )}
           </div>
-          {playbackTripId && playbackQuery.isLoading ? (
-            <LoadingSkeleton rows={2} />
-          ) : (
+          <AdminQueryGate
+            label="Loading trip path"
+            isLoading={Boolean(playbackTripId) && playbackQuery.isLoading}
+            isFetching={Boolean(playbackTripId) && playbackQuery.isFetching}
+            isError={Boolean(playbackTripId) && playbackQuery.isError}
+            data={playbackTripId ? playbackQuery.data : []}
+            error={playbackQuery.error}
+            onRetry={() => {
+              void playbackQuery.refetch();
+            }}
+            rows={2}
+            size="md"
+          >
             <StaffTripGpsMap
               markers={mapMarkers}
               paths={mapPaths}
@@ -317,7 +327,7 @@ export function StaffTripsMonitorPage() {
                   : "No en-route drivers reporting GPS. Positions appear when trips are en route."
               }
             />
-          )}
+          </AdminQueryGate>
           {playbackTripId ? (
             <p className="text-xs text-muted-foreground">
               Path playback for completed trip
@@ -329,9 +339,18 @@ export function StaffTripsMonitorPage() {
         </section>
       ) : null}
 
-      {showTripsSkeleton ? (
-        <KanbanSkeleton columns={MONITOR_COLUMNS.length} />
-      ) : (
+      <AdminQueryGate
+        label="Loading staff transport"
+        isLoading={showTripsSkeleton}
+        isFetching={tripsQuery.isFetching}
+        isError={tripsQuery.isError}
+        data={tripsQuery.data}
+        error={tripsQuery.error}
+        onRetry={() => {
+          void tripsQuery.refetch();
+        }}
+        skeleton={<KanbanSkeleton columns={MONITOR_COLUMNS.length} />}
+      >
         <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
         {trips.length === 0 ? (
           <EmptyState
@@ -485,7 +504,7 @@ export function StaffTripsMonitorPage() {
         </div>
         )}
         </RangeQueryBody>
-      )}
+      </AdminQueryGate>
 
       {!canManage ? (
         <p className="text-xs text-muted-foreground">

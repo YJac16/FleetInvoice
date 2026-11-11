@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
@@ -96,11 +96,22 @@ export function DriverCaptureScreen({ driverId }: { driverId?: string }) {
   }
 
   if (!organisationId) {
-    return <LoadingSkeleton rows={6} />;
+    return <AdminLoading label="Loading driver" rows={6} />;
   }
 
-  if (driverId && driverQuery.isLoading) {
-    return <LoadingSkeleton rows={8} />;
+  if (driverId && (driverQuery.isLoading || (driverQuery.isFetching && !driverQuery.data))) {
+    return <AdminLoading label="Loading driver" rows={8} />;
+  }
+
+  if (driverId && driverQuery.isError) {
+    return (
+      <AdminLoadError
+        error={driverQuery.error}
+        onRetry={() => {
+          void driverQuery.refetch();
+        }}
+      />
+    );
   }
 
   if (driverId && !driverQuery.data) {

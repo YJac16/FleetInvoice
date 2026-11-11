@@ -16,11 +16,12 @@ import {
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
@@ -433,29 +434,55 @@ export function ReportsPage({
           type="date"
         />
         <div className="flex items-end">
-          <Button type="submit" className="w-full">
+          <BusyButton
+            type="submit"
+            className="w-full"
+            pending={reportQuery.isFetching}
+            pendingLabel="Running…"
+          >
             Run report
-          </Button>
+          </BusyButton>
         </div>
       </form>
 
-      {reportQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
-      ) : reportQuery.data ? (
-        <ReportResults report={reportQuery.data} hidePayroll={hidePayroll} />
-      ) : (
-        <EmptyState
-          title="No report yet"
-          description="Choose a report type and period, then run."
-        />
-      )}
+      <AdminQueryGate
+        label="Loading report"
+        isLoading={reportQuery.isLoading}
+        isFetching={reportQuery.isFetching}
+        isError={reportQuery.isError}
+        data={reportQuery.data}
+        error={reportQuery.error}
+        onRetry={() => {
+          void reportQuery.refetch();
+        }}
+        rows={5}
+      >
+        {reportQuery.data ? (
+          <ReportResults report={reportQuery.data} hidePayroll={hidePayroll} />
+        ) : (
+          <EmptyState
+            title="No report yet"
+            description="Choose a report type and period, then run."
+          />
+        )}
+      </AdminQueryGate>
 
       {showMasterCounts ? (
         <div className="space-y-3">
           <h2 className="font-heading text-xl">At a glance</h2>
-          {countsQuery.isLoading ? (
-            <LoadingSkeleton rows={2} />
-          ) : (
+          <AdminQueryGate
+            label="Loading counts"
+            isLoading={countsQuery.isLoading}
+            isFetching={countsQuery.isFetching}
+            isError={countsQuery.isError}
+            data={countsQuery.data}
+            error={countsQuery.error}
+            onRetry={() => {
+              void countsQuery.refetch();
+            }}
+            rows={2}
+            size="md"
+          >
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 title="Drivers"
@@ -489,7 +516,7 @@ export function ReportsPage({
               />
               <StatCard title="Users" value={counts?.users ?? 0} icon={Users} />
             </div>
-          )}
+          </AdminQueryGate>
         </div>
       ) : null}
     </div>

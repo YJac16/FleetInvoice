@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -115,13 +116,14 @@ export function InvoiceDraftLineEditor({
         . Changing the price applies to this line only and is not printed as a reason.
       </p>
       <div className="flex gap-2">
-        <Button
+        <BusyButton
           size="sm"
-          disabled={saveMutation.isPending}
+          pending={saveMutation.isPending}
+          pendingLabel="Saving…"
           onClick={() => saveMutation.mutate()}
         >
           Save
-        </Button>
+        </BusyButton>
         <Button
           size="sm"
           variant="ghost"

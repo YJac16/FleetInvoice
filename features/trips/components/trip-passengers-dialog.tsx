@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { FormDialog } from "@/components/forms/form-dialog";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { listTripPassengers } from "@/services/trip-passengers.service";
 import { queryKeys } from "@/utils/query";
@@ -45,9 +45,20 @@ export function TripPassengersDialog({
           : "Confirmed and requested seats on this trip."
       }
     >
-      {passengersQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
-      ) : passengers.length === 0 ? (
+      <AdminQueryGate
+        label="Loading passengers"
+        isLoading={passengersQuery.isLoading}
+        isFetching={passengersQuery.isFetching}
+        isError={passengersQuery.isError}
+        data={passengersQuery.data}
+        error={passengersQuery.error}
+        onRetry={() => {
+          void passengersQuery.refetch();
+        }}
+        rows={3}
+        size="md"
+      >
+      {passengers.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No seat bookings on this trip yet.
         </p>
@@ -73,6 +84,7 @@ export function TripPassengersDialog({
           ))}
         </ul>
       )}
+      </AdminQueryGate>
     </FormDialog>
   );
 }

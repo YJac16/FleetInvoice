@@ -8,12 +8,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { TextField } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -208,9 +208,18 @@ export function SettingsPage() {
         description="Organisation profile, invoice letterhead, and banking details for print."
       />
 
-      {orgQuery.isLoading ? (
-        <LoadingSkeleton rows={6} />
-      ) : (
+      <AdminQueryGate
+        label="Loading settings"
+        isLoading={orgQuery.isLoading}
+        isFetching={orgQuery.isFetching}
+        isError={orgQuery.isError}
+        data={orgQuery.data}
+        error={orgQuery.error}
+        onRetry={() => {
+          void orgQuery.refetch();
+        }}
+        rows={6}
+      >
         <>
           <Card className="max-w-2xl">
             <CardHeader>
@@ -232,9 +241,13 @@ export function SettingsPage() {
                   label="Organisation name"
                 />
                 <TextField control={form.control} name="slug" label="Slug" />
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Saving…" : "Save organisation"}
-                </Button>
+                <BusyButton
+                  type="submit"
+                  pending={updateMutation.isPending}
+                  pendingLabel="Saving…"
+                >
+                  Save organisation
+                </BusyButton>
               </form>
             </CardContent>
           </Card>
@@ -276,29 +289,27 @@ export function SettingsPage() {
                     }}
                   />
                   <div className="flex flex-wrap gap-2">
-                    <Button
+                    <BusyButton
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={logoUploadMutation.isPending}
+                      pending={logoUploadMutation.isPending}
+                      pendingLabel="Uploading…"
                       onClick={() => logoInputRef.current?.click()}
                     >
-                      {logoUploadMutation.isPending
-                        ? "Uploading…"
-                        : logoUrl
-                          ? "Replace logo"
-                          : "Upload logo"}
-                    </Button>
+                      {logoUrl ? "Replace logo" : "Upload logo"}
+                    </BusyButton>
                     {logoUrl ? (
-                      <Button
+                      <BusyButton
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={logoRemoveMutation.isPending}
+                        pending={logoRemoveMutation.isPending}
+                        pendingLabel="Removing…"
                         onClick={() => logoRemoveMutation.mutate()}
                       >
                         Remove
-                      </Button>
+                      </BusyButton>
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -427,21 +438,20 @@ export function SettingsPage() {
                   </p>
                 </div>
 
-                <Button
+                <BusyButton
                   type="submit"
-                  disabled={invoiceSettingsMutation.isPending}
+                  pending={invoiceSettingsMutation.isPending}
+                  pendingLabel="Saving…"
                 >
-                  {invoiceSettingsMutation.isPending
-                    ? "Saving…"
-                    : "Save invoice print settings"}
-                </Button>
+                  Save invoice print settings
+                </BusyButton>
               </form>
             </CardContent>
           </Card>
 
           <ServiceLocationsSettings organisationId={organisationId} />
         </>
-      )}
+      </AdminQueryGate>
     </div>
   );
 }

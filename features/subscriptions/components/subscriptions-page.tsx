@@ -5,14 +5,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminLoadError, AdminLoading, AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -82,6 +82,8 @@ export function SubscriptionsPage() {
     enabled: canManage,
   });
 
+  const [billingBusy, setBillingBusy] = useState<string | null>(null);
+
   const assignMutation = useMutation({
     mutationFn: ({
       organisationId,
@@ -100,6 +102,8 @@ export function SubscriptionsPage() {
   });
 
   async function startCheckout(organisationId: string, planId: string) {
+    const key = `checkout:${organisationId}:${planId}`;
+    setBillingBusy(key);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -111,10 +115,13 @@ export function SubscriptionsPage() {
       window.location.href = data.url;
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      setBillingBusy(null);
     }
   }
 
   async function openPortal(organisationId: string) {
+    setBillingBusy(`portal:${organisationId}`);
     try {
       const res = await fetch("/api/billing/portal", {
         method: "POST",
@@ -126,6 +133,8 @@ export function SubscriptionsPage() {
       window.location.href = data.url;
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      setBillingBusy(null);
     }
   }
 
@@ -177,10 +186,15 @@ export function SubscriptionsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
+              <BusyButton
                 size="sm"
                 variant="outline"
                 disabled={assignMutation.isPending}
+                pending={
+                  assignMutation.isPending &&
+                  assignMutation.variables?.organisationId === sub.organisation_id
+                }
+                pendingLabel="Assigning…"
                 onClick={() =>
                   assignMutation.mutate({
                     organisationId: sub.organisation_id,
@@ -189,35 +203,41 @@ export function SubscriptionsPage() {
                 }
               >
                 Assign
-              </Button>
+              </BusyButton>
               {isStripeConfigured() &&
               allPlansQuery.data?.find((p) => p.id === selected)
                 ?.stripe_price_id ? (
-                <Button
+                <BusyButton
                   size="sm"
                   variant="ghost"
+                  disabled={Boolean(billingBusy)}
+                  pending={billingBusy === `checkout:${sub.organisation_id}:${selected}`}
+                  pendingLabel="Starting…"
                   onClick={() =>
                     void startCheckout(sub.organisation_id, selected)
                   }
                 >
                   Checkout
-                </Button>
+                </BusyButton>
               ) : null}
               {sub.stripe_customer_id ? (
-                <Button
+                <BusyButton
                   size="sm"
                   variant="ghost"
+                  disabled={Boolean(billingBusy)}
+                  pending={billingBusy === `portal:${sub.organisation_id}`}
+                  pendingLabel="Opening…"
                   onClick={() => void openPortal(sub.organisation_id)}
                 >
                   Portal
-                </Button>
+                </BusyButton>
               ) : null}
             </div>
           );
         },
       },
     ],
-    [allPlansQuery.data, assignMutation, assigning, canManage]
+    [allPlansQuery.data, assignMutation, assigning, billingBusy, canManage]
   );
 
   const currentPlan = currentQuery.data?.plans ?? null;
@@ -249,12 +269,15 @@ export function SubscriptionsPage() {
       />
 
       {plansQuery.isError ? (
-        <EmptyState
+        <AdminLoadError
           title="Could not load plans"
           description="Check that migration 00016 is applied and you can read active plans."
+          onRetry={() => {
+            void plansQuery.refetch();
+          }}
         />
       ) : currentQuery.isLoading || plansQuery.isLoading ? (
-        <LoadingSkeleton rows={4} />
+        <AdminLoading label="Loading plans" rows={4} />
       ) : (
         <>
           <Card className="rounded-2xl border-border/80 shadow-none">
@@ -316,6 +339,11 @@ export function SubscriptionsPage() {
                   Boolean(plan.stripe_price_id) &&
                   Boolean(activeOrganisationId)
                 }
+                checkoutPending={
+                  billingBusy ===
+                  `checkout:${activeOrganisationId}:${plan.id}`
+                }
+                checkoutDisabled={Boolean(billingBusy)}
                 onCheckout={
                   activeOrganisationId
                     ? () => void startCheckout(activeOrganisationId, plan.id)
@@ -338,15 +366,24 @@ export function SubscriptionsPage() {
               Checkout stays optional when a price ID is set.
             </p>
           </div>
-          {subsQuery.isLoading ? (
-            <LoadingSkeleton rows={5} />
-          ) : (
+          <AdminQueryGate
+            label="Loading subscriptions"
+            isLoading={subsQuery.isLoading}
+            isFetching={subsQuery.isFetching}
+            isError={subsQuery.isError}
+            data={subsQuery.data}
+            error={subsQuery.error}
+            onRetry={() => {
+              void subsQuery.refetch();
+            }}
+            rows={5}
+          >
             <DataTable
               columns={columns}
               data={subsQuery.data ?? []}
               emptyMessage="No subscriptions yet. Apply migration 00016 and refresh."
             />
-          )}
+          </AdminQueryGate>
         </section>
       ) : null}
     </div>

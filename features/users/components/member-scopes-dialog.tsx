@@ -6,8 +6,8 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { Button } from "@/components/ui/button";
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import {
   Select,
   SelectContent,
@@ -140,11 +140,39 @@ export function MemberScopesDialog({
           : undefined
       }
     >
-      {companiesQuery.isLoading ||
-      organisationQuery.isLoading ||
-      scopesQuery.isLoading ? (
-        <LoadingSkeleton rows={3} />
-      ) : (
+      <AdminQueryGate
+        label="Loading company access"
+        isLoading={
+          companiesQuery.isLoading ||
+          organisationQuery.isLoading ||
+          scopesQuery.isLoading
+        }
+        isFetching={
+          companiesQuery.isFetching ||
+          organisationQuery.isFetching ||
+          scopesQuery.isFetching
+        }
+        isError={
+          companiesQuery.isError ||
+          organisationQuery.isError ||
+          scopesQuery.isError
+        }
+        data={
+          companiesQuery.isSuccess &&
+          organisationQuery.isSuccess &&
+          scopesQuery.isSuccess
+            ? scopesQuery.data
+            : undefined
+        }
+        error={companiesQuery.error ?? organisationQuery.error ?? scopesQuery.error}
+        onRetry={() => {
+          void companiesQuery.refetch();
+          void organisationQuery.refetch();
+          void scopesQuery.refetch();
+        }}
+        rows={3}
+        size="md"
+      >
         <div className="space-y-4">
           <div className="flex gap-2">
             <Select
@@ -162,12 +190,14 @@ export function MemberScopesDialog({
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              disabled={!companyId || addMutation.isPending || alreadyScoped}
+            <BusyButton
+              disabled={!companyId || alreadyScoped}
+              pending={addMutation.isPending}
+              pendingLabel="Adding…"
               onClick={() => addMutation.mutate()}
             >
               Add
-            </Button>
+            </BusyButton>
           </div>
           {alreadyScoped ? (
             <p className="text-sm text-muted-foreground">
@@ -188,20 +218,25 @@ export function MemberScopesDialog({
                   className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm"
                 >
                   <span>{companyName(scope.company_id)}</span>
-                  <Button
+                  <BusyButton
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeMutation.mutate(scope.id)}
                     disabled={removeMutation.isPending}
+                    pending={
+                      removeMutation.isPending &&
+                      removeMutation.variables === scope.id
+                    }
+                    pendingLabel="Removing…"
+                    onClick={() => removeMutation.mutate(scope.id)}
                   >
                     Remove
-                  </Button>
+                  </BusyButton>
                 </li>
               ))}
             </ul>
           )}
         </div>
-      )}
+      </AdminQueryGate>
     </FormDialog>
   );
 }

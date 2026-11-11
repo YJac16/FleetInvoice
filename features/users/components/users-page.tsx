@@ -8,11 +8,12 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/admin/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { FormDialog } from "@/components/forms/form-dialog";
@@ -85,9 +86,9 @@ function InviteForm({
         label="Role"
         options={roleOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send invitation"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Sending…" className="w-full">
+        Send invitation
+      </BusyButton>
     </form>
   );
 }
@@ -117,9 +118,9 @@ function RoleForm({
         label="Role"
         options={roleOptions}
       />
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : "Update role"}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        Update role
+      </BusyButton>
     </form>
   );
 }
@@ -386,33 +387,55 @@ export function UsersPage() {
 
       <section className="mb-10 space-y-4">
         <h2 className="font-heading text-xl tracking-tight">Members</h2>
-        {membersQuery.isLoading ? (
-          <LoadingSkeleton rows={4} />
-        ) : (membersQuery.data ?? []).length === 0 ? (
-          <EmptyState
-            icon={Users}
-            title="No members yet"
-            description="Invite someone to join this organisation."
-            actionLabel={canManage ? "Invite user" : undefined}
-            onAction={canManage ? () => setInviteOpen(true) : undefined}
-          />
-        ) : (
-          <DataTable columns={memberColumns} data={membersQuery.data ?? []} />
-        )}
+        <AdminQueryGate
+          label="Loading members"
+          isLoading={membersQuery.isLoading}
+          isFetching={membersQuery.isFetching}
+          isError={membersQuery.isError}
+          data={membersQuery.data}
+          error={membersQuery.error}
+          onRetry={() => {
+            void membersQuery.refetch();
+          }}
+          rows={4}
+        >
+          {(membersQuery.data ?? []).length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No members yet"
+              description="Invite someone to join this organisation."
+              actionLabel={canManage ? "Invite user" : undefined}
+              onAction={canManage ? () => setInviteOpen(true) : undefined}
+            />
+          ) : (
+            <DataTable columns={memberColumns} data={membersQuery.data ?? []} />
+          )}
+        </AdminQueryGate>
       </section>
 
       <section className="space-y-4">
         <h2 className="font-heading text-xl tracking-tight">Pending invitations</h2>
-        {invitationsQuery.isLoading ? (
-          <LoadingSkeleton rows={3} />
-        ) : pendingInvites.length === 0 ? (
-          <EmptyState
-            title="No pending invitations"
-            description="Sent invitations that are still open will appear here."
-          />
-        ) : (
-          <DataTable columns={invitationColumns} data={pendingInvites} />
-        )}
+        <AdminQueryGate
+          label="Loading invitations"
+          isLoading={invitationsQuery.isLoading}
+          isFetching={invitationsQuery.isFetching}
+          isError={invitationsQuery.isError}
+          data={invitationsQuery.data}
+          error={invitationsQuery.error}
+          onRetry={() => {
+            void invitationsQuery.refetch();
+          }}
+          rows={3}
+        >
+          {pendingInvites.length === 0 ? (
+            <EmptyState
+              title="No pending invitations"
+              description="Sent invitations that are still open will appear here."
+            />
+          ) : (
+            <DataTable columns={invitationColumns} data={pendingInvites} />
+          )}
+        </AdminQueryGate>
       </section>
 
       <FormDialog

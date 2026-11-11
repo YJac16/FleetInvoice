@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField } from "@/components/forms/form-fields";
+import { BusyButton } from "@/components/admin/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -267,12 +268,14 @@ export function EditWaybillDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={saveMutation.isPending || !trip}
+          <BusyButton
+            disabled={!trip}
+            pending={saveMutation.isPending}
+            pendingLabel="Saving…"
             onClick={form.handleSubmit((values) => saveMutation.mutate(values))}
           >
-            {saveMutation.isPending ? "Saving…" : "Save changes"}
-          </Button>
+            Save changes
+          </BusyButton>
         </>
       }
     >
@@ -406,25 +409,29 @@ export function EditWaybillDialog({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
+            <BusyButton
               type="button"
               size="sm"
               variant="secondary"
-              disabled={overrideMutation.isPending || !trip}
+              disabled={!trip}
+              pending={overrideMutation.isPending}
+              pendingLabel="Applying…"
               onClick={() => overrideMutation.mutate()}
             >
               Apply override
-            </Button>
+            </BusyButton>
             {overrideQuery.data ? (
-              <Button
+              <BusyButton
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={clearOverrideMutation.isPending || !trip}
+                disabled={!trip}
+                pending={clearOverrideMutation.isPending}
+                pendingLabel="Clearing…"
                 onClick={() => clearOverrideMutation.mutate()}
               >
                 Clear override
-              </Button>
+              </BusyButton>
             ) : null}
           </div>
         </div>
