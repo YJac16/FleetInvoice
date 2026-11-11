@@ -56,6 +56,8 @@ export function DriverLocationField({
       : `${Date.now()}`
   );
   const [query, setQuery] = useState("");
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const [open, setOpen] = useState(false);
   const [mapMatches, setMapMatches] = useState<MapPlaceSuggestion[]>([]);
   const [mapSearching, setMapSearching] = useState(false);
@@ -116,9 +118,12 @@ export function DriverLocationField({
   }
 
   async function chooseMap(match: MapPlaceSuggestion) {
+    const pickedQuery = query.trim();
+    const stillOnThisSearch = () => queryRef.current.trim() === pickedQuery;
     setChecking(true);
     try {
       const verified = await verifyMapPlace(match.placeId, sessionToken.current);
+      if (!stillOnThisSearch()) return;
       if (!verified) {
         setMapPickFailed(true);
         toast.error("Could not check that place. Pick one from the list or type it.");
@@ -139,6 +144,7 @@ export function DriverLocationField({
         longitude: verified.longitude,
         verified: true,
       });
+      if (!stillOnThisSearch()) return;
       onChange({
         name: saved.name,
         placeId: verified.placeId,
@@ -151,6 +157,7 @@ export function DriverLocationField({
       setMapMatches([]);
       sessionToken.current = crypto.randomUUID();
     } catch {
+      if (!stillOnThisSearch()) return;
       setMapPickFailed(true);
       toast.error("Could not save that place. You can still type it.");
     } finally {
