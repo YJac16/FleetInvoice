@@ -546,6 +546,7 @@ export type Trip = {
   /** Staff waybills (no route) — present on rows from the trips table. */
   is_staff_transport?: boolean;
   area_text?: string | null;
+  route_stops?: Array<{ name?: string | null }> | null;
   staff_company?: import("@/lib/constants").StaffTransportCompany | null;
   companies?: { name: string } | null;
   trip_assignments?: TripAssignment[];

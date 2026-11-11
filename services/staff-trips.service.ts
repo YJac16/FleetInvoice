@@ -1,3 +1,4 @@
+import { TRIP_ROW_COLUMNS } from "@/features/trips/lib/trip-row-columns";
 import { createClient } from "@/lib/supabase/client";
 import type { StaffTransportCompany } from "@/lib/constants";
 import type { DriverPresence, StaffTrip } from "@/types";
@@ -7,8 +8,7 @@ import {
   type WaybillBillingReadiness,
 } from "@/features/trips/lib/waybill-billing-readiness";
 
-const STAFF_TRIP_SELECT =
-  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)";
+const STAFF_TRIP_SELECT = `${TRIP_ROW_COLUMNS}, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)`;
 
 const STAFF_TRIP_ADMIN_SELECT = `${STAFF_TRIP_SELECT}, companies:company_id (name)`;
 

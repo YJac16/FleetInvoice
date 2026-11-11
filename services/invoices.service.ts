@@ -79,6 +79,8 @@ const INVOICE_LINE_TRIP_SELECT = `
     planned_start,
     notes,
     service_locations,
+    area_text,
+    route_stops,
     companies:company_id ( name ),
     routes:route_id ( name ),
     trip_passengers ( id, status ),

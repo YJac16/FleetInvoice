@@ -31,7 +31,32 @@ vi.mock("@/hooks/use-active-org-id", () => ({
 }));
 
 vi.mock("@/services/companies.service", () => ({
-  listActiveCompanies: vi.fn().mockResolvedValue([]),
+  listActiveCompanies: vi.fn().mockResolvedValue([
+    {
+      id: "e2000000-0000-4000-8000-000000000001",
+      name: "Lewis",
+    },
+  ]),
+}));
+
+vi.mock("@/services/locations.service", () => ({
+  listServiceLocations: vi.fn().mockResolvedValue([
+    {
+      id: "loc-1",
+      organisation_id: null,
+      name: "Rondebosch",
+      aliases: [],
+      region: "cape_town",
+      status: "active",
+    },
+  ]),
+  proposeServiceLocation: vi.fn(),
+}));
+
+vi.mock("@/features/locations/lib/places-client", () => ({
+  fetchPlacesLookupEnabled: vi.fn().mockResolvedValue(false),
+  searchMapPlaces: vi.fn().mockResolvedValue([]),
+  verifyMapPlace: vi.fn(),
 }));
 
 vi.mock("@/services/driver-submitted-trips.service", () => ({
@@ -81,5 +106,11 @@ describe("DriverLogTripPage layout", () => {
     expect(paxGrid?.className).not.toContain("driver-pair-grid--stack");
 
     expect(container.querySelector(".bg-zinc-950")).toBeNull();
+    expect(screen.queryByText(/Price \(R\)/i)).toBeNull();
+    expect(screen.queryByText(/Company rate/i)).toBeNull();
+    expect(screen.queryByText(/billed amount/i)).toBeNull();
+    expect(screen.getByRole("button", { name: "Add another stop" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Pickup")).toBeInTheDocument();
+    expect(screen.getByLabelText("Drop-off")).toBeInTheDocument();
   });
 });

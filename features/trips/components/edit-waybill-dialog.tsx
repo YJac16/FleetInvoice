@@ -130,6 +130,7 @@ export function EditWaybillDialog({
     overrideAmount: overrideQuery.isFetched
       ? (overrideQuery.data?.override_unit_price ?? null)
       : null,
+    stopCount: trip?.route_stops?.length ?? 0,
   });
   const priceApplyRef = useRef(priceDraft.apply);
   priceApplyRef.current = priceDraft.apply;

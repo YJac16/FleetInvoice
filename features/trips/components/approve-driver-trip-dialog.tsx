@@ -16,6 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
+import {
+  formatDriverRoute,
+  isMultiStopRoute,
+} from "@/features/trips/lib/route-stops";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import {
   approveDriverTrip,
@@ -51,6 +55,8 @@ export function ApproveDriverTripDialog({
   onApproved,
 }: ApproveDriverTripDialogProps) {
   const [vehicleId, setVehicleId] = useState("");
+  const multiStop = isMultiStopRoute(trip?.route_stops);
+  const routeLabel = trip ? formatDriverRoute(trip) : "";
   const priceDraft = useTripPriceDraft({
     enabled: open && Boolean(trip?.id),
     resetKey: open && trip ? `approve-${trip.id}` : "",
@@ -59,6 +65,7 @@ export function ApproveDriverTripDialog({
     areaText: trip?.area_text ?? "",
     tripDate: trip ? tripDateSast(trip.planned_start) : null,
     existingUnitPrice: null,
+    stopCount: trip?.route_stops?.length ?? (multiStop ? 3 : 0),
   });
   const priceApplyRef = useRef(priceDraft.apply);
   priceApplyRef.current = priceDraft.apply;
@@ -90,6 +97,16 @@ export function ApproveDriverTripDialog({
     mutationFn: () => {
       if (!trip) throw new Error("No trip");
       if (!vehicleId) throw new Error("Select a vehicle");
+      if (multiStop) {
+        const amount = Number(priceDraft.value);
+        if (priceDraft.value.trim() === "" || !Number.isFinite(amount) || amount < 0) {
+          throw new Error("Enter the billed amount for this multi-stop trip");
+        }
+        return approveDriverTrip(trip.id, vehicleId, {
+          unitPrice: amount,
+          applyUnitPrice: true,
+        });
+      }
       return approveDriverTrip(trip.id, vehicleId, {
         unitPrice: priceApplyRef.current.price,
         applyUnitPrice: priceApplyRef.current.apply,
@@ -129,7 +146,7 @@ export function ApproveDriverTripDialog({
       <div className="space-y-3">
         {trip ? (
           <p className="text-sm text-muted-foreground">
-            {trip.area_text} · {trip.companies?.name ?? "Company"}
+            {routeLabel || trip.area_text} · {trip.companies?.name ?? "Company"}
           </p>
         ) : null}
         <div className="space-y-1.5">

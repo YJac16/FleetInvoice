@@ -21,7 +21,6 @@ import {
 import {
   fuelFillupSchema,
   parseNonNegativeNumber,
-  parseOptionalNumber,
   parsePositiveNumber,
   type FuelFillupValues,
 } from "@/features/fuel/schemas/fuel-fillup";
@@ -66,7 +65,6 @@ export function DriverFuelPage() {
       vehicle_id: "",
       odometer_km: "",
       litres: "",
-      unit_price: "",
       station_name: "",
       notes: "",
     },
@@ -97,7 +95,6 @@ export function DriverFuelPage() {
         odometerKm: parseNonNegativeNumber(values.odometer_km, "Odometer"),
         litres: parsePositiveNumber(values.litres, "Litres"),
         companyId: vehicle?.company_id ?? null,
-        unitPrice: parseOptionalNumber(values.unit_price),
         stationName: emptyToNull(values.station_name),
         notes: emptyToNull(values.notes),
       });
@@ -108,7 +105,6 @@ export function DriverFuelPage() {
         vehicle_id: form.getValues("vehicle_id"),
         odometer_km: "",
         litres: "",
-        unit_price: "",
         station_name: "",
         notes: "",
       });
@@ -182,7 +178,7 @@ export function DriverFuelPage() {
         <CardHeader>
           <CardTitle>New fill-up</CardTitle>
           <CardDescription>
-            Amounts are optional; company is taken from the vehicle when set.
+            Company is taken from the vehicle when set.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,12 +202,6 @@ export function DriverFuelPage() {
               control={form.control}
               name="litres"
               label="Litres"
-              type="number"
-            />
-            <TextField
-              control={form.control}
-              name="unit_price"
-              label="Unit price (optional)"
               type="number"
             />
             <TextField

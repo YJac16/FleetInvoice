@@ -26,6 +26,7 @@ import {
   listPendingDriverSubmissions,
   rejectDriverTrip,
 } from "@/services/driver-submitted-trips.service";
+import { formatDriverRoute } from "@/features/trips/lib/route-stops";
 import type { StaffTrip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDateTime } from "@/utils/format";
@@ -116,7 +117,7 @@ export function PendingDriverTripsPanel({
                       <p className="text-muted-foreground">
                         {formatDateTime(trip.planned_start)}
                       </p>
-                      <p className="mt-1">{trip.area_text}</p>
+                      <p className="mt-1">{formatDriverRoute(trip) || trip.area_text}</p>
                       {trip.total_km != null ? (
                         <p className="text-muted-foreground">{trip.total_km} km</p>
                       ) : null}

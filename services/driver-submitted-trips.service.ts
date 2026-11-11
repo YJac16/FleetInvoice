@@ -1,8 +1,16 @@
 import { createClient } from "@/lib/supabase/client";
+import { TRIP_ROW_COLUMNS } from "@/features/trips/lib/trip-row-columns";
 import type { StaffTrip } from "@/types";
 
-const DRIVER_SUBMISSION_SELECT =
-  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)";
+const DRIVER_SUBMISSION_SELECT = `${TRIP_ROW_COLUMNS}, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)`;
+
+export type DriverStopInput = {
+  name: string;
+  placeId?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  source?: string | null;
+};
 
 export type SubmitDriverTripInput = {
   organisationId: string;
@@ -10,6 +18,7 @@ export type SubmitDriverTripInput = {
   time: string;
   pickup: string;
   dropoff: string;
+  stops?: DriverStopInput[];
   companyId: string;
   paxCount: number;
   totalKm: number;
@@ -38,6 +47,16 @@ export async function submitDriverTrip(
     p_pax_count: input.paxCount,
     p_total_km: input.totalKm,
     p_notes: input.notes ?? null,
+    p_stops:
+      input.stops && input.stops.length >= 2
+        ? input.stops.map((stop) => ({
+            name: stop.name,
+            placeId: stop.placeId ?? null,
+            lat: stop.lat ?? null,
+            lng: stop.lng ?? null,
+            source: stop.source ?? null,
+          }))
+        : null,
   });
   if (error) throw error;
   const row = (Array.isArray(data) ? data[0] : data) as

@@ -83,7 +83,14 @@ export function ServiceLocationsSettings({
         {orgLocations.length > 0 ? (
           <ul className="text-sm text-muted-foreground">
             {orgLocations.map((location) => (
-              <li key={location.id}>{location.name}</li>
+              <li key={location.id}>
+                {location.name}
+                {location.needs_review ? (
+                  <span className="ml-2 text-amber-700 dark:text-amber-300">
+                    Needs review
+                  </span>
+                ) : null}
+              </li>
             ))}
           </ul>
         ) : (
