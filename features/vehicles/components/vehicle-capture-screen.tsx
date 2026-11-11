@@ -84,7 +84,7 @@ export function VehicleCaptureScreen({ vehicleId }: { vehicleId?: string }) {
   }
 
   if (vehicleId && !vehicleQuery.data) {
-    if (vehicleQuery.isLoading || vehicleQuery.isFetching) {
+    if (vehicleQuery.isLoading || (vehicleQuery.isFetching && vehicleQuery.isError)) {
       return <AdminLoading label="Loading vehicle" rows={8} />;
     }
     if (vehicleQuery.isError) {

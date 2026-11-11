@@ -100,7 +100,7 @@ export function DriverCaptureScreen({ driverId }: { driverId?: string }) {
   }
 
   if (driverId && !driverQuery.data) {
-    if (driverQuery.isLoading || driverQuery.isFetching) {
+    if (driverQuery.isLoading || (driverQuery.isFetching && driverQuery.isError)) {
       return <AdminLoading label="Loading driver" rows={8} />;
     }
     if (driverQuery.isError) {

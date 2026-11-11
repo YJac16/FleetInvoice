@@ -216,7 +216,7 @@ export function ComplianceDocumentSection({
               On file · {docQuery.data.file_name ?? "document"} (
               {new Date(docQuery.data.created_at).toLocaleDateString()})
             </p>
-          ) : docQuery.isLoading || docQuery.isFetching ? (
+          ) : docQuery.isLoading ? (
             <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
               <GoOpsLoader size="xs" decorative />
               Loading document…

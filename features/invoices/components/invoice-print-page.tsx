@@ -100,7 +100,7 @@ export function InvoicePrintPage({
   const companyStillNeeded =
     Boolean(invoiceQuery.data?.company_id) &&
     companyQuery.data == null &&
-    (companyQuery.isLoading || companyQuery.isFetching);
+    companyQuery.isLoading;
   const previewLoading =
     companyStillNeeded ||
     (!hasPreview &&
