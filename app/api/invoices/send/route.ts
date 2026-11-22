@@ -6,7 +6,14 @@ import { env, isEmailDeliveryConfigured } from "@/lib/env";
 import { parseEmailList, validateEmailList } from "@/lib/notifications/email-addresses";
 import { buildInvoiceEmailContent } from "@/lib/notifications/invoice-email";
 import { sendResendEmail } from "@/lib/notifications/resend-server";
-import { parseInvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  applyDriverInvoicePrintOverride,
+  parseInvoicePrintSettings,
+} from "@/features/invoices/lib/invoice-print-settings";
+import {
+  fetchDriverInvoicePrintOverride,
+  type OverrideClient,
+} from "@/features/invoices/lib/driver-invoice-print-override";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -95,10 +102,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: orgError.message }, { status: 500 });
   }
 
-  const printSettings = parseInvoicePrintSettings({
-    name: organisation?.name ?? "WorkOps",
-    settings: (organisation?.settings as Record<string, unknown>) ?? {},
-  });
+  const driverOverride = invoice.driver_id
+    ? await fetchDriverInvoicePrintOverride(
+        supabase as unknown as OverrideClient,
+        organisationId,
+        invoice.driver_id
+      )
+    : null;
+
+  const printSettings = applyDriverInvoicePrintOverride(
+    parseInvoicePrintSettings({
+      name: organisation?.name ?? "WorkOps",
+      settings: (organisation?.settings as Record<string, unknown>) ?? {},
+    }),
+    driverOverride
+  );
 
   const emailContent = buildInvoiceEmailContent({
     invoice,
