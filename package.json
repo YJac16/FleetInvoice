@@ -23,6 +23,7 @@
     "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",
     "test:driver-trip-admin-enforcement": "node tests/db/driver-trip-admin-enforcement.test.mjs",
     "test:rate-card-00069": "node tests/db/rate-card-edit-archive.test.mjs",
+    "test:driver-invoice-override-00072": "node tests/db/driver-invoice-print-override.test.mjs",
     "test:rollback-00061-00067": "bash tests/db/run-rollback-00061-00067.sh",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
