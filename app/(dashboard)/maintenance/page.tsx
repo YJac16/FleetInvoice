@@ -1,13 +1,6 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { redirect } from "next/navigation";
 
+/** /maintenance (the nav link) opens the workshop bills list. */
 export default function MaintenancePage() {
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Maintenance"
-        description="Workshop bills, suppliers and categories."
-      />
-      <p className="text-sm text-muted-foreground">Coming soon.</p>
-    </div>
-  );
+  redirect("/maintenance/bills");
 }
