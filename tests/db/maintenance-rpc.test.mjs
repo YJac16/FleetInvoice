@@ -7,7 +7,7 @@
  * Covers: VAT inclusive/exclusive (per line, half-up 2dp, default rate 15),
  * approved bills locked, audit rows written, cross-org ids rejected,
  * non-permitted roles and non-entitled orgs rejected, service_role-only grants,
- * odometer_km stored only as typed.
+ * odometer_km stored only as typed, vat_rate kept on edit when sent (U5).
  *
  * Local Postgres only (workops_audit). Never points at a hosted project.
  * Run: npm run test:maintenance-rpc
@@ -446,6 +446,39 @@ check(
   "R5 rejected calls wrote no rows",
   psqlAdmin(`select count(*)::text from public.suppliers where name in ('Disp', 'Anon', 'B', 'Nope', 'Hijack')`) === "0" &&
     psqlAdmin(`select count(*)::text from public.workshop_bills where invoice_ref = 'MRPC-XORG'`) === "1"
+);
+
+// ---------------------------------------------------------------------------
+// U5: VAT rate on edit. The UI always sends the stored vat_rate; this pins
+// why. An explicit 0 / custom rate survives an edit, while leaving vat_rate
+// out lets the RPC fall back to 15.
+// ---------------------------------------------------------------------------
+
+const zeroBase = {
+  supplier_id: supA.out,
+  bill_date: "2026-11-23",
+  invoice_ref: "MRPC-ZERO-1",
+  lines: [{ description: "Zero-rated part", unit_amount: 100 }],
+};
+const zero = saveBill(adminA, ORG_A, null, { ...zeroBase, vat_rate: 0 });
+check("Z1 0% bill saved", zero.ok && billRow(zero.out) === "draft|exclusive|0.00|100.00|0.00|100.00|null", zero.ok ? billRow(zero.out) : zero.err);
+const zeroEdit = saveBill(adminA, ORG_A, zero.out, { ...zeroBase, vat_rate: 0, notes: "edited" });
+check(
+  "Z2 edit sending vat_rate 0 keeps 0%",
+  zeroEdit.ok && billRow(zero.out) === "draft|exclusive|0.00|100.00|0.00|100.00|null",
+  zeroEdit.ok ? billRow(zero.out) : zeroEdit.err
+);
+const customEdit = saveBill(adminA, ORG_A, zero.out, { ...zeroBase, vat_rate: 7.5 });
+check(
+  "Z3 edit sending vat_rate 7.5 keeps 7.5%",
+  customEdit.ok && billRow(zero.out) === "draft|exclusive|7.50|100.00|7.50|107.50|null",
+  customEdit.ok ? billRow(zero.out) : customEdit.err
+);
+const omitted = saveBill(adminA, ORG_A, zero.out, { ...zeroBase });
+check(
+  "Z4 edit omitting vat_rate falls back to 15 (the UI never omits it)",
+  omitted.ok && billRow(zero.out) === "draft|exclusive|15.00|100.00|15.00|115.00|null",
+  omitted.ok ? billRow(zero.out) : omitted.err
 );
 
 console.log(failures === 0 ? "\nAll maintenance RPC checks passed." : `\n${failures} check(s) failed.`);
