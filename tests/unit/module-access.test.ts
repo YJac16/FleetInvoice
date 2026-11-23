@@ -313,3 +313,69 @@ describe("maintenance wrapper keeps its contract", () => {
     }
   );
 });
+
+describe("assertAnyModuleAccess", () => {
+  it("grants when the org is entitled to any of the modules, reporting the first match", async () => {
+    tables.module_entitlements.push({ plan_id: "p-core", module_key: "attendance" });
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["passengers", "attendance"], {
+      organisationId: ORGS.planWithout,
+      userId: userFor("manager", "planWithout"),
+    });
+    expect(result).toMatchObject({ ok: true, module: "attendance", isPlatformOwner: false });
+  });
+
+  it("prefers the earlier module when several match", async () => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["passengers", "billing"], {
+      organisationId: ORGS.planWith,
+      userId: userFor("manager", "planWith"),
+    });
+    expect(result).toMatchObject({ ok: true, module: "passengers" });
+  });
+
+  it("denies module_not_entitled when none match", async () => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["passengers", "portal"], {
+      organisationId: ORGS.planWithout,
+      userId: userFor("manager", "planWithout"),
+    });
+    expect(result).toMatchObject({ ok: false, status: 403, error: "module_not_entitled" });
+  });
+
+  it.each(FAIL_OPEN_STATES)("NEVER_FAIL_OPEN modules stay closed under fail-open (%s)", async (state) => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["passengers", "portal", "maintenance"], {
+      organisationId: ORGS[state],
+      userId: userFor("organisation_admin", state),
+    });
+    expect(result).toMatchObject({ ok: false, error: "module_not_entitled" });
+  });
+
+  it("a fail-open module in the list grants under fail-open", async () => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["passengers", "attendance"], {
+      organisationId: ORGS.noSubscription,
+      userId: userFor("organisation_admin", "noSubscription"),
+    });
+    expect(result).toMatchObject({ ok: true, module: "attendance" });
+  });
+
+  it("platform owner bypasses, reporting the first module", async () => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["portal", "passengers"], {
+      organisationId: ORGS.planWithout,
+      userId: "u-owner",
+    });
+    expect(result).toMatchObject({ ok: true, isPlatformOwner: true, module: "portal" });
+  });
+
+  it("non-member is forbidden with notMember", async () => {
+    const { assertAnyModuleAccess } = await guard();
+    const result = await assertAnyModuleAccess(["billing", "gps"], {
+      organisationId: ORGS.planWith,
+      userId: "u-outsider",
+    });
+    expect(result).toEqual({ ok: false, status: 403, error: "forbidden", notMember: true });
+  });
+});

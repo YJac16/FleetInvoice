@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { guardModuleApi } from "@/lib/auth/module-guard";
 import { createClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // GPS module guard: 403 JSON before anything is written.
+  const denied = await guardModuleApi("gps", {
+    organisationId: parsed.data.organisationId,
+    userId: user.id,
+  });
+  if (denied) return denied;
 
   const { data, error } = await supabase.rpc("ingest_gps_points", {
     p_organisation_id: parsed.data.organisationId,

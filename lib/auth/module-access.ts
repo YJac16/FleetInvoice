@@ -129,8 +129,21 @@ export async function isOrgEntitledTo(
 }
 
 /** Check the signed-in user may use `module` for `organisationId`. */
-export async function assertModuleAccess(
+export function assertModuleAccess(
   module: AppModule,
+  input: ModuleAccessInput
+): Promise<ModuleAccessResult> {
+  return assertAnyModuleAccess([module], input);
+}
+
+/**
+ * Same checks as assertModuleAccess, but the org only needs to be entitled to
+ * one of `modules` (e.g. /employees: passengers OR attendance). On success,
+ * `module` is the first entry of `modules` the org is entitled to (the first
+ * entry for a platform owner). Entitlements are read once.
+ */
+export async function assertAnyModuleAccess(
+  modules: readonly [AppModule, ...AppModule[]],
   input: ModuleAccessInput
 ): Promise<ModuleAccessResult> {
   const userId =
@@ -147,7 +160,7 @@ export async function assertModuleAccess(
     .maybeSingle();
   if (profileError) throw profileError;
 
-  const granted = (isPlatformOwner: boolean): ModuleAccessGranted => ({
+  const granted = (isPlatformOwner: boolean, module: AppModule): ModuleAccessGranted => ({
     ok: true,
     module,
     userId,
@@ -160,7 +173,7 @@ export async function assertModuleAccess(
     profile?.is_platform_owner &&
     (!input.permission || hasPermission(null, input.permission, true))
   ) {
-    return granted(true);
+    return granted(true, modules[0]);
   }
 
   const { data: memberships, error: memberError } = await admin
@@ -182,9 +195,11 @@ export async function assertModuleAccess(
     }
   }
 
-  if (!(await isOrgEntitledTo(admin, input.organisationId, module))) {
-    return deny(403, "module_not_entitled");
-  }
+  // orgEntitledModules applies the fail-open rule, so NEVER_FAIL_OPEN modules
+  // are only ever matched through a plan row.
+  const entitled = await orgEntitledModules(admin, input.organisationId);
+  const match = modules.find((m) => entitled.includes(m));
+  if (!match) return deny(403, "module_not_entitled");
 
-  return granted(false);
+  return granted(false, match);
 }
