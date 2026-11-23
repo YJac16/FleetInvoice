@@ -14,6 +14,7 @@ import type { AppRole } from "@/lib/constants";
 import { ORG_COOKIE_NAME } from "@/lib/constants";
 import {
   ALL_MODULES,
+  FAIL_OPEN_MODULES,
   hasModule,
   type AppModule,
 } from "@/lib/entitlements";
@@ -87,7 +88,7 @@ export function OrgProvider({
 
   const entitledModules = isPlatformOwner
     ? ALL_MODULES
-    : (modulesQuery.data ?? ALL_MODULES);
+    : (modulesQuery.data ?? FAIL_OPEN_MODULES);
 
   const value = useMemo<OrgContextValue>(
     () => ({

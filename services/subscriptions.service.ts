@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import {
-  ALL_MODULES,
+  FAIL_OPEN_MODULES,
   isAppModule,
   type AppModule,
 } from "@/lib/entitlements";
@@ -120,9 +120,9 @@ export async function listEntitledModules(
   if (error) {
     // Before migration applied: fail open so ops UI stays usable.
     console.warn("org_entitled_modules unavailable", error.message);
-    return ALL_MODULES;
+    return FAIL_OPEN_MODULES;
   }
   const raw = (data ?? []) as string[];
   const modules = raw.filter(isAppModule);
-  return modules.length ? modules : ALL_MODULES;
+  return modules.length ? modules : FAIL_OPEN_MODULES;
 }
