@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 
+import { DemoRoleSwitcher } from "@/components/demo/role-switcher";
 import { Providers } from "@/components/shared/providers";
 import { APP_NAME } from "@/lib/constants";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
         className={`${sans.variable} ${mono.variable} ${heading.variable} font-sans antialiased`}
       >
         <Providers>{children}</Providers>
+        <DemoRoleSwitcher />
       </body>
     </html>
   );
