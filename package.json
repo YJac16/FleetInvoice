@@ -21,6 +21,8 @@
     "test:driver-trip-privacy-rls": "bash tests/rls/run-driver-trip-privacy.sh",
     "test:maintenance-rls": "bash tests/rls/run-maintenance-isolation.sh",
     "test:maintenance-rpc": "node tests/db/maintenance-rpc.test.mjs",
+    "test:maintenance-attachment": "vitest run tests/unit/maintenance-attachment-route.test.ts",
+    "test:maintenance-attachment-rpc": "node tests/db/maintenance-attachment-rpc.test.mjs",
     "test:driver-self-entry": "node tests/db/driver-self-entry-invoice.test.mjs",
     "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",
     "test:driver-trip-admin-enforcement": "node tests/db/driver-trip-admin-enforcement.test.mjs",
