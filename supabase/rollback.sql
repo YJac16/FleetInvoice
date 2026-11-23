@@ -822,5 +822,6 @@ revoke all on function public.guard_company_manager_member_scope() from public, 
 
 -- Migration 00061: use supabase/rollback-00061.sql (separate transaction).
 -- Migrations 00061–00067 (+00068): use supabase/rollback-00061-00067.sql (separate transaction).
+-- Migration 00076: use supabase/rollback-00076.sql (separate transaction).
 
 COMMIT;
