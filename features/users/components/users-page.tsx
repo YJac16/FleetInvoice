@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { UserPlus, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -41,6 +41,7 @@ import {
   updateMemberRole,
 } from "@/services/users.service";
 import type { Invitation, OrganisationMember } from "@/types";
+import { assignableRoles } from "@/lib/entitlements";
 import { getErrorMessage } from "@/utils/errors";
 import { formatDate } from "@/utils/format";
 import { queryKeys } from "@/utils/query";
@@ -50,21 +51,20 @@ import {
   memberDisplayName,
 } from "@/features/users/lib/member-profile";
 
-const roleOptions = INVITABLE_ROLES.map((role) => ({
-  label: ROLE_LABELS[role],
-  value: role,
-}));
+type RoleOption = { label: string; value: InvitableRole };
 
 function InviteForm({
   onSubmit,
   submitting,
+  roleOptions,
 }: {
   onSubmit: (values: InviteValues) => void;
   submitting: boolean;
+  roleOptions: RoleOption[];
 }) {
   const form = useForm<InviteValues>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { email: "", role: "employee" },
+    defaultValues: { email: "", role: "driver" },
   });
 
   return (
@@ -96,10 +96,12 @@ function RoleForm({
   initialRole,
   onSubmit,
   submitting,
+  roleOptions,
 }: {
   initialRole: InvitableRole;
   onSubmit: (values: RoleValues) => void;
   submitting: boolean;
+  roleOptions: RoleOption[];
 }) {
   const form = useForm<RoleValues>({
     resolver: zodResolver(roleSchema),
@@ -129,10 +131,26 @@ function isInvitableRole(role: AppRole): role is InvitableRole {
 }
 
 export function UsersPage() {
-  const { can } = useOrg();
+  const { can, entitledModules, isPlatformOwner } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("users:manage");
   const canView = can("users:view");
+
+  // company_manager / employee only when the org has portal / passengers.
+  // The server re-checks (createInvitationAction / updateMemberRoleAction).
+  const allowedRoles = useMemo(
+    () => assignableRoles(INVITABLE_ROLES, isPlatformOwner ? "all" : entitledModules),
+    [entitledModules, isPlatformOwner]
+  );
+  const roleOptions = useMemo<RoleOption[]>(
+    () => allowedRoles.map((role) => ({ label: ROLE_LABELS[role], value: role })),
+    [allowedRoles]
+  );
+  const canChangeRole = useCallback(
+    (role: AppRole) =>
+      isInvitableRole(role) && (allowedRoles as readonly AppRole[]).includes(role),
+    [allowedRoles]
+  );
   const queryClient = useQueryClient();
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -251,7 +269,7 @@ export function UsersPage() {
                 const member = row.original;
                 return (
                   <div className="flex flex-wrap justify-end gap-2">
-                    {isInvitableRole(member.role) ? (
+                    {canChangeRole(member.role) ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -293,7 +311,7 @@ export function UsersPage() {
           ]
         : []),
     ],
-    [canManage, activateMutation, suspendMutation]
+    [canManage, canChangeRole, activateMutation, suspendMutation]
   );
 
   const invitationColumns = useMemo<ColumnDef<Invitation, unknown>[]>(
@@ -422,6 +440,7 @@ export function UsersPage() {
         description="They will receive an invite link to join this organisation."
       >
         <InviteForm
+          roleOptions={roleOptions}
           submitting={inviteMutation.isPending}
           onSubmit={(values) => inviteMutation.mutate(values)}
         />
@@ -432,10 +451,11 @@ export function UsersPage() {
         onOpenChange={(open) => !open && setRoleMember(null)}
         title="Change role"
       >
-        {roleMember && isInvitableRole(roleMember.role) ? (
+        {roleMember && isInvitableRole(roleMember.role) && canChangeRole(roleMember.role) ? (
           <RoleForm
             key={roleMember.id}
             initialRole={roleMember.role}
+            roleOptions={roleOptions}
             submitting={roleMutation.isPending}
             onSubmit={(values) =>
               roleMutation.mutate({ memberId: roleMember.id, role: values.role })

@@ -63,6 +63,27 @@ export function hasModule(
   return entitled.includes(module);
 }
 
+/**
+ * True when `role` may be assigned in an org entitled to `entitled`. Roles in
+ * ROLE_MODULE (company_manager -> portal, employee -> passengers) need their
+ * module; every other role is always assignable.
+ */
+export function isRoleAllowedForModules(
+  role: AppRole,
+  entitled: readonly AppModule[] | "all"
+): boolean {
+  const requiredModule = ROLE_MODULE[role];
+  return requiredModule ? hasModule(entitled, requiredModule) : true;
+}
+
+/** Subset of `roles` an admin may assign in an org entitled to `entitled`. */
+export function assignableRoles<R extends AppRole>(
+  roles: readonly R[],
+  entitled: readonly AppModule[] | "all"
+): R[] {
+  return roles.filter((role) => isRoleAllowedForModules(role, entitled));
+}
+
 /** Map permission families to commercial modules for route soft-gating. */
 export function moduleForPermission(permission: Permission): AppModule {
   if (permission.startsWith("gps:") || permission.startsWith("dispatch:") || permission.startsWith("geofences:")) {
