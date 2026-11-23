@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { APP_ROLES, type AppRole } from "@/lib/constants";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,9 +15,12 @@ import { createClient } from "@/lib/supabase/server";
  *   - anyone else (driver, dispatcher, supervisor, employee, company_manager):
  *     forbidden
  *
- * 'view' and 'manage' currently allow the same roles. The mode is kept so U4
- * pages and routes state their intent and can diverge later without changing
- * call sites.
+ * Each mode is checked against its own permission in lib/permissions:
+ * 'view' needs maintenance:view, 'manage' needs maintenance:manage. Today both
+ * are held by exactly organisation_admin, manager and platform_owner, so the
+ * outcome matches the RPCs; removing maintenance:manage from a role in the
+ * permission matrix makes that role read-only here with no other change.
+ * Pages use 'view'; routes that write (attachment upload/delete) use 'manage'.
  *
  * Reads go through the service client so the result doesn't depend on RLS
  * and matches the RPC check exactly.
@@ -23,7 +28,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export type MaintenanceAccessMode = "view" | "manage";
 
+/** Org roles the DB writer check (maintenance_assert_writer) accepts. The
+ *  permission matrix is the source of truth here; a unit test keeps the two
+ *  in step. */
 export const MAINTENANCE_ROLES = ["organisation_admin", "manager"] as const;
+
+export function maintenancePermissionFor(mode: MaintenanceAccessMode): Permission {
+  return mode === "manage" ? "maintenance:manage" : "maintenance:view";
+}
 
 export type MaintenanceAccessDenied = {
   ok: false;
@@ -108,7 +120,9 @@ export async function assertMaintenanceAccess(
     .eq("id", userId)
     .maybeSingle();
   if (profileError) throw profileError;
-  if (profile?.is_platform_owner) {
+  const permission = maintenancePermissionFor(mode);
+
+  if (profile?.is_platform_owner && hasPermission(null, permission, true)) {
     return { ok: true, mode, userId, organisationId: input.organisationId, isPlatformOwner: true, admin };
   }
 
@@ -121,7 +135,8 @@ export async function assertMaintenanceAccess(
   if (memberError) throw memberError;
   const roles = (memberships ?? []).map((m: { role: string }) => String(m.role));
   if (roles.length === 0) return deny(403, "forbidden", true);
-  if (!roles.some((r) => (MAINTENANCE_ROLES as readonly string[]).includes(r))) {
+  const isKnownRole = (r: string): r is AppRole => (APP_ROLES as readonly string[]).includes(r);
+  if (!roles.some((r) => isKnownRole(r) && hasPermission(r, permission))) {
     return deny(403, "forbidden");
   }
 

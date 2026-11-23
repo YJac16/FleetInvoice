@@ -13,11 +13,22 @@ export const APP_MODULES = [
   "sso",
   "integrations",
   "ai",
+  "maintenance",
 ] as const;
 
 export type AppModule = (typeof APP_MODULES)[number];
 
 export const ALL_MODULES: AppModule[] = [...APP_MODULES];
+
+/**
+ * Modules the client assumes when entitlements can't be read (RPC missing or
+ * failing, still loading, or an org with no active plan). Maintenance is left
+ * out on purpose: it is never granted by fail-open, only by a plan that lists
+ * it. The server guard (assertMaintenanceAccess) enforces the same rule.
+ */
+export const FAIL_OPEN_MODULES: AppModule[] = ALL_MODULES.filter(
+  (m) => m !== "maintenance"
+);
 
 export function isAppModule(value: string): value is AppModule {
   return (APP_MODULES as readonly string[]).includes(value);
@@ -44,6 +55,7 @@ export function moduleForPermission(permission: Permission): AppModule {
     return "billing";
   }
   if (permission.startsWith("payroll:")) return "payroll";
+  if (permission.startsWith("maintenance:")) return "maintenance";
   if (permission.startsWith("reports:")) return "reports";
   return "core";
 }

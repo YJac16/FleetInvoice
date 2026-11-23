@@ -16,6 +16,7 @@ import {
   Users,
   UsersRound,
   Warehouse,
+  Wrench,
   BarChart3,
   Building,
   Radar,
@@ -23,9 +24,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import type { AppRole } from "@/lib/constants";
 import type { AppModule } from "@/lib/entitlements";
-import { moduleForPermission } from "@/lib/entitlements";
-import type { Permission } from "@/lib/permissions";
+import { hasModule, moduleForPermission } from "@/lib/entitlements";
+import { hasPermission, type Permission } from "@/lib/permissions";
 
 export type NavGroupId =
   | "overview"
@@ -88,6 +90,7 @@ export const MAIN_NAV: NavItem[] = [
   item("Vehicles", "/vehicles", Car, "vehicles:view", "fleet"),
   item("Compliance", "/compliance", ShieldCheck, "drivers:view", "fleet"),
   item("Fuel", "/fuel", Fuel, "fuel:view", "fleet"),
+  item("Maintenance", "/maintenance", Wrench, "maintenance:view", "fleet", "maintenance"),
   item("Companies", "/companies", Building2, "companies:view", "places"),
   item("Areas", "/areas", MapPin, "areas:view", "places"),
   item("Sites", "/sites", Warehouse, "sites:view", "places"),
@@ -115,6 +118,23 @@ export const MAIN_NAV: NavItem[] = [
   item("Membership", "/subscriptions", CreditCard, "subscriptions:view", "system", "core"),
   item("White-label", "/white-label", Building, "organisations:manage", "system", "core"),
 ];
+
+/**
+ * Single visibility rule for nav items: the role must hold the item's
+ * permission AND the org must be entitled to its module. Platform owners pass
+ * the module check (same as OrgContext.canModule).
+ */
+export function isNavItemVisible(
+  item: Pick<NavItem, "permission" | "module">,
+  ctx: {
+    role: AppRole | null | undefined;
+    isPlatformOwner: boolean;
+    entitledModules: readonly AppModule[] | "all";
+  }
+): boolean {
+  if (!hasPermission(ctx.role, item.permission, ctx.isPlatformOwner)) return false;
+  return ctx.isPlatformOwner || hasModule(ctx.entitledModules, item.module);
+}
 
 export const SECONDARY_NAV: NavItem[] = [
   item("Settings", "/settings", Settings, "settings:view", "system"),

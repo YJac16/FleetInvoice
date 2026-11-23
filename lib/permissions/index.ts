@@ -51,7 +51,9 @@ export type Permission =
   | "geofences:view"
   | "geofences:manage"
   | "subscriptions:view"
-  | "subscriptions:manage";
+  | "subscriptions:manage"
+  | "maintenance:view"
+  | "maintenance:manage";
 
 const VIEW_OPS: Permission[] = [
   "dashboard:view",
@@ -95,10 +97,19 @@ const MANAGE_OPS: Permission[] = [
   "geofences:manage",
 ];
 
+/**
+ * Fleet maintenance (workshop bills). Deliberately NOT in VIEW_OPS/MANAGE_OPS:
+ * only platform_owner, organisation_admin and manager get it. Dispatcher,
+ * supervisor, company_manager, driver and employee get neither. Must stay in
+ * step with public.maintenance_assert_writer (00074) and the 00073 RLS.
+ */
+const MAINTENANCE_PERMS: Permission[] = ["maintenance:view", "maintenance:manage"];
+
 const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   platform_owner: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    ...MAINTENANCE_PERMS,
     "trips:admin_edit",
     "organisations:view",
     "organisations:manage",
@@ -114,6 +125,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   organisation_admin: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    ...MAINTENANCE_PERMS,
     "trips:admin_edit",
     "users:view",
     "users:manage",
@@ -126,6 +138,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   manager: [
     ...VIEW_OPS,
     ...MANAGE_OPS,
+    ...MAINTENANCE_PERMS,
     "trips:admin_edit",
     "users:view",
     "attendance:view",
