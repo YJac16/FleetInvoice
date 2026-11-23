@@ -23,11 +23,14 @@
     "test:maintenance-rpc": "node tests/db/maintenance-rpc.test.mjs",
     "test:maintenance-attachment": "vitest run tests/unit/maintenance-attachment-route.test.ts",
     "test:maintenance-u4": "vitest run tests/unit/maintenance-permissions-nav.test.ts tests/unit/maintenance-layout-guard.test.ts",
+    "test:module-guards": "vitest run tests/unit/module-access.test.ts tests/unit/module-guard-layouts.test.ts tests/unit/module-guard-api.test.ts tests/unit/module-guard-coverage.test.ts tests/unit/no-access-redirect.test.ts",
+    "test:role-entitlements": "vitest run tests/unit/role-entitlement.test.ts tests/unit/users-role-actions.test.ts tests/unit/users-role-coverage.test.ts",
     "test:maintenance-attachment-rpc": "node tests/db/maintenance-attachment-rpc.test.mjs",
     "test:driver-self-entry": "node tests/db/driver-self-entry-invoice.test.mjs",
     "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",
     "test:driver-trip-admin-enforcement": "node tests/db/driver-trip-admin-enforcement.test.mjs",
     "test:rate-card-00069": "node tests/db/rate-card-edit-archive.test.mjs",
+    "test:migration-00076": "node tests/db/migration-00076-goops-entitlements.test.mjs",
     "test:rollback-00061-00067": "bash tests/db/run-rollback-00061-00067.sh",
     "db:audit:local": "bash scripts/local-db/bootstrap.sh",
     "test:watch": "vitest",
@@ -36,7 +39,8 @@
     "env:check": "node scripts/check-env.mjs",
     "notifications:drain": "node scripts/drain-notifications.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:smoke": "playwright test --grep @smoke"
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:entitlements": "playwright test e2e/goops-entitlements.spec.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

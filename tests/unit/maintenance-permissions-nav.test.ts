@@ -12,6 +12,7 @@ import {
   FAIL_OPEN_MODULES,
   isAppModule,
   moduleForPermission,
+  NEVER_FAIL_OPEN,
   type AppModule,
 } from "@/lib/entitlements";
 import { MAIN_NAV, isNavItemVisible } from "@/lib/navigation";
@@ -72,7 +73,9 @@ describe("maintenance entitlement wiring", () => {
   it("is never granted by the client fail-open fallback", () => {
     expect(ALL_MODULES).toContain("maintenance");
     expect(FAIL_OPEN_MODULES).not.toContain("maintenance");
-    expect(FAIL_OPEN_MODULES).toEqual(ALL_MODULES.filter((m) => m !== "maintenance"));
+    // Step 2 of the refocus widened the exclusion list (NEVER_FAIL_OPEN).
+    expect(NEVER_FAIL_OPEN).toContain("maintenance");
+    expect(FAIL_OPEN_MODULES).toEqual(ALL_MODULES.filter((m) => !NEVER_FAIL_OPEN.includes(m)));
   });
 });
 

@@ -126,20 +126,20 @@ describe("maintenance layout guard", () => {
     }
   );
 
-  it("404s for an admin of an org whose plan lacks maintenance", async () => {
+  it("sends an admin of an org whose plan lacks maintenance to /app/no-access", async () => {
     signIn("u-admin-c", ORG_C);
-    await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(render()).rejects.toThrow("NEXT_REDIRECT:/app/no-access");
   });
 
-  it("404s for an admin of an org with no subscription (no fail-open)", async () => {
+  it("sends an admin of an org with no subscription to /app/no-access (no fail-open)", async () => {
     signIn("u-admin-d", ORG_D);
-    await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(render()).rejects.toThrow("NEXT_REDIRECT:/app/no-access");
   });
 
-  it("404s for an entitled admin once the subscription is cancelled", async () => {
+  it("sends an entitled admin to /app/no-access once the subscription is cancelled", async () => {
     tables.subscriptions[0]!.status = "canceled";
     signIn(ROLE_USERS.organisation_admin);
-    await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(render()).rejects.toThrow("NEXT_REDIRECT:/app/no-access");
   });
 
   it("404s for an admin pointing at an org they don't belong to", async () => {
