@@ -23,7 +23,7 @@
     "test:maintenance-rpc": "node tests/db/maintenance-rpc.test.mjs",
     "test:maintenance-attachment": "vitest run tests/unit/maintenance-attachment-route.test.ts",
     "test:maintenance-u4": "vitest run tests/unit/maintenance-permissions-nav.test.ts tests/unit/maintenance-layout-guard.test.ts",
-    "test:module-guards": "vitest run tests/unit/module-access.test.ts tests/unit/module-guard-layouts.test.ts tests/unit/module-guard-api.test.ts tests/unit/module-guard-coverage.test.ts",
+    "test:module-guards": "vitest run tests/unit/module-access.test.ts tests/unit/module-guard-layouts.test.ts tests/unit/module-guard-api.test.ts tests/unit/module-guard-coverage.test.ts tests/unit/no-access-redirect.test.ts",
     "test:maintenance-attachment-rpc": "node tests/db/maintenance-attachment-rpc.test.mjs",
     "test:driver-self-entry": "node tests/db/driver-self-entry-invoice.test.mjs",
     "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",

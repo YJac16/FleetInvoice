@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
+import { NO_ACCESS_PATH } from "@/lib/auth/hub-redirect";
 import { assertMaintenanceAccess } from "@/lib/auth/maintenance-access";
 import { getSessionContext } from "@/lib/auth/session";
 
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
  *
  *   - no session            -> /login
  *   - no active org         -> 404
- *   - wrong role / no plan  -> 404 (don't reveal the module exists)
+ *   - wrong role / not member -> 404 (don't reveal the module exists)
+ *   - admin, plan lacks it  -> /app/no-access
  *   - service role missing  -> error boundary
  *
  * Pages that write must additionally call assertMaintenanceAccess('manage').
@@ -34,6 +36,7 @@ export default async function MaintenanceLayout({
   if (!access.ok) {
     if (access.status === 401) redirect("/login");
     if (access.status === 503) throw new Error("Maintenance is temporarily unavailable");
+    if (access.error === "module_not_entitled") redirect(NO_ACCESS_PATH);
     notFound();
   }
 

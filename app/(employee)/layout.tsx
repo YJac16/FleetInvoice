@@ -10,7 +10,7 @@ export default async function EmployeeLayout({
   children: React.ReactNode;
 }) {
   const session = await requireRole("employee");
-  // The employee hub is the "passengers" module (NEVER_FAIL_OPEN): 404 unless a plan lists it.
+  // The employee hub is the "passengers" module (NEVER_FAIL_OPEN): /app/no-access unless a plan lists it.
   await guardModulePage("passengers", session);
 
   return (
