@@ -10,7 +10,7 @@ export default async function CompanyLayout({
   children: React.ReactNode;
 }) {
   const session = await requireRole("company_manager");
-  // The company manager hub is the "portal" module (NEVER_FAIL_OPEN): 404 unless a plan lists it.
+  // The company manager hub is the "portal" module (NEVER_FAIL_OPEN): /app/no-access unless a plan lists it.
   await guardModulePage("portal", session);
 
   return (

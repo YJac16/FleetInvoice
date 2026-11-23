@@ -5,6 +5,7 @@ import {
   assertAnyModuleAccess,
   type ModuleAccessGranted,
 } from "@/lib/auth/module-access";
+import { hubModuleForRole, NO_ACCESS_PATH } from "@/lib/auth/hub-redirect";
 import { getSessionContext } from "@/lib/auth/session";
 import type { AppModule } from "@/lib/entitlements";
 import type { SessionContext } from "@/types";
@@ -31,11 +32,11 @@ function toList(modules: ModuleList): readonly [AppModule, ...AppModule[]] {
  *   - no session                      -> /login
  *   - no active org                   -> 404
  *   - platform owner with active org  -> allowed (entitlement bypassed)
- *   - not a member / not entitled     -> 404 (don't reveal the module exists)
+ *   - not a member of the org         -> 404 (don't reveal anything)
+ *   - member, org not entitled        -> /app/no-access ("not on your plan")
  *   - service role missing            -> error boundary
  *
  * Pass `session` when the layout already resolved it (e.g. via requireRole).
- * Step 5 replaces the 404 with an /app/no-access page.
  */
 export async function guardModulePage(
   modules: ModuleList,
@@ -54,6 +55,7 @@ export async function guardModulePage(
   if (!access.ok) {
     if (access.status === 401) redirect("/login");
     if (access.status === 503) throw new Error("This module is temporarily unavailable");
+    if (access.error === "module_not_entitled") redirect(NO_ACCESS_PATH);
     notFound();
   }
   return access;
@@ -73,4 +75,20 @@ export async function guardModuleApi(
   const res = NextResponse.json({ error: access.error }, { status: access.status });
   res.headers.set("Cache-Control", "no-store");
   return res;
+}
+
+/**
+ * True only when the user's own hub (company manager -> portal, employee ->
+ * passengers) is blocked because the active org's plan lacks that module.
+ * Any other outcome (granted, not a member, 503) is false: the hub layout
+ * guard decides. Drivers, ops roles and platform owners skip the query.
+ */
+export async function isHubNotEntitled(session: SessionContext): Promise<boolean> {
+  const hubModule = hubModuleForRole(session.activeRole, session.isPlatformOwner);
+  if (!hubModule || !session.activeOrganisationId) return false;
+  const access = await assertAnyModuleAccess([hubModule], {
+    organisationId: session.activeOrganisationId,
+    userId: session.userId,
+  });
+  return !access.ok && access.error === "module_not_entitled";
 }

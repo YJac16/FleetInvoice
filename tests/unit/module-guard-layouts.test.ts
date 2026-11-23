@@ -2,6 +2,8 @@
  * Step 4 (GoOps refocus) — server module guards on layouts
  * (lib/auth/module-guard.ts guardModulePage). Session, Next navigation, the
  * service client and the hub shells are faked.
+ * Step 5: a member whose org isn't entitled goes to /app/no-access; 404 stays
+ * for non-members and for no active org.
  * Run: npm run test:module-guards
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +24,7 @@ const ORG = {
 } as const;
 type OrgKey = keyof typeof ORG;
 const ORG_KEYS = Object.keys(ORG) as OrgKey[];
+const NO_ACCESS = "NEXT_REDIRECT:/app/no-access";
 
 type Row = Record<string, unknown>;
 const tables: Record<string, Row[]> = {};
@@ -159,12 +162,12 @@ beforeEach(() => {
 describe.each(LAYOUTS)("$route layout guard ($modules)", ({ modules, user, load }) => {
   const render = async () => (await load()).default({ children: "page" });
 
-  it.each(ORG_KEYS)("member of %s org: renders only when entitled", async (org) => {
+  it.each(ORG_KEYS)("member of %s org: renders when entitled, else /app/no-access", async (org) => {
     signIn(`u-${user}-${org}`, ORG[org]);
     if (entitledIn(org, modules)) {
       await expect(render()).resolves.toBeTruthy();
     } else {
-      await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+      await expect(render()).rejects.toThrow(NO_ACCESS);
     }
   });
 
@@ -183,13 +186,13 @@ describe.each(LAYOUTS)("$route layout guard ($modules)", ({ modules, user, load 
     await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("404s once the entitling subscription is cancelled", async () => {
+  it("goes to /app/no-access once the entitling subscription is cancelled", async () => {
     tables.subscriptions[0]!.status = "canceled"; // full -> fail-open
     signIn(`u-${user}-full`, ORG.full);
     if (modules.some((m) => FAIL_OPEN_MODULES.includes(m))) {
       await expect(render()).resolves.toBeTruthy();
     } else {
-      await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+      await expect(render()).rejects.toThrow(NO_ACCESS);
     }
   });
 
@@ -209,13 +212,13 @@ describe("explicit expectations", () => {
   const layout = (route: string) => LAYOUTS.find((l) => l.route === route)!;
   const render = async (route: string) => (await layout(route).load()).default({ children: "page" });
 
-  it("/employees: passengers-only and attendance-only orgs both pass; core-only 404s", async () => {
+  it("/employees: passengers-only and attendance-only orgs both pass; core-only goes to /app/no-access", async () => {
     signIn("u-admin-pass", ORG.pass);
     await expect(render("/employees")).resolves.toBeTruthy();
     signIn("u-admin-att", ORG.att);
     await expect(render("/employees")).resolves.toBeTruthy();
     signIn("u-admin-core", ORG.core);
-    await expect(render("/employees")).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(render("/employees")).rejects.toThrow(NO_ACCESS);
   });
 
   it("/employees is open under fail-open (attendance), by design", async () => {
@@ -225,7 +228,7 @@ describe("explicit expectations", () => {
 
   it.each(["/company/*", "/employee/*"])("%s never fails open", async (route) => {
     signIn(`u-${layout(route).user}-none`, ORG.none);
-    await expect(render(route)).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(render(route)).rejects.toThrow(NO_ACCESS);
   });
 
   it.each(["/invoices", "/payroll", "/attendance", "/reports", "/dispatch"])(
