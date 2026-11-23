@@ -1,9 +1,11 @@
 import "server-only";
 
 import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
+import type { BillExportFilters, BillExportRow } from "@/features/maintenance/lib/bills-csv";
 import { createClient } from "@/lib/supabase/server";
 import type {
   BillDetail,
+  BillExportOptions,
   BillFormOptions,
   BillLine,
   BillListRow,
@@ -222,6 +224,168 @@ export async function getBillFormOptions(
     categories: ((categories.data ?? []) as Named[])
       .filter((c) => c.active || keepCategories.has(c.id))
       .map((c) => ({ value: c.id, label: c.active ? c.name : `${c.name} (inactive)` })),
+    vehicles: ((vehicles.data ?? []) as VehicleEmbed[]).map((v) => ({
+      value: v.id,
+      label: formatVehicleLabel(v),
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// U6: CSV export
+
+const EXPORT_PAGE_SIZE = 1000;
+const EXPORT_BILL_ID_CHUNK = 200;
+/** Above this many lines the export asks for a narrower range. */
+export const EXPORT_MAX_LINES = 20_000;
+
+export type BillLinesExportResult =
+  | { ok: true; rows: BillExportRow[] }
+  | { ok: false; error: "too_many_rows" };
+
+type ExportBill = {
+  id: string;
+  bill_date: string;
+  invoice_ref: string;
+  status: string;
+  vat_mode: string;
+  vat_rate: string | number;
+  supplier: Embedded<{ name: string; vat_number: string | null }>;
+  vehicle: Embedded<VehicleEmbed>;
+};
+
+type ExportLine = {
+  bill_id: string;
+  description: string;
+  quantity: string | number;
+  unit_amount: string | number;
+  line_excl: string | number;
+  line_vat: string | number;
+  line_incl: string | number;
+  sort_order: number;
+  category: Embedded<{ name: string }>;
+};
+
+/**
+ * Bill lines for the CSV export, one row per line, using the stored figures.
+ * Reads go through the signed-in user's client (RLS) and filter on the org
+ * explicitly. Bills are read in pages (PostgREST caps a response), then their
+ * lines in id chunks. Bills without lines produce no rows.
+ */
+export async function listBillLinesForExport(
+  organisationId: string,
+  filters: BillExportFilters
+): Promise<BillLinesExportResult> {
+  const supabase = await createClient();
+
+  const bills: ExportBill[] = [];
+  for (let offset = 0; ; offset += EXPORT_PAGE_SIZE) {
+    let query = supabase
+      .from("workshop_bills")
+      .select(
+        "id, bill_date, invoice_ref, status, vat_mode, vat_rate, supplier:suppliers(name, vat_number), vehicle:vehicles(id, name, registration_number)"
+      )
+      .eq("organisation_id", organisationId)
+      .is("deleted_at", null)
+      .gte("bill_date", filters.from)
+      .lte("bill_date", filters.to);
+    if (filters.vehicleId) query = query.eq("vehicle_id", filters.vehicleId);
+    if (filters.supplierId) query = query.eq("supplier_id", filters.supplierId);
+    const { data, error } = await query
+      .order("bill_date", { ascending: true })
+      .order("invoice_ref", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + EXPORT_PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as unknown as ExportBill[];
+    bills.push(...page);
+    if (bills.length > EXPORT_MAX_LINES) return { ok: false, error: "too_many_rows" };
+    if (page.length < EXPORT_PAGE_SIZE) break;
+  }
+
+  const linesByBill = new Map<string, ExportLine[]>();
+  let lineCount = 0;
+  for (let i = 0; i < bills.length; i += EXPORT_BILL_ID_CHUNK) {
+    const ids = bills.slice(i, i + EXPORT_BILL_ID_CHUNK).map((b) => b.id);
+    for (let offset = 0; ; offset += EXPORT_PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from("workshop_bill_lines")
+        .select(
+          "bill_id, description, quantity, unit_amount, line_excl, line_vat, line_incl, sort_order, category:maintenance_categories(name)"
+        )
+        .eq("organisation_id", organisationId)
+        .in("bill_id", ids)
+        .order("bill_id", { ascending: true })
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + EXPORT_PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      const page = (data ?? []) as unknown as ExportLine[];
+      for (const line of page) {
+        const list = linesByBill.get(line.bill_id);
+        if (list) list.push(line);
+        else linesByBill.set(line.bill_id, [line]);
+      }
+      lineCount += page.length;
+      if (lineCount > EXPORT_MAX_LINES) return { ok: false, error: "too_many_rows" };
+      if (page.length < EXPORT_PAGE_SIZE) break;
+    }
+  }
+
+  const rows: BillExportRow[] = [];
+  for (const bill of bills) {
+    const lines = (linesByBill.get(bill.id) ?? []).sort((a, b) => a.sort_order - b.sort_order);
+    const supplier = one(bill.supplier);
+    const vehicle = vehicleLabel(one(bill.vehicle));
+    for (const line of lines) {
+      rows.push({
+        bill_date: bill.bill_date,
+        supplier_name: supplier?.name ?? null,
+        supplier_vat_number: supplier?.vat_number ?? null,
+        invoice_ref: bill.invoice_ref,
+        vehicle_label: vehicle,
+        category_name: one(line.category)?.name ?? null,
+        description: line.description,
+        quantity: line.quantity,
+        unit_amount: line.unit_amount,
+        line_excl: line.line_excl,
+        line_vat: line.line_vat,
+        line_incl: line.line_incl,
+        vat_mode: bill.vat_mode,
+        vat_rate: bill.vat_rate,
+        status: bill.status,
+      });
+    }
+  }
+  return { ok: true, rows };
+}
+
+/** Vehicle and supplier choices for the export dialog. Inactive suppliers are
+ *  kept (old bills still use them). */
+export async function getExportFilterOptions(organisationId: string): Promise<BillExportOptions> {
+  const supabase = await createClient();
+  const [suppliers, vehicles] = await Promise.all([
+    supabase
+      .from("suppliers")
+      .select("id, name, active")
+      .eq("organisation_id", organisationId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+    supabase
+      .from("vehicles")
+      .select("id, name, registration_number")
+      .eq("organisation_id", organisationId)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
+  ]);
+  if (suppliers.error) throw new Error(suppliers.error.message);
+  if (vehicles.error) throw new Error(vehicles.error.message);
+  type Named = { id: string; name: string; active: boolean };
+  return {
+    suppliers: ((suppliers.data ?? []) as Named[]).map((s) => ({
+      value: s.id,
+      label: s.active ? s.name : `${s.name} (inactive)`,
+    })),
     vehicles: ((vehicles.data ?? []) as VehicleEmbed[]).map((v) => ({
       value: v.id,
       label: formatVehicleLabel(v),

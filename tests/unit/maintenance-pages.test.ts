@@ -14,6 +14,7 @@ const getBill = vi.fn();
 const getBillFormOptions = vi.fn();
 const listBills = vi.fn();
 const listSuppliers = vi.fn();
+const getExportFilterOptions = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
@@ -29,7 +30,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getSessionContext }));
 vi.mock("@/lib/auth/maintenance-access", () => ({ assertMaintenanceAccess }));
-vi.mock("@/features/maintenance/lib/queries", () => ({ getBill, getBillFormOptions, listBills, listSuppliers }));
+vi.mock("@/features/maintenance/lib/queries", () => ({
+  getBill,
+  getBillFormOptions,
+  getExportFilterOptions,
+  listBills,
+  listSuppliers,
+}));
 
 function allow(view: boolean, manage: boolean) {
   assertMaintenanceAccess.mockImplementation(async (mode: string) =>
@@ -72,6 +79,7 @@ beforeEach(() => {
   getBillFormOptions.mockResolvedValue({ suppliers: [], categories: [], vehicles: [] });
   listBills.mockResolvedValue([]);
   listSuppliers.mockResolvedValue([]);
+  getExportFilterOptions.mockResolvedValue({ suppliers: [], vehicles: [] });
 });
 
 describe("getMaintenancePageContext", () => {
@@ -177,6 +185,7 @@ describe("bill pages", () => {
     await Bills();
     await Suppliers();
     expect(listBills).toHaveBeenCalledWith(ORG_A);
+    expect(getExportFilterOptions).toHaveBeenCalledWith(ORG_A);
     expect(listSuppliers).toHaveBeenCalledWith(ORG_A);
   });
 });

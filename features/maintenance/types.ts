@@ -67,6 +67,11 @@ export type BillFormOptions = {
   vehicles: MaintenanceOption[];
 };
 
+export type BillExportOptions = {
+  suppliers: MaintenanceOption[];
+  vehicles: MaintenanceOption[];
+};
+
 export type MaintenanceActionResult =
   | { ok: true; id: string }
   | {
