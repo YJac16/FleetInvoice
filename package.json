@@ -19,6 +19,7 @@
     "test:compliance-auth-boundary": "bash tests/rls/run-compliance-auth-boundary.sh",
     "test:company-portal-rls": "bash tests/rls/run-company-portal-phase1.sh",
     "test:driver-trip-privacy-rls": "bash tests/rls/run-driver-trip-privacy.sh",
+    "test:module-guards": "vitest run tests/unit/module-access.test.ts tests/unit/module-guard-layouts.test.ts tests/unit/module-guard-api.test.ts tests/unit/module-guard-coverage.test.ts",
     "test:driver-self-entry": "node tests/db/driver-self-entry-invoice.test.mjs",
     "test:driver-trip-audit": "node tests/db/driver-trip-audit-override.test.mjs",
     "test:driver-trip-admin-enforcement": "node tests/db/driver-trip-admin-enforcement.test.mjs",
