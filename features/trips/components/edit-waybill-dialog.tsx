@@ -29,13 +29,7 @@ import { listVehicles } from "@/services/vehicles.service";
 import type { StaffTrip } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LabelledSelect } from "@/features/trips/components/labelled-select";
 
 const schema = z.object({
   date: z.string().min(1, "Date required"),
@@ -341,21 +335,15 @@ export function EditWaybillDialog({
 
         <div className="space-y-1.5">
           <Label>Vehicle</Label>
-          <Select
+          <LabelledSelect
             value={form.watch("vehicleId") || ""}
-            onValueChange={(v) => form.setValue("vehicleId", v ?? "")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              {(vehiclesQuery.data ?? []).map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {formatVehicleOptionLabel(v.registration_number, v.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={(v) => form.setValue("vehicleId", v)}
+            placeholder="Select vehicle"
+            options={(vehiclesQuery.data ?? []).map((v) => ({
+              value: v.id,
+              label: formatVehicleOptionLabel(v.registration_number, v.name),
+            }))}
+          />
         </div>
 
         <div className="space-y-1.5">
