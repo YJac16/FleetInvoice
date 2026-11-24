@@ -33,12 +33,12 @@ export default async function UnavailablePage() {
   const homeHref = noAccessHomeHref(session, false);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-auth-surface-simple px-6 pt-6 pb-32">
+    <div className="flex min-h-screen items-start justify-center bg-auth-surface-simple px-6 pt-6 pb-40 sm:items-center">
       <div className="w-full max-w-md space-y-6">
         <GoOpsLogo size="lg" showTagline />
         <Card className="rounded-2xl shadow-none">
           <CardHeader>
-            <CardTitle className="font-heading text-3xl">Temporarily unavailable</CardTitle>
+            <CardTitle className="font-heading text-2xl sm:text-3xl">Temporarily unavailable</CardTitle>
             <CardDescription>
               This part of GoOps is temporarily unavailable. Please try again shortly.
             </CardDescription>
