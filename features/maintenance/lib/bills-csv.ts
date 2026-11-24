@@ -1,3 +1,4 @@
+import { billStatusLabel } from "@/features/maintenance/lib/bill-status";
 import { z } from "zod";
 
 /**
@@ -101,7 +102,7 @@ function rowCells(r: BillExportRow): string[] {
     csvMoney(r.line_incl, "line_incl"),
     csvTextCell(r.vat_mode),
     csvMoney(r.vat_rate, "vat_rate"),
-    csvTextCell(r.status),
+    csvTextCell(billStatusLabel(r.status)),
   ];
 }
 
