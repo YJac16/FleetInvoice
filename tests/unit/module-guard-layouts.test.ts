@@ -145,6 +145,10 @@ function signIn(userId: string | null, organisationId: string | null) {
     ? {
         userId,
         activeOrganisationId: organisationId,
+        activeRole:
+          (tables.organisation_members ?? []).find(
+            (m) => m.user_id === userId && m.organisation_id === organisationId
+          )?.role ?? null,
         isPlatformOwner: userId === "u-owner",
         profile: {},
         memberships: [],

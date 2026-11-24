@@ -1,56 +1,26 @@
-import { NextResponse } from "next/server";
-
-import {
-  assertMaintenanceAccess,
-  getMaintenanceUserId,
-} from "@/lib/auth/maintenance-access";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { maintenanceJson as json, resolveMaintenanceBill } from "@/lib/maintenance/bill-route";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function json(body: Record<string, unknown>, status = 200) {
-  const res = NextResponse.json(body, { status });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
 
 /**
  * DELETE /api/maintenance/bills/[id]: soft delete a DRAFT workshop bill through
  * the audited delete_workshop_bill RPC (00078). Approved bills -> 409
- * bill_not_draft. A caller outside the bill's org gets 404. Missing service
- * client -> 503.
+ * bill_not_draft. Access is checked against the active org before the bill is
+ * looked up (lib/maintenance/bill-route.ts): no access -> 403 for any id; a
+ * bill missing, deleted or in another org -> 404. Missing service client -> 503.
  */
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-  if (!UUID_RE.test(id)) return json({ error: "not_found" }, 404);
-
-  const userId = await getMaintenanceUserId();
-  if (!userId) return json({ error: "unauthenticated" }, 401);
-
-  const admin = createServiceClient();
-  if (!admin) return json({ error: "service_unavailable" }, 503);
-
-  const { data: bill, error: lookupError } = await admin
-    .from("workshop_bills")
-    .select("id, organisation_id, deleted_at")
-    .eq("id", id)
-    .maybeSingle();
-  if (lookupError) return json({ error: "lookup_failed" }, 500);
-  if (!bill || bill.deleted_at) return json({ error: "not_found" }, 404);
-
-  const access = await assertMaintenanceAccess("manage", {
-    organisationId: bill.organisation_id,
-    userId,
-  });
-  if (!access.ok) {
-    if (access.notMember) return json({ error: "not_found" }, 404);
-    return json({ error: access.error }, access.status);
-  }
+  const resolved = await resolveMaintenanceBill<{ id: string; organisation_id: string }>(
+    id,
+    "manage",
+    "id, organisation_id"
+  );
+  if (!resolved.ok) return resolved.res;
+  const { bill, access } = resolved;
 
   const { error } = await access.admin.rpc("delete_workshop_bill", {
-    p_actor: userId,
+    p_actor: access.userId,
     p_org: bill.organisation_id,
     p_id: id,
   });

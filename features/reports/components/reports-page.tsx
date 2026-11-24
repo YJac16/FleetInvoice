@@ -33,6 +33,7 @@ import {
   type ReportFilterValues,
   type ReportType,
 } from "@/features/reports/schemas/report";
+import { visibleReportKinds } from "@/features/reports/lib/report-kinds";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   ATTENDANCE_EVENT_TYPE_LABELS,
@@ -290,7 +291,7 @@ export function ReportsPage({
   description = "Period reports with CSV export for trips, fuel, attendance, and commercial summaries.",
   showMasterCounts = true,
   allowedKinds,
-  hidePayroll = false,
+  hidePayroll: hidePayrollProp = false,
 }: {
   title?: string;
   description?: string;
@@ -298,8 +299,12 @@ export function ReportsPage({
   allowedKinds?: readonly ReportType[];
   hidePayroll?: boolean;
 } = {}) {
-  const reportKinds = allowedKinds ?? REPORT_TYPES;
   const { can } = useOrg();
+  const { kinds: reportKinds, hidePayroll } = visibleReportKinds(
+    allowedKinds ?? REPORT_TYPES,
+    can,
+    hidePayrollProp
+  );
   const organisationId = useActiveOrgId();
   const canView = can("reports:view");
   const weekStart = mondayOfWeek();

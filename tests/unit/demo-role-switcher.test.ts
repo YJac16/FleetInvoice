@@ -7,18 +7,44 @@ const getUser = vi.fn();
 const signOut = vi.fn();
 const verifyOtp = vi.fn();
 const generateLink = vi.fn();
+const rpc = vi.fn();
+
+type Row = Record<string, unknown>;
+const GROWTH = ["core", "gps", "attendance", "billing", "payroll", "reports", "maintenance"];
+const SCALE_WITH_HUBS = [...GROWTH, "passengers", "portal"];
+let planModules: string[] = SCALE_WITH_HUBS;
+function tables(): Record<string, Row[]> {
+  return {
+    organisations: [{ id: "org-demo", slug: "cape-shuttle-ops" }],
+    subscriptions: [{ organisation_id: "org-demo", plan_id: "p-demo", status: "active" }],
+    module_entitlements: planModules.map((module_key) => ({ plan_id: "p-demo", module_key })),
+  };
+}
+function query(table: string) {
+  const filters: Array<(r: Row) => boolean> = [];
+  const run = () => ({
+    data: (tables()[table] ?? []).filter((r) => filters.every((f) => f(r))),
+    error: null,
+  });
+  const b = {
+    select: () => b,
+    eq: (col: string, v: unknown) => (filters.push((r) => r[col] === v), b),
+    in: (col: string, vs: unknown[]) => (filters.push((r) => vs.includes(r[col])), b),
+    maybeSingle: async () => ({ data: run().data[0] ?? null, error: null }),
+    then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+      Promise.resolve(run()).then(resolve, reject),
+  };
+  return b;
+}
+
 const createClient = vi.fn(async () => ({
   auth: { getUser, signOut, verifyOtp },
+  from: (t: string) => query(t),
+  rpc,
 }));
 const createServiceClient = vi.fn(() => ({
   auth: { admin: { generateLink } },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        maybeSingle: async () => ({ data: { id: "org-demo" }, error: null }),
-      }),
-    }),
-  }),
+  from: (t: string) => query(t),
 }));
 const cookieSet = vi.fn();
 
@@ -81,6 +107,46 @@ describe("POST /api/demo/switch", () => {
     });
     verifyOtp.mockResolvedValue({ error: null });
     signOut.mockResolvedValue({ error: null });
+    planModules = SCALE_WITH_HUBS;
+  });
+
+  it.each([
+    ["employee", "passengers"],
+    ["company_manager", "portal"],
+  ])("refuses %s with 400 role_not_on_plan on Growth (no %s)", async (role) => {
+    setEnv("true", DEMO_URL);
+    planModules = GROWTH;
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-growth", email: "demo-admin@example.com" } },
+    });
+    const { POST } = await import("@/app/api/demo/switch/route");
+    const res = await POST(req({ role }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "role_not_on_plan" });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("still switches to ops roles on Growth", async () => {
+    setEnv("true", DEMO_URL);
+    planModules = GROWTH;
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-growth-ops", email: "demo-admin@example.com" } },
+    });
+    const { POST } = await import("@/app/api/demo/switch/route");
+    const res = await POST(req({ role: "dispatcher" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses employee when the org has no plan (fail-open excludes passengers)", async () => {
+    setEnv("true", DEMO_URL);
+    planModules = [];
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-noplan", email: "demo-admin@example.com" } },
+    });
+    const { POST } = await import("@/app/api/demo/switch/route");
+    const res = await POST(req({ role: "employee" }));
+    expect(res.status).toBe(400);
   });
 
   it("returns 404 when DEMO_MODE is missing", async () => {
@@ -204,5 +270,45 @@ describe("DemoRoleSwitcher", () => {
     });
     const { DemoRoleSwitcher } = await import("@/components/demo/role-switcher");
     expect(await DemoRoleSwitcher()).not.toBeNull();
+  });
+
+  it("passes the signed-in role and the demo org's modules", async () => {
+    setEnv("true", DEMO_URL);
+    getUser.mockResolvedValue({
+      data: { user: { id: "u1", email: "Demo-Dispatcher@example.com" } },
+    });
+    rpc.mockResolvedValue({ data: GROWTH, error: null });
+    const { DemoRoleSwitcher } = await import("@/components/demo/role-switcher");
+    const el = (await DemoRoleSwitcher()) as { props: Record<string, unknown> };
+    expect(el.props.currentRole).toBe("dispatcher");
+    expect(el.props.entitledModules).toEqual(GROWTH);
+    expect(rpc).toHaveBeenCalledWith("org_entitled_modules", { p_organisation_id: "org-demo" });
+  });
+
+  it("falls back to FAIL_OPEN_MODULES when the RPC fails", async () => {
+    setEnv("true", DEMO_URL);
+    getUser.mockResolvedValue({
+      data: { user: { id: "u1", email: "demo-admin@example.com" } },
+    });
+    rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    const { FAIL_OPEN_MODULES } = await import("@/lib/entitlements");
+    const { DemoRoleSwitcher } = await import("@/components/demo/role-switcher");
+    const el = (await DemoRoleSwitcher()) as { props: Record<string, unknown> };
+    expect(el.props.currentRole).toBe("organisation_admin");
+    expect(el.props.entitledModules).toEqual(FAIL_OPEN_MODULES);
+  });
+});
+
+describe("findDemoAccountByEmail", () => {
+  it("matches case-insensitively and rejects unknown emails", async () => {
+    const { findDemoAccountByEmail } = await import("@/lib/demo/accounts");
+    expect(findDemoAccountByEmail(" DEMO-employee@example.com ")).toMatchObject({
+      role: "employee",
+      requiresModule: "passengers",
+    });
+    expect(findDemoAccountByEmail("demo-client@example.com")?.requiresModule).toBe("portal");
+    expect(findDemoAccountByEmail("demo-admin@example.com")?.requiresModule).toBeUndefined();
+    expect(findDemoAccountByEmail("someone@else.com")).toBeNull();
+    expect(findDemoAccountByEmail(null)).toBeNull();
   });
 });
