@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   hubHrefForSession,
+  hubModuleForRole,
   hubPathForRole,
+  noAccessHomeHref,
   tripsHrefForRole,
 } from "@/lib/auth/hub-redirect";
 
@@ -59,6 +61,48 @@ describe("hubHrefForSession", () => {
         memberships: [{}],
       })
     ).toBe("/dashboard");
+  });
+});
+
+describe("hubModuleForRole", () => {
+  it("gates the company manager hub on portal and the employee hub on passengers", () => {
+    expect(hubModuleForRole("company_manager")).toBe("portal");
+    expect(hubModuleForRole("employee")).toBe("passengers");
+  });
+
+  it("leaves drivers, ops roles and platform owners ungated", () => {
+    expect(hubModuleForRole("driver")).toBeNull();
+    expect(hubModuleForRole("dispatcher")).toBeNull();
+    expect(hubModuleForRole("organisation_admin")).toBeNull();
+    expect(hubModuleForRole(null)).toBeNull();
+    expect(hubModuleForRole("company_manager", true)).toBeNull();
+  });
+});
+
+describe("noAccessHomeHref", () => {
+  const member = (activeRole: "company_manager" | "employee" | "driver" | "manager") => ({
+    activeRole,
+    isPlatformOwner: false,
+    memberships: [{}],
+  });
+
+  it("offers no home link when the user's own hub is the denied module", () => {
+    expect(noAccessHomeHref(member("company_manager"), false)).toBeNull();
+    expect(noAccessHomeHref(member("employee"), false)).toBeNull();
+  });
+
+  it("links to the role hub when it is still reachable", () => {
+    expect(noAccessHomeHref(member("company_manager"), true)).toBe("/company");
+    expect(noAccessHomeHref(member("employee"), true)).toBe("/employee");
+    expect(noAccessHomeHref(member("manager"), false)).toBe("/dashboard");
+    expect(noAccessHomeHref(member("driver"), false)).toBe("/driver");
+  });
+
+  it("falls back like hubHrefForSession", () => {
+    expect(noAccessHomeHref(null, true)).toBe("/login");
+    expect(
+      noAccessHomeHref({ activeRole: null, isPlatformOwner: false, memberships: [] }, true)
+    ).toBe("/awaiting-invite");
   });
 });
 

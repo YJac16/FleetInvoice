@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { assertInvoiceManageAccess } from "@/lib/auth/invoice-access";
+import { guardModuleApi } from "@/lib/auth/module-guard";
 import { env, isEmailDeliveryConfigured } from "@/lib/env";
 import { parseEmailList, validateEmailList } from "@/lib/notifications/email-addresses";
 import { buildInvoiceEmailContent } from "@/lib/notifications/invoice-email";
@@ -43,6 +44,10 @@ export async function POST(request: Request) {
   }
 
   const { organisationId, invoiceId, to, cc, printUrl } = parsed.data;
+
+  // Billing module guard: 403 JSON before any invoice lookup.
+  const denied = await guardModuleApi("billing", { organisationId, userId: user.id });
+  if (denied) return denied;
 
   const toCheck = validateEmailList(to, { required: true });
   if (toCheck.error) {

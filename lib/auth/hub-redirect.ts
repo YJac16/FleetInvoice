@@ -1,4 +1,8 @@
 import type { AppRole } from "@/lib/constants";
+import type { AppModule } from "@/lib/entitlements";
+
+/** Where guarded layouts and /hub send members whose org's plan lacks a module. */
+export const NO_ACCESS_PATH = "/app/no-access";
 
 type HubSessionLike = {
   activeRole: AppRole | null | undefined;
@@ -43,6 +47,39 @@ export function hubHrefForSession(session: HubSessionLike | null): string {
     return "/awaiting-invite";
   }
   return hubPathForRole(session.activeRole, session.isPlatformOwner);
+}
+
+/**
+ * Module a role's own hub depends on: the company manager hub is "portal",
+ * the employee hub is "passengers". Null for drivers, ops roles and platform
+ * owners (their home is not module-gated).
+ */
+export function hubModuleForRole(
+  role: AppRole | null | undefined,
+  isPlatformOwner = false
+): AppModule | null {
+  if (isPlatformOwner) return null;
+  if (role === "company_manager") return "portal";
+  if (role === "employee") return "passengers";
+  return null;
+}
+
+/**
+ * Home link for the /app/no-access page. Null when the user's own hub is the
+ * thing that isn't entitled, so the page never links back into a redirect.
+ */
+export function noAccessHomeHref(
+  session: HubSessionLike | null,
+  hubEntitled: boolean
+): string | null {
+  if (
+    session &&
+    !hubEntitled &&
+    hubModuleForRole(session.activeRole, session.isPlatformOwner)
+  ) {
+    return null;
+  }
+  return hubHrefForSession(session);
 }
 
 /**

@@ -15,6 +15,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   sso: "Single sign-on",
   integrations: "Accounting integrations",
   ai: "AI exceptions",
+  maintenance: "Fleet maintenance",
+  passengers: "Passenger portal",
 };
 
 const MODULE_ORDER: readonly AppModule[] = [
@@ -29,6 +31,8 @@ const MODULE_ORDER: readonly AppModule[] = [
   "sso",
   "integrations",
   "ai",
+  "maintenance",
+  "passengers",
 ];
 
 /** Format cents as R1,990-style ZAR. Whole rands drop decimals. */

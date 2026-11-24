@@ -1,4 +1,8 @@
-import { hydrateMemberProfiles } from "@/features/users/actions";
+import {
+  createInvitationAction,
+  hydrateMemberProfiles,
+  updateMemberRoleAction,
+} from "@/features/users/actions";
 import {
   attachMemberProfiles,
   normalizeProfileEmbed,
@@ -104,14 +108,9 @@ export async function updateMemberRole(
   memberId: string,
   role: AppRole
 ): Promise<void> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("organisation_members")
-    .update({ role })
-    .eq("id", memberId)
-    .select("id, organisation_id")
-    .single();
-  if (error) throw error;
+  const result = await updateMemberRoleAction({ memberId, role });
+  if (!result.ok) throw new Error(result.message);
+  const data = result.data;
 
   try {
     await writeAuditLog({
@@ -189,15 +188,10 @@ export async function createInvitation(input: {
   email: string;
   role: AppRole;
 }): Promise<Invitation & { inviteUrl: string }> {
+  const result = await createInvitationAction(input);
+  if (!result.ok) throw new Error(result.message);
+  const row = result.data;
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("create_invitation", {
-    p_organisation_id: input.organisationId,
-    p_email: input.email,
-    p_role: input.role,
-  });
-  if (error) throw error;
-
-  const row = data as Invitation;
   const inviteUrl = `${env.NEXT_PUBLIC_APP_URL}/invite/${row.token}`;
 
   const { data: org } = await supabase
