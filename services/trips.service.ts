@@ -10,12 +10,14 @@ import {
   type ListTenantOptions,
 } from "@/services/tenant-entity.service";
 import type { TripEventType } from "@/lib/constants";
+import { TRIP_COLUMNS } from "@/lib/trip-columns";
 import type { Trip } from "@/types";
 
 const TABLE = "trips";
 
-const TRIP_SELECT =
-  "*, routes:route_id (name), companies:company_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))";
+/** Never `*`: 00079 revokes column SELECT on trips price columns. */
+export const TRIP_SELECT =
+  `${TRIP_COLUMNS}, routes:route_id (name), companies:company_id (name), trip_assignments(id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (name, registration_number, capacity))`;
 
 export type ListTripsOptions = ListTenantOptions & {
   dateRange?: ResolvedDateRange;
