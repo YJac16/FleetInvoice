@@ -1,16 +1,27 @@
 #!/usr/bin/env node
 /**
- * Postgres check for 00081 (finance SELECT for admin/manager only) and 00082
- * (supplier_name in workshop_bill.deleted audit metadata).
+ * Postgres check for 00081 + 00084 (finance SELECT for admin/manager only),
+ * 00082 (supplier_name in workshop_bill.deleted audit metadata) and the three
+ * rollbacks.
  *
- *   - invoices / invoice_lines / route_prices: manager sees rows; dispatcher
- *     and supervisor see none; company_manager keeps its own company's invoice.
+ *   - invoices / invoice_lines / route_prices (00081) and rate_cards /
+ *     pay_rates / payroll_runs / payroll_lines (00084): manager sees rows;
+ *     dispatcher, supervisor, driver see none; company_manager keeps its own
+ *     company's invoice and rate card.
+ *   - Supervisor is scoped to the company that has the rate card, and still
+ *     sees 0 rate cards after rollback-00084: that is 00079's policy, not data
+ *     scope.
  *   - Driver-trip approval with the pre-filled price still works with no
  *     caller SELECT on those tables (approve_driver_trip, suggest_trip_unit_price
  *     and their helpers are SECURITY DEFINER). Approval is admin/manager
  *     (staff_can_manage_trips, 00064); dispatcher is refused by the RPC, as
  *     before 00081.
  *   - delete_workshop_bill writes supplier_name.
+ *
+ *   - Rollbacks: rollback-00084 brings dispatcher back on rate cards / pay
+ *     tables (supervisor stays off rate cards), rollback-00081 brings
+ *     dispatcher + supervisor back on invoices / route prices, rollback-00082
+ *     drops supplier_name. Re-applying 00081/00082/00084 restores the lock-down.
  *
  * Run: npm run test:finance-00081   (bootstraps a throwaway local DB)
  */
@@ -42,6 +53,9 @@ const VEHICLE2 = "f8100000-0000-4000-8000-000000000402";
 const PLAN = "f8100000-0000-4000-8000-000000000501";
 const SUPPLIER = "f8100000-0000-4000-8000-000000000601";
 const BILL = "f8100000-0000-4000-8000-000000000701";
+const BILL2 = "f8100000-0000-4000-8000-000000000702";
+const COMPANY_RC = "f8100000-0000-4000-8000-000000000303"; // rate card, no route price
+const RUN = "f8100000-0000-4000-8000-000000000801";
 
 let failed = 0;
 const check = (name, ok, detail = "") => {
@@ -116,8 +130,17 @@ set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('invoice_bi
 where id = '${ORG}';
 `);
 
-// Company manager scoped to COMPANY (member_scopes, read by company_user_can_see).
+// Company manager and supervisor scoped to COMPANY (member_scopes). The
+// supervisor scope rules out "no rate cards in the supervisor's companies".
 psqlAdmin(`
+insert into public.companies (id, organisation_id, name, status)
+values ('${COMPANY_RC}', '${ORG}', 'Rate Card Only Co', 'active') on conflict (id) do nothing;
+insert into public.member_scopes (organisation_id, membership_id, company_id)
+select '${ORG}', m.id, c.company_id from public.organisation_members m
+cross join (values ('${COMPANY}'::uuid), ('${COMPANY_RC}'::uuid)) as c(company_id)
+where m.organisation_id = '${ORG}' and m.user_id = '${U.supervisor}'
+on conflict do nothing;
+-- A company login is limited to one company (guard_company_manager_member_scope).
 insert into public.member_scopes (organisation_id, membership_id, company_id)
 select '${ORG}', m.id, '${COMPANY}' from public.organisation_members m
 where m.organisation_id = '${ORG}' and m.user_id = '${U.cm}'
@@ -134,7 +157,16 @@ insert into public.vehicles (id, organisation_id, name, registration_number, sta
 on conflict (id) do nothing;
 
 insert into public.rate_cards (organisation_id, company_id, name, line_type, unit, unit_amount, effective_from)
-values ('${ORG}', '${COMPANY}', 'Finance rate', 'trip', 'fixed', 300, date '2026-01-01');
+values
+  ('${ORG}', '${COMPANY}', 'Finance rate', 'trip', 'fixed', 300, date '2026-01-01'),
+  ('${ORG}', '${COMPANY_RC}', 'Rate card only', 'trip', 'fixed', 410, date '2026-01-01');
+
+insert into public.pay_rates (organisation_id, company_id, name, subject_role, unit, unit_amount, effective_from)
+values ('${ORG}', '${COMPANY}', 'Driver per trip', 'driver', 'trip', 120, date '2026-01-01');
+insert into public.payroll_runs (id, organisation_id, period_start, period_end, total)
+values ('${RUN}', '${ORG}', date '2026-09-01', date '2026-09-30', 120) on conflict (id) do nothing;
+insert into public.payroll_lines (organisation_id, payroll_run_id, line_type, driver_id, description, quantity, unit_amount, amount)
+values ('${ORG}', '${RUN}', 'trip', '${DRIVER_ROW}', 'Trip pay', 1, 120, 120);
 
 insert into public.route_prices (organisation_id, company_id, label, match_kind, unit_amount, priority)
 values ('${ORG}', '${COMPANY}', 'Company default', 'company', 555, 0);
@@ -150,7 +182,9 @@ check("seed: waybill created an invoice line", psqlAdmin(`select count(*) from p
 
 const count = (user, table) => psqlAs(user, `select count(*) from public.${table} where organisation_id = '${ORG}';`).out;
 
-for (const table of ["invoices", "invoice_lines", "route_prices"]) {
+const FINANCE_00081 = ["invoices", "invoice_lines", "route_prices"];
+const FINANCE_00084 = ["rate_cards", "pay_rates", "payroll_runs", "payroll_lines"];
+for (const table of [...FINANCE_00081, ...FINANCE_00084]) {
   check(`${table}: manager can SELECT`, Number(count(U.manager, table)) > 0);
   check(`${table}: admin can SELECT`, Number(count(U.admin, table)) > 0);
   check(`${table}: dispatcher sees nothing`, count(U.dispatcher, table) === "0", count(U.dispatcher, table));
@@ -165,6 +199,14 @@ check("invoices: company_manager does not see the driver invoice", Number(count(
 check("invoices: dispatcher still sees nothing (with a company invoice present)", count(U.dispatcher, "invoices") === "0");
 check("invoices: supervisor still sees nothing (with a company invoice present)", count(U.supervisor, "invoices") === "0");
 check("route_prices: company_manager sees nothing", count(U.cm, "route_prices") === "0");
+check("rate_cards: company_manager still sees its company's card only (branch unchanged)", count(U.cm, "rate_cards") === "1", count(U.cm, "rate_cards"));
+for (const t of ["pay_rates", "payroll_runs", "payroll_lines"]) {
+  check(`${t}: company_manager sees nothing`, count(U.cm, t) === "0");
+}
+check(
+  "has_company_scope is true for the supervisor on the rate-card company (data scope is not the reason)",
+  psqlAs(U.supervisor, `select public.has_company_scope('${ORG}'::uuid, '${COMPANY_RC}'::uuid)::text;`).out === "true"
+);
 
 // Driver submits, manager approves with the suggested (pre-filled) price.
 const submitted = psqlAs(
@@ -201,6 +243,17 @@ const suggested = psqlAs(
 ).out;
 check("suggest_trip_unit_price: manager gets the route price", suggested === "555.00|route_price", suggested);
 
+const fallback = psqlAs(
+  U.manager,
+  `select unit_amount::text || '|' || price_source from public.suggest_trip_unit_price('${ORG}'::uuid, '${COMPANY_RC}'::uuid, 'Depot - Site', date '2026-10-06');`
+).out;
+check("suggest_trip_unit_price: manager falls back to the rate card (00084 in place)", fallback.startsWith("410") && fallback.endsWith("|rate_card"), fallback);
+const adminSuggest = psqlAs(
+  U.admin,
+  `select unit_amount::text from public.suggest_trip_unit_price('${ORG}'::uuid, '${COMPANY}'::uuid, 'Depot - Site', date '2026-10-06');`
+).out;
+check("suggest_trip_unit_price: admin gets the route price", Number(adminSuggest) === 555, adminSuggest);
+
 const approved = psqlAs(
   U.manager,
   `select public.approve_driver_trip('${submitted}'::uuid, '${VEHICLE2}'::uuid, 555, true);`,
@@ -233,5 +286,49 @@ try {
 check("00082: audit metadata has supplier_name", parsed.supplier_name === "Acme Tyres", meta);
 check("00082: audit metadata keeps invoice_ref and total_incl", parsed.invoice_ref === "INV-81" && Number(parsed.total_incl) === 115, meta);
 check("00082: bill soft-deleted", psqlAdmin(`select (deleted_at is not null)::text from public.workshop_bills where id = '${BILL}'`) === "true");
+
+// ---------------------------------------------------------------------------
+// Rollbacks, then re-apply
+// ---------------------------------------------------------------------------
+function applyFile(rel) {
+  const res = spawnSync(
+    "sudo",
+    ["-u", "postgres", "psql", "-q", "-d", PG.database, "-v", "ON_ERROR_STOP=1", "-f", join(root, rel)],
+    { encoding: "utf8" }
+  );
+  check(`apply ${rel}`, res.status === 0, (res.stderr || res.stdout || "").slice(0, 200));
+}
+
+applyFile("supabase/rollback-00084.sql");
+for (const t of FINANCE_00084) {
+  check(`rollback-00084: dispatcher sees ${t} again (00012/00079 quals)`, Number(count(U.dispatcher, t)) > 0, count(U.dispatcher, t));
+}
+check("rollback-00084: supervisor still sees 0 rate_cards (00079 removed supervisor)", count(U.supervisor, "rate_cards") === "0", count(U.supervisor, "rate_cards"));
+check("rollback-00084: invoices still hidden from dispatcher (00081 in place)", count(U.dispatcher, "invoices") === "0");
+
+applyFile("supabase/rollback-00081.sql");
+for (const t of FINANCE_00081) {
+  check(`rollback-00081: dispatcher sees ${t} again`, Number(count(U.dispatcher, t)) > 0, count(U.dispatcher, t));
+  check(`rollback-00081: supervisor sees ${t} again`, Number(count(U.supervisor, t)) > 0, count(U.supervisor, t));
+}
+check("rollback-00081: company_manager branch still scoped (1 invoice)", count(U.cm, "invoices") === "1", count(U.cm, "invoices"));
+
+applyFile("supabase/rollback-00082.sql");
+psqlAdmin(`insert into public.workshop_bills (id, organisation_id, supplier_id, bill_date, invoice_ref, subtotal_excl, vat_amount, total_incl)
+  values ('${BILL2}', '${ORG}', '${SUPPLIER}', date '2026-10-02', 'INV-82', 10, 1.5, 11.5) on conflict (id) do nothing;`);
+psqlAdmin(`select public.delete_workshop_bill('${U.admin}'::uuid, '${ORG}'::uuid, '${BILL2}'::uuid);`);
+const meta2 = JSON.parse(
+  psqlAdmin(`select metadata::text from public.audit_logs where action = 'workshop_bill.deleted' and entity_id = '${BILL2}' limit 1;`) || "{}"
+);
+check("rollback-00082: audit metadata back to invoice_ref + total_incl only", !("supplier_name" in meta2) && meta2.invoice_ref === "INV-82", JSON.stringify(meta2));
+
+applyFile("supabase/migrations/00081_finance_select_exclude_supervisor.sql");
+applyFile("supabase/migrations/00082_delete_workshop_bill_supplier_audit.sql");
+applyFile("supabase/migrations/00084_finance_rate_cards_payrates_admin_only.sql");
+for (const t of [...FINANCE_00081, ...FINANCE_00084]) {
+  check(`re-applied: dispatcher sees no ${t}`, count(U.dispatcher, t) === "0", count(U.dispatcher, t));
+  check(`re-applied: supervisor sees no ${t}`, count(U.supervisor, t) === "0", count(U.supervisor, t));
+  check(`re-applied: manager sees ${t}`, Number(count(U.manager, t)) > 0);
+}
 
 process.exit(failed);

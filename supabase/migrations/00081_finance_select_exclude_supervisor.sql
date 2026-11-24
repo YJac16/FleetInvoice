@@ -22,7 +22,7 @@
 -- resolve_route_price, resolve_trip_line_rate, recalculate_invoice_totals, ...)
 -- are SECURITY DEFINER, so they don't depend on the caller's SELECT policies.
 --
--- Not touched: rate_cards (00077), pay_rates / payroll_runs / payroll_lines
+-- Not touched: rate_cards (00079), pay_rates / payroll_runs / payroll_lines
 -- (00012), invoice insert/update/delete policies.
 -- Rollback: supabase/rollback-00081.sql
 -- =============================================================================
