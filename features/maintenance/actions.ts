@@ -135,3 +135,35 @@ export async function createSupplierAction(values: unknown): Promise<Maintenance
   revalidatePath("/maintenance/bills/new");
   return { ok: true, id: data };
 }
+
+/**
+ * Delete (soft, audited) a draft workshop bill. Approved bills can't be
+ * deleted and there is no reopen. The RPC re-checks status under a row lock.
+ */
+export async function deleteWorkshopBillAction(billId: string): Promise<MaintenanceActionResult> {
+  if (typeof billId !== "string" || !UUID_RE.test(billId)) {
+    return { ok: false, error: "not_found", message: "That bill no longer exists." };
+  }
+
+  const writer = await resolveWriter();
+  if (!writer.ok) return writer;
+
+  const { error } = await writer.admin.rpc("delete_workshop_bill", {
+    p_actor: writer.userId,
+    p_org: writer.organisationId,
+    p_id: billId,
+  });
+  if (error) {
+    const mapped = mapMaintenanceRpcError(error);
+    const failed = mapped.error === "save_failed";
+    return {
+      ok: false,
+      error: failed ? "delete_failed" : mapped.error,
+      message: failed ? "Couldn't delete. Please try again." : mapped.message,
+    };
+  }
+
+  revalidatePath("/maintenance/bills");
+  revalidatePath(`/maintenance/bills/${billId}`);
+  return { ok: true, id: billId };
+}

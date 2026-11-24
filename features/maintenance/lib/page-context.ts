@@ -2,6 +2,7 @@ import "server-only";
 
 import { notFound, redirect } from "next/navigation";
 
+import { UNAVAILABLE_PATH } from "@/lib/auth/hub-redirect";
 import { assertMaintenanceAccess } from "@/lib/auth/maintenance-access";
 import { getSessionContext } from "@/lib/auth/session";
 
@@ -37,7 +38,7 @@ export async function getMaintenancePageContext(
   const allowed = mode === "view" ? view : manage;
   if (!allowed || !allowed.ok) {
     if (allowed && allowed.status === 401) redirect("/login");
-    if (allowed && allowed.status === 503) throw new Error("Maintenance is temporarily unavailable");
+    if (allowed && allowed.status === 503) redirect(UNAVAILABLE_PATH);
     notFound();
   }
 

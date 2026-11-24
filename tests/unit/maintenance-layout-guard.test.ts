@@ -157,10 +157,10 @@ describe("maintenance layout guard", () => {
     await expect(render()).rejects.toThrow("NEXT_REDIRECT:/login");
   });
 
-  it("errors (not grants) when the service role is missing", async () => {
+  it("redirects to /app/unavailable (not grants, not 500) when the service role is missing", async () => {
     serviceAvailable = false;
     signIn(ROLE_USERS.organisation_admin);
-    await expect(render()).rejects.toThrow("temporarily unavailable");
+    await expect(render()).rejects.toThrow("NEXT_REDIRECT:/app/unavailable");
   });
 });
 

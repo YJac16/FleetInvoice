@@ -119,9 +119,9 @@ describe("getMaintenancePageContext", () => {
     expect(assertMaintenanceAccess).toHaveBeenCalledWith("manage", { organisationId: ORG_A, userId: "u1" });
   });
 
-  it("surfaces a missing service role as an error, not a 404", async () => {
+  it("redirects a missing service role to /app/unavailable, not a 404", async () => {
     assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 503, error: "service_unavailable", notMember: false });
-    await expect(ctx("view")).rejects.toThrow("temporarily unavailable");
+    await expect(ctx("view")).rejects.toThrow("NEXT_REDIRECT:/app/unavailable");
   });
 });
 

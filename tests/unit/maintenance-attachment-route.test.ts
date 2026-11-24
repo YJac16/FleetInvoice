@@ -414,3 +414,48 @@ describe("GET signed URL", () => {
     expect(createSignedUrl).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// DELETE /api/maintenance/bills/[id] (draft-only, audited via RPC)
+// ---------------------------------------------------------------------------
+
+describe("DELETE /api/maintenance/bills/[id]", () => {
+  async function del(billId: string) {
+    const { DELETE } = await import("@/app/api/maintenance/bills/[id]/route");
+    const res = await DELETE(new Request(`http://localhost/api/maintenance/bills/${billId}`, { method: "DELETE" }), ctx(billId));
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+  }
+
+  it("401s without a session", async () => {
+    signIn(null);
+    expect((await del(BILL_A)).status).toBe(401);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("503s when the service client is missing", async () => {
+    signIn(USERS.admin);
+    serviceAvailable = false;
+    expect((await del(BILL_A)).status).toBe(503);
+  });
+
+  it("deletes a draft bill through the RPC as the signed-in user", async () => {
+    signIn(USERS.admin);
+    const r = await del(BILL_A);
+    expect(r).toEqual({ status: 200, body: { ok: true } });
+    expect(rpc).toHaveBeenCalledWith("delete_workshop_bill", { p_actor: USERS.admin, p_org: ORG_A, p_id: BILL_A });
+  });
+
+  it("maps bill_not_draft from the RPC to 409", async () => {
+    signIn(USERS.admin);
+    rpc.mockResolvedValue({ data: null, error: { message: "bill_not_draft" } });
+    expect(await del(BILL_A_APPROVED)).toEqual({ status: 409, body: { error: "bill_not_draft" } });
+  });
+
+  it("404s another org's bill and 403s a dispatcher", async () => {
+    signIn(USERS.admin);
+    expect((await del(BILL_B)).status).toBe(404);
+    signIn(USERS.dispatcher);
+    expect((await del(BILL_A)).status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
