@@ -83,3 +83,20 @@ describe("DriverLogTripPage layout", () => {
     expect(container.querySelector(".bg-zinc-950")).toBeNull();
   });
 });
+
+describe("DriverLogTripPage prices", () => {
+  it("shows no price UI and never resolves a suggested price", () => {
+    renderPage();
+    expect(screen.queryByText(/Price \(R\)/)).toBeNull();
+    expect(screen.queryByText(/Company rate/i)).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/R\s?\d/);
+    const src = readFileSync(
+      resolve(
+        __dirname,
+        "../../features/driver-portal/components/driver-log-trip-page.tsx"
+      ),
+      "utf8"
+    );
+    expect(src).not.toMatch(/useTripPriceDraft|suggestTripUnitPrice|unitAmount/);
+  });
+});

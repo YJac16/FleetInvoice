@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { TRIP_COLUMNS } from "@/lib/trip-columns";
 import type { Trip, TripAssignment } from "@/types";
 
 const TABLE = "trip_assignments";
@@ -77,7 +78,7 @@ export async function listMyDriverTrips(
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      "id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (id, name, registration_number, capacity), trips:trip_id (*, routes:route_id (name))"
+      `id, driver_id, vehicle_id, released_at, vehicles:vehicle_id (id, name, registration_number, capacity), trips:trip_id (${TRIP_COLUMNS}, routes:route_id (name))`
     )
     .eq("organisation_id", organisationId)
     .eq("driver_id", driverId)
