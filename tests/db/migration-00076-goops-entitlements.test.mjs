@@ -4,7 +4,7 @@
  *   (a) 'passengers' allowed by module_entitlements_key_check (list == APP_MODULES)
  *   (b) org_entitled_modules fallback == FAIL_OPEN_MODULES (no portal,
  *       passengers or maintenance), member / platform-owner gate kept
- *   (c) Starter +billing -portal; Growth and Scale +maintenance -portal
+ *   (c) Starter +billing -portal; Growth and Scale -portal (no maintenance grant)
  *
  * Static checks always run. Integration checks need local Postgres
  * (workops_audit via scripts/local-db/bootstrap-native.sh). Never points at a
@@ -192,7 +192,7 @@ if (process.env.WORKOPS_STATIC_ONLY) {
       )
     );
   const STARTER = ["core", "gps", "reports", "billing"];
-  const GROWTH = ["core", "gps", "attendance", "billing", "payroll", "reports", "maintenance"];
+  const GROWTH = ["core", "gps", "attendance", "billing", "payroll", "reports"];
   const SCALE = [...GROWTH, "white_label", "sso", "integrations", "ai"];
   for (const [code, expected] of [
     ["starter", STARTER],
@@ -228,7 +228,7 @@ if (process.env.WORKOPS_STATIC_ONLY) {
     on conflict (organisation_id) do update set plan_id = excluded.plan_id, status = excluded.status;`);
   got = modsAs(adminA, ORG_A);
   check("growth org gets plan modules", same(got, GROWTH), JSON.stringify(got));
-  check("growth org includes maintenance, excludes portal", got.includes("maintenance") && !got.includes("portal"));
+  check("growth org excludes maintenance and portal", !got.includes("maintenance") && !got.includes("portal"));
 
   // 6. Gate kept.
   got = modsAs(adminB, ORG_A);

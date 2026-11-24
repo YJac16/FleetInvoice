@@ -16,8 +16,6 @@ import type { SessionContext } from "@/types";
  *
  * Pages are gated on the module only (no permission argument), so roles that
  * can reach a page today keep reaching it while the org is entitled.
- * Maintenance keeps its own wrapper (lib/auth/maintenance-access.ts), which
- * also checks maintenance:view / maintenance:manage.
  */
 
 export type ModuleList = AppModule | readonly [AppModule, ...AppModule[]];
@@ -27,7 +25,7 @@ function toList(modules: ModuleList): readonly [AppModule, ...AppModule[]] {
 }
 
 /**
- * For layouts. Same outcomes as app/(dashboard)/maintenance/layout.tsx:
+ * For layouts:
  *
  *   - no session                      -> /login
  *   - no active org                   -> 404

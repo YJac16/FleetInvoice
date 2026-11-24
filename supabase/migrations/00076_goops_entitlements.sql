@@ -6,14 +6,15 @@
 -- (b) org_entitled_modules fallback (org with no trialing/active plan rows) now
 --     equals FAIL_OPEN_MODULES in lib/entitlements.ts: every module except the
 --     NEVER_FAIL_OPEN ones (portal, passengers, maintenance).
--- (c) Plans: Starter gains billing and loses portal; Growth and Scale gain
---     maintenance and lose portal.
+-- (c) Plans: Starter gains billing and loses portal; Growth and Scale lose
+--     portal. Growth and Scale are NOT granted maintenance here (maintenance
+--     must not ship yet, RESTRUCTURE-PLAN v1.4); a later migration can grant it.
 --
 -- Does not touch the 00057 company-portal RLS helpers, RLS policies, or any
 -- plan price / vehicle columns or rate data. No plan is given 'passengers'.
 --
 -- Numbered 00076 because 00069-00072 are used by open PRs and 00073-00075 are
--- the maintenance migrations on this branch.
+-- reserved for the maintenance migrations (not on this branch).
 --
 -- Idempotent. Safe to apply on its own after 00075 (psql -f, not db push).
 -- Rollback: supabase/rollback-00076.sql.
@@ -105,9 +106,7 @@ select p.id, m.module_key
 from public.plans p
 join (
   values
-    ('starter', 'billing'),
-    ('growth', 'maintenance'),
-    ('scale', 'maintenance')
+    ('starter', 'billing')
 ) as m(plan_code, module_key) on m.plan_code = p.code
 on conflict (plan_id, module_key) do nothing;
 

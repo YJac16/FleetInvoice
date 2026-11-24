@@ -3,9 +3,6 @@
 -- =============================================================================
 -- Manual script, not part of the migration chain. Run alongside an app commit
 -- that predates the GoOps refocus if the code should match.
---
--- Caveat: removing maintenance from Growth/Scale makes maintenance_assert_writer
--- (00074) refuse writes for those orgs again. Existing workshop bills stay.
 -- =============================================================================
 
 begin;
@@ -14,10 +11,8 @@ begin;
 delete from public.module_entitlements e
 using public.plans p
 where e.plan_id = p.id
-  and (
-    (p.code = 'starter' and e.module_key = 'billing')
-    or (p.code in ('growth', 'scale') and e.module_key = 'maintenance')
-  );
+  and p.code = 'starter'
+  and e.module_key = 'billing';
 
 insert into public.module_entitlements (plan_id, module_key)
 select p.id, 'portal'

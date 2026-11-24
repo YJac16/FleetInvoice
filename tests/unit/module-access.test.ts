@@ -73,7 +73,7 @@ const FAIL_OPEN_STATES: readonly OrgState[] = ["noSubscription", "emptyPlan", "c
 
 const MODULES_UNDER_TEST: ReadonlyArray<{ module: AppModule; permission?: Permission }> = [
   { module: "billing", permission: "invoices:view" },
-  { module: "maintenance", permission: "maintenance:view" },
+  { module: "maintenance" },
   { module: "portal" },
   { module: "passengers" },
 ];
@@ -279,39 +279,6 @@ describe("assertModuleAccess edge cases", () => {
     const admin = { from: (t: string) => query(t) } as never;
     await expect(orgEntitledModules(admin, ORGS.noSubscription)).resolves.toEqual(FAIL_OPEN_MODULES);
   });
-});
-
-describe("maintenance wrapper keeps its contract", () => {
-  it("returns mode and no module key on success", async () => {
-    const { assertMaintenanceAccess } = await import("@/lib/auth/maintenance-access");
-    const result = await assertMaintenanceAccess("manage", {
-      organisationId: ORGS.planWith,
-      userId: userFor("organisation_admin", "planWith"),
-    });
-    expect(result.ok).toBe(true);
-    expect(result).toMatchObject({ mode: "manage" });
-    expect(result).not.toHaveProperty("module");
-  });
-
-  it.each(Object.keys(ORGS) as OrgState[])(
-    "agrees with assertModuleAccess for every role in %s org",
-    async (state) => {
-      const { assertMaintenanceAccess } = await import("@/lib/auth/maintenance-access");
-      const { assertModuleAccess } = await guard();
-      for (const role of MEMBER_ROLES) {
-        for (const mode of ["view", "manage"] as const) {
-          const input = { organisationId: ORGS[state], userId: userFor(role, state) };
-          const wrapped = await assertMaintenanceAccess(mode, input);
-          const generic = await assertModuleAccess("maintenance", {
-            ...input,
-            permission: mode === "manage" ? "maintenance:manage" : "maintenance:view",
-          });
-          expect(wrapped.ok).toBe(generic.ok);
-          if (!wrapped.ok && !generic.ok) expect(wrapped).toEqual(generic);
-        }
-      }
-    }
-  );
 });
 
 describe("assertAnyModuleAccess", () => {
