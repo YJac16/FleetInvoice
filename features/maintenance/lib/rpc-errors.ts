@@ -15,6 +15,7 @@ const CODES: Record<string, { message: string; field?: string }> = {
   not_found: { message: "That record no longer exists." },
   invalid_payload: { message: "Some details were not valid. Check the form and try again." },
   name_required: { message: "Name is required.", field: "name" },
+  bill_not_draft: { message: "Only draft bills can be deleted." },
   bill_approved_locked: { message: "This bill is approved and can no longer be edited." },
   supplier_required: { message: "Select a supplier.", field: "supplier_id" },
   supplier_org_mismatch: { message: "That supplier isn't available.", field: "supplier_id" },

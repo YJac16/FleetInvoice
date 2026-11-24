@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getSessionContext }));
 vi.mock("@/lib/auth/maintenance-access", () => ({ assertMaintenanceAccess }));
 vi.mock("next/cache", () => ({ revalidatePath }));
 
-const { saveWorkshopBillAction, createSupplierAction } = await import("@/features/maintenance/actions");
+const { saveWorkshopBillAction, createSupplierAction, deleteWorkshopBillAction } = await import("@/features/maintenance/actions");
 
 function validBill(overrides: Record<string, unknown> = {}) {
   return {
@@ -182,5 +182,42 @@ describe("createSupplierAction", () => {
     assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 403, error: "forbidden", notMember: true });
     expect(await createSupplierAction(supplier)).toMatchObject({ ok: false, error: "forbidden" });
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteWorkshopBillAction", () => {
+  it("checks 'manage', calls delete_workshop_bill as the user for the session org", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    const result = await deleteWorkshopBillAction(BILL);
+    expect(result).toEqual({ ok: true, id: BILL });
+    expect(assertMaintenanceAccess).toHaveBeenCalledWith("manage", { organisationId: ORG_A, userId: "u-admin" });
+    expect(rpc).toHaveBeenCalledWith("delete_workshop_bill", { p_actor: "u-admin", p_org: ORG_A, p_id: BILL });
+    expect(revalidatePath).toHaveBeenCalledWith("/maintenance/bills");
+  });
+
+  it("rejects a malformed id without calling the RPC", async () => {
+    const result = await deleteWorkshopBillAction("nope");
+    expect(result).toMatchObject({ ok: false, error: "not_found" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("maps bill_not_draft to a clear message", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "bill_not_draft" } });
+    const result = await deleteWorkshopBillAction(BILL);
+    expect(result).toMatchObject({ ok: false, error: "bill_not_draft", message: "Only draft bills can be deleted." });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("returns forbidden without calling the RPC when access is denied", async () => {
+    assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 403, error: "forbidden", notMember: false });
+    const result = await deleteWorkshopBillAction(BILL);
+    expect(result).toMatchObject({ ok: false, error: "forbidden" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns service_unavailable when the service client is missing", async () => {
+    assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 503, error: "service_unavailable", notMember: false });
+    const result = await deleteWorkshopBillAction(BILL);
+    expect(result).toMatchObject({ ok: false, error: "service_unavailable" });
   });
 });

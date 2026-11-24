@@ -401,3 +401,19 @@ begin
 
   raise notice 'Cape Shuttle Ops demo seeded for % (org %).', v_admin_email, v_org_id;
 end $$;
+
+-- -----------------------------------------------------------------------------
+-- Plan: put the demo org on the active 'growth' plan (includes maintenance).
+-- Outside the block above so it also runs when the org already exists.
+-- Idempotent: one subscription per organisation (subscriptions_org_unique).
+-- -----------------------------------------------------------------------------
+insert into public.subscriptions (organisation_id, plan_id, status)
+select o.id, p.id, 'active'
+from public.organisations o
+join public.plans p on p.code = 'growth'
+where o.slug = 'cape-shuttle-ops' and o.deleted_at is null
+on conflict (organisation_id) do update
+  set plan_id = excluded.plan_id,
+      status = 'active',
+      cancel_at_period_end = false,
+      updated_at = timezone('utc', now());

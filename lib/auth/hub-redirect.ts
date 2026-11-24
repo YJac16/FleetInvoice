@@ -4,6 +4,9 @@ import type { AppModule } from "@/lib/entitlements";
 /** Where guarded layouts and /hub send members whose org's plan lacks a module. */
 export const NO_ACCESS_PATH = "/app/no-access";
 
+/** Where guarded layouts send members when the service client is missing (503). */
+export const UNAVAILABLE_PATH = "/app/unavailable";
+
 type HubSessionLike = {
   activeRole: AppRole | null | undefined;
   isPlatformOwner: boolean;

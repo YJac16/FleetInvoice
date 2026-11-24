@@ -5,7 +5,7 @@ import {
   assertAnyModuleAccess,
   type ModuleAccessGranted,
 } from "@/lib/auth/module-access";
-import { hubModuleForRole, NO_ACCESS_PATH } from "@/lib/auth/hub-redirect";
+import { hubModuleForRole, NO_ACCESS_PATH, UNAVAILABLE_PATH } from "@/lib/auth/hub-redirect";
 import { getSessionContext } from "@/lib/auth/session";
 import type { AppModule } from "@/lib/entitlements";
 import type { SessionContext } from "@/types";
@@ -34,7 +34,7 @@ function toList(modules: ModuleList): readonly [AppModule, ...AppModule[]] {
  *   - platform owner with active org  -> allowed (entitlement bypassed)
  *   - not a member of the org         -> 404 (don't reveal anything)
  *   - member, org not entitled        -> /app/no-access ("not on your plan")
- *   - service role missing            -> error boundary
+ *   - service role missing            -> /app/unavailable
  *
  * Pass `session` when the layout already resolved it (e.g. via requireRole).
  */
@@ -54,7 +54,7 @@ export async function guardModulePage(
   });
   if (!access.ok) {
     if (access.status === 401) redirect("/login");
-    if (access.status === 503) throw new Error("This module is temporarily unavailable");
+    if (access.status === 503) redirect(UNAVAILABLE_PATH);
     if (access.error === "module_not_entitled") redirect(NO_ACCESS_PATH);
     notFound();
   }
