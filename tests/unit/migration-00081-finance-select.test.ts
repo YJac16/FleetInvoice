@@ -18,7 +18,7 @@ function policy(text: string, name: string): string {
   return squash(m[0]);
 }
 
-describe("00081 finance select excludes supervisor", () => {
+describe("00081 finance select: admin/manager only", () => {
   it("is wrapped in a transaction and only touches the three select policies", () => {
     expect(code(sql)).toMatch(/^\s*begin;/m);
     expect(code(sql)).toMatch(/commit;\s*$/);
@@ -28,25 +28,30 @@ describe("00081 finance select excludes supervisor", () => {
     expect(code(sql)).not.toMatch(/rate_cards|pay_rates|payroll/i);
   });
 
-  it("route_prices_select: platform owner or admin/manager/dispatcher (no supervisor)", () => {
+  it("route_prices_select: platform owner or admin/manager only", () => {
     const p = policy(sql, "route_prices_select");
     expect(p).toContain("public.is_platform_owner()");
-    expect(p).toContain("array['organisation_admin', 'manager', 'dispatcher']");
-    expect(p).not.toContain("supervisor");
+    expect(p).toContain("array['organisation_admin', 'manager']");
+    expect(p).not.toMatch(/dispatcher|supervisor/);
   });
 
   it.each(["invoices_select", "invoice_lines_select"])(
-    "%s differs from 00057 only by 'supervisor' in the NOT list",
+    "%s: 00057 with dispatcher dropped from the ops list and dispatcher+supervisor added to the NOT list",
     (name) => {
       const before = policy(m00057, name);
       const after = policy(sql, name);
       expect(after).toBe(
-        before.replace("array['driver', 'employee']", "array['driver', 'employee', 'supervisor']")
+        before
+          .replace("array['organisation_admin', 'manager', 'dispatcher']", "array['organisation_admin', 'manager']")
+          .replace("array['driver', 'employee']", "array['driver', 'employee', 'dispatcher', 'supervisor']")
       );
       expect(after).not.toBe(before);
-      // company_manager branch and the ops branch are kept.
+      // company_manager branch unchanged.
+      expect(after).toContain("when public.is_company_manager(");
       expect(after).toContain("company_user_can_see");
-      expect(after).toContain("array['organisation_admin', 'manager', 'dispatcher']");
+      // dispatcher only appears in the NOT list.
+      expect(after.match(/dispatcher/g)).toHaveLength(1);
+      expect(after).toMatch(/and not public\.has_org_role_names\( \w*\.?organisation_id, array\['driver', 'employee', 'dispatcher', 'supervisor'\] \)/);
     }
   );
 

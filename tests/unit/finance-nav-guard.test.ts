@@ -1,8 +1,7 @@
 /**
  * Demo QA6 — finance nav and page guards by role.
- * Supervisor sees none of Invoices / Rate cards / Route prices / Pay rates /
- * Payroll; dispatcher sees Invoices only. Layouts 404 the same roles even
- * when the org is entitled (lib/auth/module-guard.ts guardModulePage).
+ * Supervisor and dispatcher see none of Invoices / Rate cards / Route prices /
+ * Pay rates / Payroll. Layouts 404 the same roles even when the org is entitled (lib/auth/module-guard.ts guardModulePage).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,8 +40,21 @@ describe("finance nav visibility", () => {
     expect(visibleFinance("supervisor")).toEqual([]);
   });
 
-  it("dispatcher sees Invoices only", () => {
-    expect(visibleFinance("dispatcher")).toEqual(["/invoices"]);
+  it("dispatcher sees none of the five", () => {
+    expect(visibleFinance("dispatcher")).toEqual([]);
+  });
+
+  it.each(["dispatcher", "supervisor"] as const)("%s has no finance view or manage permission", (role) => {
+    for (const p of [
+      "invoices:view",
+      "invoices:manage",
+      "rate_cards:view",
+      "rate_cards:manage",
+      "payroll:view",
+      "payroll:manage",
+    ] as const) {
+      expect(hasPermission(role, p)).toBe(false);
+    }
   });
 
   it("company_manager keeps invoices:view; supervisor keeps reports:view", () => {
@@ -61,8 +73,8 @@ describe("report kinds by role", () => {
     expect(kindsFor("supervisor").kinds).toEqual(["trips", "fuel", "attendance"]);
   });
 
-  it("dispatcher keeps commercial with payroll hidden", () => {
-    expect(kindsFor("dispatcher")).toEqual({ kinds: [...REPORT_TYPES], hidePayroll: true });
+  it("dispatcher loses the commercial report and payroll", () => {
+    expect(kindsFor("dispatcher")).toEqual({ kinds: ["trips", "fuel", "attendance"], hidePayroll: true });
   });
 
   it("manager sees everything including payroll", () => {
@@ -121,18 +133,10 @@ describe("finance layout guards (org entitled)", () => {
     await expect(render(route)).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("dispatcher renders /invoices", async () => {
+  it.each(FINANCE)("dispatcher gets 404 on %s", async (route) => {
     signIn("dispatcher");
-    await expect(render("/invoices")).resolves.toBeTruthy();
+    await expect(render(route)).rejects.toThrow("NEXT_NOT_FOUND");
   });
-
-  it.each(["/rate-cards", "/route-prices", "/pay-rates", "/payroll"] as const)(
-    "dispatcher gets 404 on %s",
-    async (route) => {
-      signIn("dispatcher");
-      await expect(render(route)).rejects.toThrow("NEXT_NOT_FOUND");
-    }
-  );
 
   it.each(FINANCE)("manager renders %s", async (route) => {
     signIn("manager");

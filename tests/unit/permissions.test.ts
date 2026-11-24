@@ -108,7 +108,8 @@ describe("permissions", () => {
     expect(hasPermission("company_manager", "payroll:view")).toBe(false);
     expect(hasPermission("organisation_admin", "invoices:manage")).toBe(true);
     expect(hasPermission("manager", "invoices:manage")).toBe(true);
-    expect(hasPermission("dispatcher", "invoices:manage")).toBe(true);
+    expect(hasPermission("dispatcher", "invoices:manage")).toBe(false);
+    expect(hasPermission("dispatcher", "invoices:view")).toBe(false);
     expect(hasPermission("organisation_admin", "fuel:view")).toBe(true);
     expect(hasPermission("dispatcher", "vehicles:view")).toBe(true);
     expect(hasPermission("supervisor", "drivers:view")).toBe(true);
