@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { TRIP_COLUMNS } from "@/lib/trip-columns";
 import type {
   AttendanceEvent,
   AttendanceEventType,
@@ -139,7 +140,7 @@ export async function listMyEmployeeTrips(
 
   let query = supabase
     .from("trips")
-    .select("*, routes:route_id (id, name)")
+    .select(`${TRIP_COLUMNS}, routes:route_id (id, name)`)
     .eq("organisation_id", organisationId)
     .is("deleted_at", null)
     .in("status", ["planned", "assigned", "in_progress"])
