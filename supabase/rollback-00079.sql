@@ -93,4 +93,13 @@ grant select on table public.trips to authenticated;
 grant select (manual_unit_price, manual_price_area_key)
   on table public.trips to authenticated;
 
+-- rate_cards_select back to the 00077 definition (supervisor included)
+drop policy if exists rate_cards_select on public.rate_cards;
+create policy rate_cards_select on public.rate_cards for select using (
+  deleted_at is null and (
+    public.is_platform_owner()
+    or public.has_org_role_names(organisation_id, array['organisation_admin','manager','dispatcher','supervisor'])
+    or (public.is_company_manager(organisation_id) and company_id is not null and public.company_user_can_see(organisation_id, company_id))
+  ));
+
 commit;

@@ -8,6 +8,9 @@
 --     update_staff_trip, admin_create_staff_trip, sync_staff_trip_invoice_line)
 --     run as owner and are unaffected. Clients must not `select *` on trips
 --     (see lib/trip-columns.ts). reprice_on_next_sync is not a price: kept.
+-- (c) rate_cards_select: drop 'supervisor' (they do not price or approve trips
+--     in the app). Platform owner, organisation_admin, manager, dispatcher and
+--     the scoped company_manager path stay. has_company_scope is unchanged.
 -- Not applied to any remote database from the PR; Engineering applies it.
 -- =============================================================================
 
@@ -136,3 +139,11 @@ grant select (
   route_price_id,
   reprice_on_next_sync
 ) on table public.trips to authenticated;
+
+drop policy if exists rate_cards_select on public.rate_cards;
+create policy rate_cards_select on public.rate_cards for select using (
+  deleted_at is null and (
+    public.is_platform_owner()
+    or public.has_org_role_names(organisation_id, array['organisation_admin','manager','dispatcher'])
+    or (public.is_company_manager(organisation_id) and company_id is not null and public.company_user_can_see(organisation_id, company_id))
+  ));

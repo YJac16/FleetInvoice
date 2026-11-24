@@ -64,6 +64,24 @@ describe("migration 00079 hide trip prices", () => {
   });
 });
 
+describe("migration 00079 rate_cards_select", () => {
+  it("drops supervisor but keeps the other readers", () => {
+    expect(sql).toMatch(
+      /create policy rate_cards_select[\s\S]*array\['organisation_admin','manager','dispatcher'\]/
+    );
+    const policy = sql.slice(sql.indexOf("create policy rate_cards_select"));
+    expect(policy).not.toMatch(/supervisor/);
+    expect(policy).toMatch(/is_platform_owner\(\)/);
+    expect(policy).toMatch(/is_company_manager/);
+  });
+
+  it("rollback restores supervisor", () => {
+    expect(rollback).toMatch(
+      /array\['organisation_admin','manager','dispatcher','supervisor'\]/
+    );
+  });
+});
+
 describe("staff approve flow keeps pricing", () => {
   it("ApproveDriverTripDialog still uses the price draft and approveDriverTrip", () => {
     const src = read("features/trips/components/approve-driver-trip-dialog.tsx");

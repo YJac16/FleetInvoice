@@ -89,6 +89,7 @@ describe("DriverLogTripPage prices", () => {
     renderPage();
     expect(screen.queryByText(/Price \(R\)/)).toBeNull();
     expect(screen.queryByText(/Company rate/i)).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/price|confirms/i);
     expect(document.body.textContent ?? "").not.toMatch(/R\s?\d/);
     const src = readFileSync(
       resolve(

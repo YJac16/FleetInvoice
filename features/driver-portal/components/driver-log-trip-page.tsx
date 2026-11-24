@@ -89,9 +89,6 @@ export function DriverLogTripPage() {
     <div className="min-w-0 space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Log a trip</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          An admin assigns the vehicle and confirms the billing details when approving.
-        </p>
       </div>
 
       <form
@@ -155,7 +152,12 @@ export function DriverLogTripPage() {
             required
           >
             <SelectTrigger id="log-company" className="w-full min-w-0 max-w-full">
-              <SelectValue placeholder="Select company" />
+              <SelectValue placeholder="Select company">
+                {(value: string | null) =>
+                  (companiesQuery.data ?? []).find((c) => c.id === value)?.name ??
+                  "Select company"
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(companiesQuery.data ?? []).map((c) => (
