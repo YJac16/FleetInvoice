@@ -11,6 +11,11 @@
 -- (c) rate_cards_select: drop 'supervisor' (they do not price or approve trips
 --     in the app). Platform owner, organisation_admin, manager, dispatcher and
 --     the scoped company_manager path stay. has_company_scope is unchanged.
+-- (d) fuel_fillups_select: drivers see only their own fill-ups (driver_id =
+--     current_driver_id); the has_company_scope branch (which exposed every
+--     org fill-up, with unit_price and total_amount, to drivers and
+--     employees) is removed. Staff roles and platform owner keep org-wide.
+--     Employees have no ownership column on fuel_fillups, so they see none.
 -- Not applied to any remote database from the PR; Engineering applies it.
 -- =============================================================================
 
@@ -133,10 +138,6 @@ grant select (
   approved_by,
   approved_at,
   rejected_reason,
-  trip_company_id,
-  priced_area_key,
-  rate_effective_on,
-  route_price_id,
   reprice_on_next_sync
 ) on table public.trips to authenticated;
 
@@ -147,3 +148,23 @@ create policy rate_cards_select on public.rate_cards for select using (
     or public.has_org_role_names(organisation_id, array['organisation_admin','manager','dispatcher'])
     or (public.is_company_manager(organisation_id) and company_id is not null and public.company_user_can_see(organisation_id, company_id))
   ));
+
+drop policy if exists fuel_fillups_select on public.fuel_fillups;
+create policy fuel_fillups_select on public.fuel_fillups
+  for select
+  using (
+    deleted_at is null
+    and (
+      public.is_platform_owner()
+      or (
+        organisation_id in (select public.user_organisation_ids())
+        and (
+          public.has_org_role_names(
+            organisation_id,
+            array['organisation_admin', 'manager', 'dispatcher', 'supervisor']
+          )
+          or driver_id = public.current_driver_id(organisation_id)
+        )
+      )
+    )
+  );

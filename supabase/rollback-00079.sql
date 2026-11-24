@@ -102,4 +102,34 @@ create policy rate_cards_select on public.rate_cards for select using (
     or (public.is_company_manager(organisation_id) and company_id is not null and public.company_user_can_see(organisation_id, company_id))
   ));
 
+-- fuel_fillups_select back to the 00057 definition (company-scope branch)
+drop policy if exists fuel_fillups_select on public.fuel_fillups;
+create policy fuel_fillups_select on public.fuel_fillups
+  for select
+  using (
+    deleted_at is null
+    and (
+      public.is_platform_owner()
+      or (
+        organisation_id in (select public.user_organisation_ids())
+        and (
+          public.has_org_role_names(
+            organisation_id,
+            array['organisation_admin', 'manager', 'dispatcher', 'supervisor']
+          )
+          or driver_id = public.current_driver_id(organisation_id)
+          or (
+            case
+              when public.is_company_manager(organisation_id) then
+                false
+              else
+                company_id is not null
+                and public.has_company_scope(organisation_id, company_id)
+            end
+          )
+        )
+      )
+    )
+  );
+
 commit;
