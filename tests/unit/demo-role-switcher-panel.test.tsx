@@ -1,4 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -35,33 +38,43 @@ describe("DemoRoleSwitcherPanel", () => {
     expect(screen.getByRole("option", { name: "Driver" })).toBeInTheDocument();
   });
 
-  it("is collapsed by default under 640px, showing the current role", () => {
-    setWidth(320);
-    render(panel());
-    expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-collapsed", "true");
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.getByText("Demo")).toBeVisible();
-    expect(screen.getByText("Admin")).toBeVisible();
+  it("server-renders both variants with no explicit preference (CSS picks by viewport)", () => {
+    const html = renderToString(panel());
+    expect(html).toContain('data-pref="default"');
+    expect(html).toContain("data-demo-bar-pill");
+    expect(html).toContain("data-demo-bar-expanded");
+    expect(html).not.toContain('data-pref="expanded"');
   });
 
-  it("is expanded by default at 640px and wider", () => {
-    setWidth(640);
+  it("globals.css hides the expanded bar and shows the pill under 640px unless expanded", () => {
+    const css = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+    const media = css.slice(css.indexOf("@media (max-width: 639px)"));
+    expect(media).toContain('[data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-pill] { display: flex; }');
+    expect(media).toContain('[data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-expanded] { display: none; }');
+    expect(css).toContain('[data-demo-bar][data-pref="collapsed"] [data-demo-bar-expanded] { display: none; }');
+  });
+
+  it("does not set an explicit preference on a fresh load, at any width", () => {
+    setWidth(320);
     render(panel());
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-pref", "default");
+    expect(screen.getByText("Demo")).toBeInTheDocument();
+    expect(screen.getByText("Admin", { selector: "span" })).toBeInTheDocument();
   });
 
   it("persists the toggle in localStorage across remounts", () => {
     setWidth(320);
     const first = render(panel());
     fireEvent.click(screen.getByRole("button", { name: /show demo role switcher/i }));
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-pref", "expanded");
     expect(window.localStorage.getItem(DEMO_BAR_STORAGE_KEY)).toBe("0");
     first.unmount();
 
     render(panel()); // still narrow, but stored preference wins
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-pref", "expanded");
 
     fireEvent.click(screen.getByRole("button", { name: /collapse demo role switcher/i }));
+    expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-pref", "collapsed");
     expect(window.localStorage.getItem(DEMO_BAR_STORAGE_KEY)).toBe("1");
   });
 

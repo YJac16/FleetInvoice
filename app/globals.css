@@ -317,3 +317,23 @@
   }
 }
 
+
+/*
+ * Demo role-switcher bar (components/demo/role-switcher-panel.tsx).
+ * Pill vs expanded bar is pure CSS so the first paint is right without JS:
+ * under 640px the pill shows unless the user explicitly expanded; at 640px+
+ * the bar shows unless the user explicitly collapsed. Only the visible variant
+ * has layout, so the measured --demo-bar-height tracks the right one. The
+ * fallback padding covers the pre-hydration window.
+ */
+[data-demo-bar] [data-demo-bar-pill] { display: none; }
+[data-demo-bar] [data-demo-bar-expanded] { display: flex; }
+[data-demo-bar][data-pref="collapsed"] [data-demo-bar-pill] { display: flex; }
+[data-demo-bar][data-pref="collapsed"] [data-demo-bar-expanded] { display: none; }
+@media (max-width: 639px) {
+  [data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-pill] { display: flex; }
+  [data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-expanded] { display: none; }
+}
+body:has([data-demo-bar]) {
+  padding-bottom: calc(var(--demo-bar-height, 2rem) + 0.75rem);
+}
