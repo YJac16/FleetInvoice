@@ -147,6 +147,15 @@ begin
       'Dock Road, V&A Waterfront, 8002', 'active', v_admin_id
     );
 
+  -- Bill-to company for staff-trip invoicing (00022 resolve_invoice_bill_to_company_id).
+  -- Harbor Logistics, not Acme: the demo company_manager is scoped to Acme and
+  -- company_user_can_see() hides the bill-to company (00057).
+  update public.organisations
+  set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object(
+    'invoice_bill_to_company_id', v_hbr
+  )
+  where id = v_org_id;
+
   -- -------------------------------------------------------------------------
   -- Areas
   -- -------------------------------------------------------------------------
