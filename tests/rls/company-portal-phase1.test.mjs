@@ -29,7 +29,7 @@ const cm1 = "a0000000-0000-4000-8000-000000000014";
 const supervisorA = "a0000000-0000-4000-8000-000000000018";
 const cmB = "b0000000-0000-4000-8000-000000000014";
 const driverRow = "a0000000-0000-4000-8000-000000000201";
-const driverRowB = "a0000000-0000-4000-8000-000000000202";
+const driverRowB = "a0000000-0000-4000-8000-000000000219";
 const driverBUser = "a0000000-0000-4000-8000-000000000019";
 const MEM_DRV_B = "f1000000-0000-4000-8000-000000000702";
 const C1 = "a0000000-0000-4000-8000-000000000101";
@@ -270,15 +270,6 @@ values
   ('${QR_C2}', '${ORG_A}', '${T_C2}', '${E_C2}', 'phase1-qr-c2', '2026-12-01T00:00:00Z')
 on conflict (id) do nothing;
 
-insert into public.trip_assignments (
-  id, organisation_id, trip_id, driver_id, vehicle_id
-)
-values
-  ('${TA_C1}', '${ORG_A}', '${T_C1}', '${driverRow}', '${V_C1}'),
-  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRowB}', '${V_C2}'),
-  ('${TA_BLANK}', '${ORG_A}', '${T_BLANK}', '${driverRow}', '${V_BLANK}')
-on conflict (id) do nothing;
-
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
@@ -294,6 +285,15 @@ on conflict (id) do nothing;
 
 insert into public.drivers (id, organisation_id, profile_id, full_name, status)
 values ('${driverRowB}', '${ORG_A}', '${driverBUser}', 'Phase1 Driver B', 'active')
+on conflict (id) do nothing;
+
+insert into public.trip_assignments (
+  id, organisation_id, trip_id, driver_id, vehicle_id
+)
+values
+  ('${TA_C1}', '${ORG_A}', '${T_C1}', '${driverRow}', '${V_C1}'),
+  ('${TA_C2}', '${ORG_A}', '${T_C2}', '${driverRowB}', '${V_C2}'),
+  ('${TA_BLANK}', '${ORG_A}', '${T_BLANK}', '${driverRow}', '${V_BLANK}')
 on conflict (id) do nothing;
 
 insert into public.trip_events (id, organisation_id, trip_id, event_type)
@@ -405,7 +405,8 @@ expectCount("ADMIN-invoices", adminA, "invoices", "true", 4);
 expectCount("ADMIN-lines", adminA, "invoice_lines", "true", 4);
 expectCount("ADMIN-vehicles", adminA, "vehicles", "true", 6);
 expectCount("ADMIN-fuel", adminA, "fuel_fillups", "true", 3);
-expectCount("ADMIN-drivers", adminA, "drivers", "true", 2);
+// Org A Driver, Org A Driver Two (compliance seed) and Phase1 Driver B.
+expectCount("ADMIN-drivers", adminA, "drivers", "true", 3);
 expectCount("ADMIN-rates", adminA, "rate_cards", "true", 3);
 expectCount("ADMIN-passengers", adminA, "trip_passengers", "true", 3);
 expectCount("ADMIN-attendance", adminA, "attendance_events", "true", 2);
@@ -414,11 +415,15 @@ expectCount("ADMIN-qr", adminA, "qr_tokens", "true", 2);
 expectCount("DRIVER-invoices", driverA, "invoices", "true", 0);
 expectCount("DRIVER-lines", driverA, "invoice_lines", "true", 0);
 expectCount("DRIVER-drivers", driverA, "drivers", "true", 1);
-expectCount("DRIVER-vehicles", driverA, "vehicles", "true", 3);
-expectCount("DRIVER-fuel", driverA, "fuel_fillups", "true", 2);
+// 00057 vehicles_select: drivers see only vehicles on their active
+// assignments (V_C1, V_BLANK via TA_C1 / TA_BLANK), never company-scoped ones.
+expectCount("DRIVER-vehicles", driverA, "vehicles", "true", 2);
+// 00079: drivers see only their own fill-ups (F_C1), not company-scoped ones.
+expectCount("DRIVER-fuel", driverA, "fuel_fillups", "true", 1);
 expectCount("DRIVER-trips", driverA, "trips", "true", 2);
 expectCount("DRIVER-rates-org", driverA, "rate_cards", "company_id is null", 0);
-expectCount("DRIVER-rates-company", driverA, "rate_cards", "company_id is not null", 2);
+// 00077: drivers read no rate cards at all.
+expectCount("DRIVER-rates-company", driverA, "rate_cards", "company_id is not null", 0);
 expectCount("DRIVER-passengers", driverA, "trip_passengers", "true", 2);
 record(
   "DRIVER-not-other-trip",
@@ -433,10 +438,15 @@ expectCount("EMP-trips", employeeA, "trips", "true", 3);
 expectCount("EMP-own-employee", employeeA, "employees", `id = '${employeeRow}'`, 1);
 expectCount("EMP-vehicles", employeeA, "vehicles", "true", 6);
 
-expectCount("DISP-invoices", dispatcher, "invoices", "true", 4);
+// Finance is admin/manager only (00081, 00084).
+expectCount("DISP-invoices", dispatcher, "invoices", "true", 0);
+expectCount("DISP-lines", dispatcher, "invoice_lines", "true", 0);
+expectCount("DISP-rates", dispatcher, "rate_cards", "true", 0);
 expectCount("DISP-trips", dispatcher, "trips", "true", 3);
 expectCount("DISP-vehicles", dispatcher, "vehicles", "true", 6);
-expectCount("SUP-invoices", supervisorA, "invoices", "true", 4);
+expectCount("SUP-invoices", supervisorA, "invoices", "true", 0);
+expectCount("SUP-lines", supervisorA, "invoice_lines", "true", 0);
+expectCount("SUP-rates", supervisorA, "rate_cards", "true", 0);
 expectCount("SUP-rates-org", supervisorA, "rate_cards", "company_id is null", 0);
 expectCount("SUP-vehicles", supervisorA, "vehicles", "true", 6);
 expectCount("SUP-passengers", supervisorA, "trip_passengers", "true", 3);
@@ -501,6 +511,29 @@ const adminPaid = psqlRaw(
   { userId: adminA, allowError: true }
 );
 record("RPC-admin-issue-still-works", adminPaid.ok, adminPaid.err.split("\n").slice(-3).join(" "));
+
+// Column-level SELECT revokes (00079 trips prices, 00086 fuel money). These
+// hold for every authenticated role, admin included; amounts reach admins only
+// through SECURITY DEFINER RPCs. The bootstrap restores column ACLs after its
+// broad grant (scripts/local-db/column-acl-*.sql), so this must stay denied.
+function expectColumnDenied(id, userId, sql) {
+  const res = psqlRaw(sql, { userId, allowError: true });
+  record(id, !res.ok && /permission denied/i.test(res.err), res.err.split("\n").find((l) => /ERROR/.test(l)) ?? "query succeeded");
+}
+function expectColumnAllowed(id, userId, sql) {
+  const res = psqlRaw(sql, { userId, allowError: true });
+  record(id, res.ok, res.ok ? "ok" : res.err.split("\n").find((l) => /ERROR/.test(l)));
+}
+for (const [who, uid] of [["DRIVER", driverA], ["DISP", dispatcher], ["ADMIN", adminA]]) {
+  expectColumnDenied(`${who}-trips-price-col`, uid, `select manual_unit_price from public.trips limit 1;`);
+  expectColumnDenied(`${who}-trips-price-key-col`, uid, `select manual_price_area_key from public.trips limit 1;`);
+  expectColumnDenied(`${who}-trips-star`, uid, `select * from public.trips limit 1;`);
+  expectColumnAllowed(`${who}-trips-safe-cols`, uid, `select id, area_text, reprice_on_next_sync from public.trips limit 1;`);
+  expectColumnDenied(`${who}-fuel-unit-price-col`, uid, `select unit_price from public.fuel_fillups limit 1;`);
+  expectColumnDenied(`${who}-fuel-total-col`, uid, `select total_amount, currency from public.fuel_fillups limit 1;`);
+  expectColumnDenied(`${who}-fuel-star`, uid, `select * from public.fuel_fillups limit 1;`);
+  expectColumnAllowed(`${who}-fuel-safe-cols`, uid, `select id, litres, odometer_km from public.fuel_fillups limit 1;`);
+}
 
 psqlAdminFile(MIGRATION);
 expectCount("IDEMPOTENT-cm1-companies", cm1, "companies", "true", 1);

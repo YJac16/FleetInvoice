@@ -33,6 +33,7 @@ import {
   type ReportFilterValues,
   type ReportType,
 } from "@/features/reports/schemas/report";
+import { visibleReportKinds } from "@/features/reports/lib/report-kinds";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   ATTENDANCE_EVENT_TYPE_LABELS,
@@ -96,7 +97,13 @@ function TripsResults({ report }: { report: TripsReport }) {
   );
 }
 
-function FuelResults({ report }: { report: FuelReport }) {
+export function FuelResults({
+  report,
+  showAmounts = false,
+}: {
+  report: FuelReport;
+  showAmounts?: boolean;
+}) {
   const columns = useMemo<ColumnDef<(typeof report.rows)[number], unknown>[]>(
     () => [
       {
@@ -106,10 +113,14 @@ function FuelResults({ report }: { report: FuelReport }) {
       },
       { accessorKey: "vehicle", header: "Vehicle" },
       { accessorKey: "company", header: "Company" },
+      { accessorKey: "driver", header: "Driver" },
+      { accessorKey: "odometer_km", header: "Odometer (km)" },
       { accessorKey: "litres", header: "Litres" },
-      { accessorKey: "total_amount", header: "Amount" },
+      ...(showAmounts
+        ? [{ accessorKey: "total_amount", header: "Amount" }]
+        : []),
     ],
-    []
+    [showAmounts]
   );
   return (
     <div className="space-y-4">
@@ -117,9 +128,11 @@ function FuelResults({ report }: { report: FuelReport }) {
         <span className="rounded-md bg-muted px-2 py-1">
           Total litres: {report.totalLitres.toFixed(2)}
         </span>
-        <span className="rounded-md bg-muted px-2 py-1">
-          Total amount: {report.totalAmount.toFixed(2)}
-        </span>
+        {showAmounts ? (
+          <span className="rounded-md bg-muted px-2 py-1">
+            Total amount: {report.totalAmount.toFixed(2)}
+          </span>
+        ) : null}
       </div>
       <DataTable
         columns={columns}
@@ -265,15 +278,17 @@ function CommercialResults({
 function ReportResults({
   report,
   hidePayroll = false,
+  includeFuelAmounts = false,
 }: {
   report: OpsReport;
   hidePayroll?: boolean;
+  includeFuelAmounts?: boolean;
 }) {
   switch (report.type) {
     case "trips":
       return <TripsResults report={report} />;
     case "fuel":
-      return <FuelResults report={report} />;
+      return <FuelResults report={report} showAmounts={includeFuelAmounts} />;
     case "attendance":
       return <AttendanceResults report={report} />;
     case "commercial":
@@ -290,7 +305,7 @@ export function ReportsPage({
   description = "Period reports with CSV export for trips, fuel, attendance, and commercial summaries.",
   showMasterCounts = true,
   allowedKinds,
-  hidePayroll = false,
+  hidePayroll: hidePayrollProp = false,
 }: {
   title?: string;
   description?: string;
@@ -298,10 +313,15 @@ export function ReportsPage({
   allowedKinds?: readonly ReportType[];
   hidePayroll?: boolean;
 } = {}) {
-  const reportKinds = allowedKinds ?? REPORT_TYPES;
   const { can } = useOrg();
+  const { kinds: reportKinds, hidePayroll } = visibleReportKinds(
+    allowedKinds ?? REPORT_TYPES,
+    can,
+    hidePayrollProp
+  );
   const organisationId = useActiveOrgId();
   const canView = can("reports:view");
+  const canViewFuelCost = can("invoices:view") && can("rate_cards:view");
   const weekStart = mondayOfWeek();
 
   const [applied, setApplied] = useState<{
@@ -339,13 +359,18 @@ export function ReportsPage({
             applied.report_type,
             applied.period_start,
             applied.period_end
-          )
+          ).concat(canViewFuelCost ? ["fuel-amounts"] : [])
         : ["ops-report", "none"],
     queryFn: () =>
-      buildOpsReport(organisationId!, applied!.report_type, {
-        periodStart: applied!.period_start,
-        periodEnd: applied!.period_end,
-      }),
+      buildOpsReport(
+        organisationId!,
+        applied!.report_type,
+        {
+          periodStart: applied!.period_start,
+          periodEnd: applied!.period_end,
+        },
+        { includeFuelAmounts: canViewFuelCost }
+      ),
     enabled: Boolean(organisationId) && canView && Boolean(applied),
   });
 
@@ -386,7 +411,8 @@ export function ReportsPage({
               variant="outline"
               onClick={() => {
                 const { headers, rows, filename } = reportToCsvRows(
-                  reportQuery.data!
+                  reportQuery.data!,
+                  { includeFuelAmounts: canViewFuelCost }
                 );
                 downloadCsv(filename, toCsv(headers, rows));
               }}
@@ -442,7 +468,11 @@ export function ReportsPage({
       {reportQuery.isLoading ? (
         <LoadingSkeleton rows={5} />
       ) : reportQuery.data ? (
-        <ReportResults report={reportQuery.data} hidePayroll={hidePayroll} />
+        <ReportResults
+          report={reportQuery.data}
+          hidePayroll={hidePayroll}
+          includeFuelAmounts={canViewFuelCost}
+        />
       ) : (
         <EmptyState
           title="No report yet"

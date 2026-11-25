@@ -2,13 +2,14 @@ import { createClient } from "@/lib/supabase/client";
 import type { StaffTransportCompany } from "@/lib/constants";
 import type { DriverPresence, StaffTrip } from "@/types";
 import { todayDateString } from "@/features/driver-portal/lib/dates";
+import { TRIP_COLUMNS } from "@/lib/trip-columns";
 import {
   isMissingRpcError,
   type WaybillBillingReadiness,
 } from "@/features/trips/lib/waybill-billing-readiness";
 
 const STAFF_TRIP_SELECT =
-  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)";
+  `${TRIP_COLUMNS}, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)`;
 
 const STAFF_TRIP_ADMIN_SELECT = `${STAFF_TRIP_SELECT}, companies:company_id (name)`;
 

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { hubPathForRole } from "@/lib/auth/hub-redirect";
 import { getSessionContext } from "@/lib/auth/session";
@@ -45,6 +45,20 @@ export async function requirePermission(
   );
   if (!allowed) {
     redirect(hubPathForRole(session.activeRole, session.isPlatformOwner));
+  }
+  return session;
+}
+
+/**
+ * Server-layout guard: unauthenticated -> /login, signed in without the
+ * permission -> 404 (the route is not disclosed). Used by the finance layouts.
+ */
+export async function requirePermissionOrNotFound(
+  permission: Permission
+): Promise<SessionContext> {
+  const session = await requireSession();
+  if (!hasPermission(session.activeRole, permission, session.isPlatformOwner)) {
+    notFound();
   }
   return session;
 }

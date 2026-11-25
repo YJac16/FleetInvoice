@@ -13,6 +13,7 @@
     "test:pr-a-waybill": "bash tests/db/run-pr-a-waybill-rate.sh",
     "test:staff-waybill-billing": "bash tests/db/run-staff-waybill-creation-billing.sh",
     "test:rls": "bash scripts/local-db/bootstrap-for-rls.sh",
+    "test:finance-00081": "WORKOPS_AUDIT_PG_PORT=5432 node tests/db/finance-select-00081.test.mjs",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",
     "test:admin-capture-rls": "bash tests/rls/run-admin-capture-rls.sh",

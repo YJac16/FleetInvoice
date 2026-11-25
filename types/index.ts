@@ -305,7 +305,8 @@ export type FuelFillup = {
   litres: number;
   unit_price: number | null;
   total_amount: number | null;
-  currency: string;
+  /** null when money columns are masked (00086). */
+  currency: string | null;
   station_name: string | null;
   notes: string | null;
   created_by: string | null;

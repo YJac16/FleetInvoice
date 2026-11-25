@@ -51,9 +51,11 @@ function emptyToNull(value: string | undefined): string | null {
 function LogFuelForm({
   organisationId,
   onDone,
+  showUnitPrice = true,
 }: {
   organisationId: string;
   onDone: () => void;
+  showUnitPrice?: boolean;
 }) {
   const { companies } = useEntityOptions(organisationId);
   const vehiclesQuery = useQuery({
@@ -133,12 +135,14 @@ function LogFuelForm({
         label="Litres"
         type="number"
       />
-      <TextField
-        control={form.control}
-        name="unit_price"
-        label="Unit price (optional)"
-        type="number"
-      />
+      {showUnitPrice ? (
+        <TextField
+          control={form.control}
+          name="unit_price"
+          label="Unit price (optional)"
+          type="number"
+        />
+      ) : null}
       <TextField
         control={form.control}
         name="station_name"
@@ -170,13 +174,15 @@ export function FuelFillupsPage({
   const queryClient = useQueryClient();
   const canView = can("fuel:view") || can("fuel:manage") || can("fuel:self");
   const canManage = can("fuel:manage");
+  const canViewFuelCost = can("invoices:view") && can("rate_cards:view");
   const [open, setOpen] = useState(false);
 
   const fillupsQuery = useQuery({
     queryKey: organisationId
-      ? queryKeys.fuelFillups(organisationId)
+      ? [...queryKeys.fuelFillups(organisationId), canViewFuelCost]
       : ["fuel-fillups", "none"],
-    queryFn: () => listFuelFillups(organisationId!),
+    queryFn: () =>
+      listFuelFillups(organisationId!, { includeAmounts: canViewFuelCost }),
     enabled: Boolean(organisationId) && canView,
   });
 
@@ -198,21 +204,25 @@ export function FuelFillupsPage({
         header: "Odometer (km)",
       },
       { accessorKey: "litres", header: "Litres" },
-      {
-        accessorKey: "total_amount",
-        header: "Amount",
-        cell: ({ row }) =>
-          row.original.total_amount != null
-            ? `${row.original.currency} ${row.original.total_amount}`
-            : "—",
-      },
+      ...(canViewFuelCost
+        ? [
+            {
+              accessorKey: "total_amount",
+              header: "Amount",
+              cell: ({ row }: { row: { original: FuelFillup } }) =>
+                row.original.total_amount != null
+                  ? `${row.original.currency ?? ""} ${row.original.total_amount}`.trim()
+                  : "—",
+            } as ColumnDef<FuelFillup, unknown>,
+          ]
+        : []),
       {
         accessorKey: "filled_at",
         header: "Filled at",
         cell: ({ row }) => formatDateTime(row.original.filled_at),
       },
     ],
-    []
+    [canViewFuelCost]
   );
 
   if (!canView) {
@@ -262,6 +272,7 @@ export function FuelFillupsPage({
             </DialogHeader>
             <LogFuelForm
               organisationId={organisationId}
+              showUnitPrice={canViewFuelCost}
               onDone={async () => {
                 setOpen(false);
                 await queryClient.invalidateQueries({

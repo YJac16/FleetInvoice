@@ -8,13 +8,7 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LabelledSelect } from "@/features/trips/components/labelled-select";
 import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import {
@@ -134,18 +128,15 @@ export function ApproveDriverTripDialog({
         ) : null}
         <div className="space-y-1.5">
           <Label>Vehicle</Label>
-          <Select value={vehicleId} onValueChange={(v) => setVehicleId(v ?? "")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              {(vehiclesQuery.data ?? []).map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {formatVehicleOptionLabel(v.registration_number, v.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <LabelledSelect
+            value={vehicleId}
+            onValueChange={setVehicleId}
+            placeholder="Select vehicle"
+            options={(vehiclesQuery.data ?? []).map((v) => ({
+              value: v.id,
+              label: formatVehicleOptionLabel(v.registration_number, v.name),
+            }))}
+          />
           {suggestQuery.data && vehicleId === suggestQuery.data ? (
             <p className="text-xs text-muted-foreground">
               Pre-filled from this driver&apos;s current vehicle assignment.

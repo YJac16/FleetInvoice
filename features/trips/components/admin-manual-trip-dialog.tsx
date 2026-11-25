@@ -8,13 +8,7 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LabelledSelect } from "@/features/trips/components/labelled-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
@@ -146,40 +140,22 @@ export function AdminManualTripDialog({
 
         <div className="space-y-1.5">
           <Label>Driver</Label>
-          <Select
+          <LabelledSelect
             value={driverId}
-            onValueChange={(v) => setDriverId(v ?? "")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select driver" />
-            </SelectTrigger>
-            <SelectContent>
-              {(driversQuery.data ?? []).map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={setDriverId}
+            placeholder="Select driver"
+            options={(driversQuery.data ?? []).map((d) => ({ value: d.id, label: d.full_name }))}
+          />
         </div>
 
         <div className="space-y-1.5">
           <Label>Company</Label>
-          <Select
+          <LabelledSelect
             value={companyId}
-            onValueChange={(v) => setCompanyId(v ?? "")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select company" />
-            </SelectTrigger>
-            <SelectContent>
-              {(companiesQuery.data ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={setCompanyId}
+            placeholder="Select company"
+            options={(companiesQuery.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -229,21 +205,15 @@ export function AdminManualTripDialog({
 
         <div className="space-y-1.5">
           <Label>Vehicle</Label>
-          <Select
+          <LabelledSelect
             value={vehicleId}
-            onValueChange={(v) => setVehicleId(v ?? "")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select vehicle" />
-            </SelectTrigger>
-            <SelectContent>
-              {(vehiclesQuery.data ?? []).map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {formatVehicleOptionLabel(v.registration_number, v.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={setVehicleId}
+            placeholder="Select vehicle"
+            options={(vehiclesQuery.data ?? []).map((v) => ({
+              value: v.id,
+              label: formatVehicleOptionLabel(v.registration_number, v.name),
+            }))}
+          />
         </div>
 
         <div className="space-y-1.5">

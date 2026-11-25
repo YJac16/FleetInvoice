@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
+import { TRIP_COLUMNS } from "@/lib/trip-columns";
 import type { StaffTrip } from "@/types";
 
 const DRIVER_SUBMISSION_SELECT =
-  "*, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)";
+  `${TRIP_COLUMNS}, trip_assignments(id, driver_id, vehicle_id, released_at, drivers:driver_id (id, full_name)), companies:company_id (name)`;
 
 export type SubmitDriverTripInput = {
   organisationId: string;
