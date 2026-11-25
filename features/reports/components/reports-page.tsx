@@ -34,6 +34,11 @@ import {
   type ReportType,
 } from "@/features/reports/schemas/report";
 import { visibleReportKinds } from "@/features/reports/lib/report-kinds";
+import {
+  OwnerSplitPanel,
+  type OwnerSplitMetric,
+} from "@/features/reports/components/owner-split-panel";
+import { OWNER_FILTER_LABELS, OWNER_FILTERS, OWNER_LABELS, type OwnerFilter } from "@/lib/owner-tag";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import {
   ATTENDANCE_EVENT_TYPE_LABELS,
@@ -76,6 +81,16 @@ function TripsResults({ report }: { report: TripsReport }) {
         cell: ({ row }) => tripStatusLabel(row.original.status),
       },
       { accessorKey: "route", header: "Route" },
+      { accessorKey: "owner", header: "Owner", cell: ({ row }) => OWNER_LABELS[row.original.owner] },
+      { accessorKey: "entered_by", header: "Entered by" },
+      {
+        accessorKey: "updated_by",
+        header: "Last edited by",
+        cell: ({ row }) =>
+          row.original.updated_by && row.original.updated_by !== row.original.entered_by
+            ? row.original.updated_by
+            : "—",
+      },
     ],
     []
   );
@@ -116,6 +131,7 @@ export function FuelResults({
       { accessorKey: "driver", header: "Driver" },
       { accessorKey: "odometer_km", header: "Odometer (km)" },
       { accessorKey: "litres", header: "Litres" },
+      { accessorKey: "owner", header: "Owner", cell: ({ row }) => OWNER_LABELS[row.original.owner] },
       ...(showAmounts
         ? [{ accessorKey: "total_amount", header: "Amount" }]
         : []),
@@ -190,6 +206,7 @@ function CommercialResults({
   >(
     () => [
       { accessorKey: "company", header: "Company" },
+      { accessorKey: "owner", header: "Owner", cell: ({ row }) => OWNER_LABELS[row.original.owner] },
       {
         accessorKey: "period_start",
         header: "Start",
@@ -275,7 +292,54 @@ function CommercialResults({
   );
 }
 
+function ownerSplitConfig(
+  report: OpsReport,
+  includeFuelAmounts: boolean
+): { metrics: OwnerSplitMetric[]; countLabel: string } | null {
+  switch (report.type) {
+    case "trips":
+      return { metrics: ["count"], countLabel: "Trips" };
+    case "fuel":
+      return { metrics: includeFuelAmounts ? ["count", "litres", "amount"] : ["count", "litres"], countLabel: "Fill-ups" };
+    case "commercial":
+      return { metrics: ["count", "amount", "issued", "paid"], countLabel: "Invoices" };
+    default:
+      return null;
+  }
+}
+
 function ReportResults({
+  report,
+  hidePayroll = false,
+  includeFuelAmounts = false,
+  owner = "all",
+}: {
+  report: OpsReport;
+  hidePayroll?: boolean;
+  includeFuelAmounts?: boolean;
+  owner?: OwnerFilter;
+}) {
+  // Split by owner is the default for All; the switch shows combined totals.
+  const [combined, setCombined] = useState(false);
+  const config = ownerSplitConfig(report, includeFuelAmounts);
+  const split = "ownerSplit" in report ? report.ownerSplit : null;
+  return (
+    <div className="space-y-4">
+      {owner === "all" && config && split ? (
+        <OwnerSplitPanel
+          split={split}
+          metrics={config.metrics}
+          countLabel={config.countLabel}
+          combined={combined}
+          onCombinedChange={setCombined}
+        />
+      ) : null}
+      <ReportBody report={report} hidePayroll={hidePayroll} includeFuelAmounts={includeFuelAmounts} />
+    </div>
+  );
+}
+
+function ReportBody({
   report,
   hidePayroll = false,
   includeFuelAmounts = false,
@@ -328,10 +392,12 @@ export function ReportsPage({
     report_type: ReportType;
     period_start: string;
     period_end: string;
+    owner: OwnerFilter;
   } | null>({
     report_type: "trips",
     period_start: weekStart,
     period_end: weekPeriodEnd(weekStart),
+    owner: "all",
   });
 
   const form = useForm<ReportFilterValues>({
@@ -340,6 +406,7 @@ export function ReportsPage({
       report_type: "trips",
       period_start: weekStart,
       period_end: weekPeriodEnd(weekStart),
+      owner: "all",
     },
   });
 
@@ -359,7 +426,7 @@ export function ReportsPage({
             applied.report_type,
             applied.period_start,
             applied.period_end
-          ).concat(canViewFuelCost ? ["fuel-amounts"] : [])
+          ).concat(canViewFuelCost ? ["fuel-amounts"] : [], [`owner:${applied.owner}`])
         : ["ops-report", "none"],
     queryFn: () =>
       buildOpsReport(
@@ -369,7 +436,7 @@ export function ReportsPage({
           periodStart: applied!.period_start,
           periodEnd: applied!.period_end,
         },
-        { includeFuelAmounts: canViewFuelCost }
+        { includeFuelAmounts: canViewFuelCost, owner: applied!.owner }
       ),
     enabled: Boolean(organisationId) && canView && Boolean(applied),
   });
@@ -425,12 +492,13 @@ export function ReportsPage({
       />
 
       <form
-        className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={form.handleSubmit((values) => {
           setApplied({
             report_type: values.report_type,
             period_start: values.period_start,
             period_end: values.period_end,
+            owner: values.owner ?? "all",
           });
         })}
       >
@@ -458,6 +526,12 @@ export function ReportsPage({
           label="Period end (exclusive)"
           type="date"
         />
+        <SelectField
+          control={form.control}
+          name="owner"
+          label="Owner"
+          options={OWNER_FILTERS.map((o) => ({ value: o, label: OWNER_FILTER_LABELS[o] }))}
+        />
         <div className="flex items-end">
           <Button type="submit" className="w-full">
             Run report
@@ -469,9 +543,11 @@ export function ReportsPage({
         <LoadingSkeleton rows={5} />
       ) : reportQuery.data ? (
         <ReportResults
+          key={`${applied?.report_type}:${applied?.owner}`}
           report={reportQuery.data}
           hidePayroll={hidePayroll}
           includeFuelAmounts={canViewFuelCost}
+          owner={applied?.owner ?? "all"}
         />
       ) : (
         <EmptyState

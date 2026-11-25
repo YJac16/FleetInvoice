@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
+import { OwnerBadge } from "@/components/shared/owner-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
@@ -21,6 +22,7 @@ import { listOpenDriverVehicleAssignments } from "@/services/driver-vehicle-assi
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
 import { VEHICLE_TYPE_LABELS } from "@/lib/constants";
+import { ownerLabel } from "@/lib/owner-tag";
 import {
   createVehicle,
   createVehiclesBulk,
@@ -128,6 +130,11 @@ export function VehiclesPage() {
           row.original.vehicle_type,
       },
       {
+        accessorKey: "owner_tag",
+        header: "Owner",
+        cell: ({ row }) => <OwnerBadge owner={row.original.owner_tag} />,
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
@@ -168,7 +175,7 @@ export function VehiclesPage() {
         restore={canManage ? restoreVehicle : undefined}
         canManage={canManage}
         searchFilter={(row, query) =>
-          [row.name, row.registration_number, row.vehicle_type]
+          [row.name, row.registration_number, row.vehicle_type, ownerLabel(row.owner_tag)]
             .filter(Boolean)
             .join(" ")
             .toLowerCase()
@@ -230,6 +237,7 @@ export function VehiclesPage() {
               { key: "registration_number", label: "Registration" },
               { key: "vehicle_type", label: "Type" },
               { key: "capacity", label: "Capacity" },
+              { key: "owner_tag", label: "Owner (yaseen / fadia / blank)" },
               { key: "status", label: "Status" },
             ]}
             schema={vehicleImportSchema}
@@ -241,6 +249,7 @@ export function VehiclesPage() {
                   registration_number: row.registration_number || null,
                   vehicle_type: row.vehicle_type,
                   capacity: row.capacity,
+                  owner_tag: row.owner_tag,
                   status: row.status,
                 }))
               );

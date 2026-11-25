@@ -217,3 +217,99 @@ export function parseInvoicePrintSettings(
     driver_label: driverLabel,
   };
 }
+
+/**
+ * Per-driver invoice issuer override (table driver_invoice_print_overrides,
+ * migration 00089). Same block shape as the org's settings.invoice_print.
+ */
+export type DriverInvoicePrintOverride = {
+  supplier?: InvoiceSupplierSettings;
+  contact?: InvoiceContactSettings;
+  banking?: InvoiceBankingSettings;
+};
+
+function hasSupplierDetails(supplier: InvoiceSupplierSettings): boolean {
+  return Boolean(
+    supplier.name?.trim() ||
+      supplier.phone ||
+      supplier.email ||
+      (supplier.address_lines && supplier.address_lines.length > 0)
+  );
+}
+
+/** Parses the override row's settings; returns null when it carries nothing printable. */
+export function parseDriverInvoicePrintOverride(
+  raw: unknown
+): DriverInvoicePrintOverride | null {
+  if (!isRecord(raw)) return null;
+
+  const contact = isRecord(raw.contact) ? parseContact(raw.contact) : undefined;
+  const supplierParsed = isRecord(raw.supplier)
+    ? parseSupplier(raw.supplier, "")
+    : undefined;
+  const supplier =
+    supplierParsed && hasSupplierDetails(supplierParsed)
+      ? { ...supplierParsed, name: supplierParsed.name || undefined }
+      : undefined;
+  const banking = isRecord(raw.banking) ? parseBanking(raw.banking) : undefined;
+
+  const result: DriverInvoicePrintOverride = {};
+  if (supplier) result.supplier = supplier;
+  if (contact && hasContactDetails(contact)) result.contact = contact;
+  if (banking && hasBankingDetails(banking)) result.banking = banking;
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+/**
+ * Applies a driver's override on top of the org print settings.
+ *
+ * Fallback is per block, not per field, so an invoice never mixes two
+ * parties' details (e.g. one issuer's account name over another's account
+ * number):
+ *  - banking: override banking replaces the org banking when present.
+ *  - issuer (letterhead + contact): an override supplier or contact replaces
+ *    both org supplier and org contact.
+ * Any block the override omits falls back to the org settings. Driver label
+ * and vehicle registration always come from the org/trips as today.
+ */
+export function applyDriverInvoicePrintOverride(
+  base: InvoicePrintSettings,
+  override: DriverInvoicePrintOverride | null | undefined
+): InvoicePrintSettings {
+  if (!override) return base;
+
+  const next: InvoicePrintSettings = { ...base };
+
+  if (override.banking && hasBankingDetails(override.banking)) {
+    next.banking = { ...override.banking };
+  }
+
+  const ovContact =
+    override.contact && hasContactDetails(override.contact)
+      ? override.contact
+      : undefined;
+  const ovSupplier =
+    override.supplier && hasSupplierDetails(override.supplier)
+      ? override.supplier
+      : undefined;
+
+  if (ovContact || ovSupplier) {
+    const issuerName =
+      ovSupplier?.name?.trim() ||
+      ovContact?.name?.trim() ||
+      next.banking?.account_name?.trim() ||
+      undefined;
+    next.supplier = {
+      name: issuerName,
+      address_lines: ovSupplier?.address_lines,
+      phone: ovSupplier?.phone ?? ovContact?.phone,
+      email: ovSupplier?.email ?? ovContact?.email,
+    };
+    next.contact = ovContact
+      ? { ...ovContact }
+      : { name: issuerName, phone: ovSupplier?.phone, email: ovSupplier?.email };
+  }
+
+  return next;
+}

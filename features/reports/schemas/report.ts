@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { OWNER_FILTERS } from "@/lib/owner-tag";
+
 export const REPORT_TYPES = [
   "trips",
   "fuel",
@@ -20,6 +22,7 @@ export const reportFilterSchema = z.object({
   report_type: z.enum(REPORT_TYPES),
   period_start: z.string().min(1, "Period start is required"),
   period_end: z.string().min(1, "Period end is required"),
+  owner: z.enum(OWNER_FILTERS).default("all"),
 });
 
-export type ReportFilterValues = z.infer<typeof reportFilterSchema>;
+export type ReportFilterValues = z.input<typeof reportFilterSchema>;

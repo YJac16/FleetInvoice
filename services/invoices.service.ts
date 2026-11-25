@@ -14,7 +14,7 @@ export { mondayOfWeek, weekPeriodEnd, isFilledAtInWeek } from "@/features/invoic
 const TABLE = "invoices";
 
 const INVOICE_SELECT =
-  "*, companies:company_id (id, name), drivers:driver_id (id, full_name)";
+  "*, companies:company_id (id, name), drivers:driver_id (id, full_name, owner_tag)";
 
 export type ListInvoicesOptions = ListTenantOptions & {
   dateRange?: ResolvedDateRange;

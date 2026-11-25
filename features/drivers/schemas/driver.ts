@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { LICENSE_CODES } from "@/features/compliance/lib/compliance-status";
 import { ENTITY_STATUSES } from "@/lib/constants";
+import { OWNER_TAGS } from "@/lib/owner-tag";
 
 const optionalDate = z.string().optional();
 
@@ -18,6 +19,7 @@ export const driverSchema = z
     pdp_categories: z.string().optional(),
     pdp_expires_on: optionalDate,
     profile_id: z.union([z.string().uuid(), z.literal("")]).optional(),
+    owner_tag: z.union([z.enum(OWNER_TAGS), z.literal("")]).optional(),
     status: z.enum(ENTITY_STATUSES),
   })
   .superRefine((values, ctx) => {

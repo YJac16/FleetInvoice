@@ -19,6 +19,7 @@ import {
   VEHICLE_TYPE_LABELS,
   VEHICLE_TYPES,
 } from "@/lib/constants";
+import { ownerOptions } from "@/features/drivers/components/driver-capture-form";
 import type { Vehicle } from "@/types";
 
 const statusOptions = ENTITY_STATUSES.map((status) => ({
@@ -72,6 +73,7 @@ export function VehicleCaptureForm({
           ? ""
           : String(initial.capacity),
       company_id: initial?.company_id ?? "none",
+      owner_tag: initial?.owner_tag ?? "",
       status: initial?.status ?? "active",
     },
   });
@@ -195,6 +197,13 @@ export function VehicleCaptureForm({
           label="Capacity"
           type="number"
           placeholder="Optional"
+        />
+        <SelectField
+          control={form.control}
+          name="owner_tag"
+          label="Owner"
+          options={ownerOptions}
+          placeholder="Unassigned"
         />
         <SelectField
           control={form.control}

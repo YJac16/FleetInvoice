@@ -31,6 +31,9 @@ import { AssignTripDialog } from "@/features/trips/components/assign-trip-dialog
 import { GenerateTripsDialog } from "@/features/trips/components/generate-trips-dialog";
 import { TripLocationsDialog } from "@/features/trips/components/trip-locations-dialog";
 import { TripPassengersDialog } from "@/features/trips/components/trip-passengers-dialog";
+import { tripActorLabels } from "@/features/trips/lib/actor-labels";
+import { useOrgActorNames } from "@/hooks/use-org-actor-names";
+import { canSeeActorNames } from "@/lib/permissions/actor-names";
 import {
   tripAreaLabel,
   tripRouteLabel,
@@ -47,8 +50,9 @@ import { queryKeys } from "@/utils/query";
 import Link from "next/link";
 
 export function TripsPage() {
-  const { can } = useOrg();
+  const { can, activeRole, isPlatformOwner } = useOrg();
   const organisationId = useActiveOrgId();
+  const actorNames = useOrgActorNames(organisationId, canSeeActorNames(activeRole, isPlatformOwner));
   const canManage = can("trips:manage");
   const canAdministerDriverTrips = can("trips:admin_edit");
   const canViewAttendance = can("attendance:view") || can("trips:view");
@@ -164,6 +168,21 @@ export function TripsPage() {
         },
       },
       {
+        id: "entered_by",
+        header: "Entered by",
+        cell: ({ row }) => {
+          const { enteredBy, lastEditedBy } = tripActorLabels(row.original, actorNames);
+          return (
+            <div className="text-sm">
+              <div>{enteredBy ?? "—"}</div>
+              {lastEditedBy ? (
+                <div className="text-xs text-muted-foreground">Last edited by {lastEditedBy}</div>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
@@ -219,7 +238,7 @@ export function TripsPage() {
         },
       },
     ],
-    [canManage, canViewAttendance]
+    [canManage, canViewAttendance, actorNames]
   );
 
   if (!organisationId) {

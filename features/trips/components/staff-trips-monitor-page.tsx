@@ -14,6 +14,9 @@ import { toast } from "sonner";
 import { useOrg } from "@/components/layout/org-context";
 import { AssignStaffTripDialog } from "@/features/trips/components/assign-staff-trip-dialog";
 import { EditWaybillDialog } from "@/features/trips/components/edit-waybill-dialog";
+import { TripActorLine } from "@/features/trips/components/trip-actor-line";
+import { useOrgActorNames } from "@/hooks/use-org-actor-names";
+import { canSeeActorNames } from "@/lib/permissions/actor-names";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -93,8 +96,9 @@ function canVoidCompletedWaybill(status: StaffTrip["status"]): boolean {
 }
 
 export function StaffTripsMonitorPage() {
-  const { can } = useOrg();
+  const { can, activeRole, isPlatformOwner } = useOrg();
   const organisationId = useActiveOrgId();
+  const actorNames = useOrgActorNames(organisationId, canSeeActorNames(activeRole, isPlatformOwner));
   const canManage = can("trips:manage");
   const canAdminEdit = can("trips:admin_edit");
   const canViewGps = can("gps:view") || can("dispatch:view") || canManage;
@@ -414,6 +418,11 @@ export function StaffTripsMonitorPage() {
                                     ? ` · ${trip.opening_km} km`
                                     : ""}
                               </p>
+                              <TripActorLine
+                                trip={trip}
+                                names={actorNames}
+                                className="mt-0.5 truncate text-[10px] text-muted-foreground"
+                              />
                             </div>
                           </div>
                           <StaffTripStatusTimeline

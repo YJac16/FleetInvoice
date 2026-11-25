@@ -64,7 +64,18 @@ describe("migration 00079 hide trip prices", () => {
 
   it("GRANT list = TRIP_COLUMNS = trips columns derived from migrations minus price columns", () => {
     const grant = sql.match(/grant select \(([\s\S]*?)\) on table public\.trips/)![1];
-    const granted = grant.split(",").map((c) => c.trim());
+    // Columns added after 00079 carry their own column GRANT (e.g. 00088 updated_by).
+    const laterGrants = readdirSync(path.join(root, "supabase/migrations"))
+      .filter((f) => /^\d+.*\.sql$/.test(f) && f >= "00080")
+      .sort()
+      .flatMap((f) =>
+        [...read(`supabase/migrations/${f}`).replace(/--[^\n]*/g, "").matchAll(
+          /grant select \(([^)]*)\) on table public\.trips to authenticated/gi
+        )].flatMap((m) => m[1].split(",").map((c) => c.trim()))
+      );
+    const granted = [...grant.split(",").map((c) => c.trim()), ...laterGrants];
+    expect(laterGrants).not.toContain("manual_unit_price");
+    expect(laterGrants).not.toContain("manual_price_area_key");
     const client = TRIP_COLUMNS.split(",").map((c) => c.trim());
     const actual = tripsColumnsFromMigrations();
     const expected = actual.filter(

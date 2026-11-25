@@ -14,12 +14,18 @@ import {
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
+import { OWNER_LABELS, OWNER_TAGS } from "@/lib/owner-tag";
 import type { Driver } from "@/types";
 
 const statusOptions = ENTITY_STATUSES.map((status) => ({
   label: STATUS_LABELS[status],
   value: status,
 }));
+
+export const ownerOptions = [
+  { label: OWNER_LABELS.unassigned, value: "" },
+  ...OWNER_TAGS.map((tag) => ({ label: OWNER_LABELS[tag], value: tag })),
+];
 
 const licenseCodeOptions = [
   { label: "Not set", value: "" },
@@ -50,6 +56,7 @@ export function driverValuesToPayload(values: DriverValues): Record<string, unkn
     pdp_categories: emptyToNull(values.pdp_categories),
     pdp_expires_on: emptyToNull(values.pdp_expires_on),
     profile_id: emptyToNull(values.profile_id),
+    owner_tag: emptyToNull(values.owner_tag),
     status: values.status,
   };
 }
@@ -85,6 +92,7 @@ export function DriverCaptureForm({
       pdp_categories: initial?.pdp_categories ?? "",
       pdp_expires_on: toDateInput(initial?.pdp_expires_on),
       profile_id: initial?.profile_id ?? "",
+      owner_tag: initial?.owner_tag ?? "",
       status: initial?.status ?? "active",
     },
   });
@@ -182,6 +190,13 @@ export function DriverCaptureForm({
           label="Linked user profile"
           options={profileOptions}
           placeholder="Optional"
+        />
+        <SelectField
+          control={form.control}
+          name="owner_tag"
+          label="Owner"
+          options={ownerOptions}
+          placeholder="Unassigned"
         />
         <SelectField
           control={form.control}

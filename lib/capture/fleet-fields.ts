@@ -1,5 +1,6 @@
 import type { Driver } from "@/types";
 import type { Vehicle } from "@/types";
+import { parseOwnerTag } from "@/lib/owner-tag";
 
 function str(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
@@ -27,6 +28,7 @@ export function driverToCaptureFields(
   if (input.pdp_categories !== undefined) fields.pdp_categories = input.pdp_categories ?? "";
   if (input.pdp_expires_on !== undefined) fields.pdp_expires_on = input.pdp_expires_on ?? "";
   if (input.profile_id !== undefined) fields.profile_id = input.profile_id ?? "";
+  if (input.owner_tag !== undefined) fields.owner_tag = parseOwnerTag(input.owner_tag) ?? "";
   if (input.status !== undefined) fields.status = input.status;
   return fields;
 }
@@ -63,6 +65,7 @@ export function vehicleToCaptureFields(
     fields.capacity = String(input.capacity);
   }
   if (input.company_id !== undefined) fields.company_id = input.company_id ?? "";
+  if (input.owner_tag !== undefined) fields.owner_tag = parseOwnerTag(input.owner_tag) ?? "";
   if (input.status !== undefined) fields.status = input.status;
   return fields;
 }
@@ -92,6 +95,7 @@ export function driverImportRowToCaptureFields(row: Record<string, unknown>): Re
     license_expires_on: str(row.license_expires_on) ?? null,
     pdp_number: str(row.pdp_number) ?? null,
     pdp_expires_on: str(row.pdp_expires_on) ?? null,
+    owner_tag: parseOwnerTag(row.owner_tag),
     status: (str(row.status) as Driver["status"]) ?? "active",
   });
 }
@@ -103,6 +107,7 @@ export function vehicleImportRowToCaptureFields(row: Record<string, unknown>): R
     make: str(row.make) ?? null,
     model: str(row.model) ?? null,
     vehicle_type: (str(row.vehicle_type) as Vehicle["vehicle_type"]) ?? "other",
+    owner_tag: parseOwnerTag(row.owner_tag),
     status: (str(row.status) as Vehicle["status"]) ?? "active",
   });
 }

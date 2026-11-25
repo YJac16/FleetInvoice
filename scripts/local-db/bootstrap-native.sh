@@ -135,6 +135,18 @@ DO $$ BEGIN
   GRANT EXECUTE ON FUNCTION public.restore_driver(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.soft_delete_vehicle(uuid, uuid, uuid) TO service_role;
   GRANT EXECUTE ON FUNCTION public.restore_vehicle(uuid, uuid, uuid) TO service_role;
+  -- 00091 org copy is service-role only (bootstrap broad grant must not reopen it)
+  IF to_regprocedure('public.copy_orgs_to_jacobs_org(uuid[], text, text, uuid)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.copy_orgs_to_jacobs_org(uuid[], text, text, uuid) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON FUNCTION public.org_copy_table(uuid, uuid[], uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON FUNCTION public.org_copy_dedupe(uuid, uuid[], text, text, text) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON FUNCTION public.org_copy_remap(uuid, text, uuid) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON TABLE public.org_copy_map FROM PUBLIC, anon, authenticated;
+    GRANT EXECUTE ON FUNCTION public.copy_orgs_to_jacobs_org(uuid[], text, text, uuid) TO service_role;
+  END IF;
+  IF to_regprocedure('public.set_audit_user()') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.set_audit_user() FROM PUBLIC, anon, authenticated;
+  END IF;
   -- 00057 company-portal trigger is not a client RPC (bootstrap broad grant must not reopen it)
   REVOKE ALL ON FUNCTION public.guard_company_manager_member_scope() FROM PUBLIC, anon, authenticated;
   -- 00050 PR A function hardening (bootstrap broad grant must not reopen anon/public)

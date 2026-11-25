@@ -1,4 +1,9 @@
 import { mondayOfWeek } from "@/features/invoices/lib/week";
+import {
+  matchesOwnerFilter,
+  resolveInvoiceOwner,
+  type OwnerFilter,
+} from "@/lib/owner-tag";
 import type { Invoice } from "@/types";
 
 export type InvoiceSortOrder = "newest" | "oldest";
@@ -9,12 +14,15 @@ export type InvoiceListFilters = {
   sortOrder: InvoiceSortOrder;
   weekFilter: InvoiceWeekFilter;
   statusFilter: InvoiceStatusFilter;
+  /** All / Yaseen / Fadia (owner = drivers.owner_tag ?? invoices.owner_tag). */
+  ownerFilter?: OwnerFilter;
 };
 
 export const DEFAULT_INVOICE_LIST_FILTERS: InvoiceListFilters = {
   sortOrder: "newest",
   weekFilter: "all",
   statusFilter: "all",
+  ownerFilter: "all",
 };
 
 function addUtcDays(dateStr: string, days: number): string {
@@ -54,6 +62,13 @@ export function matchesInvoiceStatusFilter(
   return invoice.status === statusFilter;
 }
 
+export function matchesInvoiceOwnerFilter(
+  invoice: Pick<Invoice, "owner_tag" | "drivers">,
+  ownerFilter: OwnerFilter = "all"
+): boolean {
+  return matchesOwnerFilter(resolveInvoiceOwner(invoice), ownerFilter);
+}
+
 export function compareInvoicesByPeriodEnd(
   a: Pick<Invoice, "period_end">,
   b: Pick<Invoice, "period_end">,
@@ -72,7 +87,8 @@ export function filterAndSortInvoices(
     .filter(
       (invoice) =>
         matchesInvoiceWeekFilter(invoice, filters.weekFilter, now) &&
-        matchesInvoiceStatusFilter(invoice, filters.statusFilter)
+        matchesInvoiceStatusFilter(invoice, filters.statusFilter) &&
+        matchesInvoiceOwnerFilter(invoice, filters.ownerFilter ?? "all")
     )
     .sort((a, b) => compareInvoicesByPeriodEnd(a, b, filters.sortOrder));
 }

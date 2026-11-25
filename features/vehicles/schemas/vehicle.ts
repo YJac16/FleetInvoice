@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { complianceTodaySast } from "@/features/compliance/lib/compliance-dates";
 import { ENTITY_STATUSES, VEHICLE_TYPES } from "@/lib/constants";
+import { OWNER_TAGS } from "@/lib/owner-tag";
 
 function maxModelYear(): number {
   return Number(complianceTodaySast().slice(0, 4)) + 1;
@@ -25,6 +26,7 @@ export const vehicleSchema = z.object({
   license_disc_expires_on: optionalTrimmed,
   capacity: z.string().optional(),
   company_id: z.string().optional(),
+  owner_tag: z.union([z.enum(OWNER_TAGS), z.literal("")]).optional(),
   status: z.enum(ENTITY_STATUSES),
 });
 
@@ -110,6 +112,7 @@ export function normalizeVehicleFields(values: VehicleValues): {
         values.company_id?.trim() && values.company_id !== "none"
           ? values.company_id.trim()
           : null,
+      owner_tag: values.owner_tag ? values.owner_tag : null,
       status: values.status,
     },
   };
