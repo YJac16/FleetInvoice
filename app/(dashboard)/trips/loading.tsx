@@ -1,10 +1,5 @@
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { GoOpsLoaderCentered } from "@/components/brand/goops-loader";
 
 export default function TripsLoading() {
-  return (
-    <div className="space-y-4">
-      <LoadingSkeleton rows={1} />
-      <LoadingSkeleton rows={6} />
-    </div>
-  );
+  return <GoOpsLoaderCentered />;
 }
