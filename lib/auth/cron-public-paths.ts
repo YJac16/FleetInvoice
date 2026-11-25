@@ -5,6 +5,7 @@ export const PUBLIC_BEARER_API_PATHS = new Set([
   "/api/cron/compliance-alerts",
   "/api/cron/compliance-digest",
   "/api/cron/compliance-doc-retention",
+  "/api/cron/fuel-prices",
 ]);
 
 function normalizeBearerApiPath(pathname: string): string {

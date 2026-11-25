@@ -21,12 +21,12 @@ import {
 import {
   fuelFillupSchema,
   parseNonNegativeNumber,
-  parseOptionalNumber,
   parsePositiveNumber,
   type FuelFillupValues,
 } from "@/features/fuel/schemas/fuel-fillup";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
+import { FUEL_TYPES } from "@/lib/fuel/fuel-types";
 import { logFuelFillup } from "@/services/fuel-fillups.service";
 import { listMyDriverTrips } from "@/services/trip-assignments.service";
 import { listVehicles } from "@/services/vehicles.service";
@@ -64,9 +64,9 @@ export function DriverFuelPage() {
     resolver: zodResolver(fuelFillupSchema),
     defaultValues: {
       vehicle_id: "",
+      fuel_type: "",
       odometer_km: "",
       litres: "",
-      unit_price: "",
       station_name: "",
       notes: "",
     },
@@ -97,7 +97,7 @@ export function DriverFuelPage() {
         odometerKm: parseNonNegativeNumber(values.odometer_km, "Odometer"),
         litres: parsePositiveNumber(values.litres, "Litres"),
         companyId: vehicle?.company_id ?? null,
-        unitPrice: parseOptionalNumber(values.unit_price),
+        fuelType: values.fuel_type,
         stationName: emptyToNull(values.station_name),
         notes: emptyToNull(values.notes),
       });
@@ -106,9 +106,9 @@ export function DriverFuelPage() {
       toast.success("Fuel fill-up logged");
       form.reset({
         vehicle_id: form.getValues("vehicle_id"),
+        fuel_type: form.getValues("fuel_type"),
         odometer_km: "",
         litres: "",
-        unit_price: "",
         station_name: "",
         notes: "",
       });
@@ -182,7 +182,9 @@ export function DriverFuelPage() {
         <CardHeader>
           <CardTitle>New fill-up</CardTitle>
           <CardDescription>
-            Amounts are optional; company is taken from the vehicle when set.
+            The office prices each fill-up from the official fuel rate; you
+            only record litres and odometer. Company is taken from the vehicle
+            when set.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -196,6 +198,12 @@ export function DriverFuelPage() {
               label="Vehicle"
               options={vehicleOptions}
             />
+            <SelectField
+              control={form.control}
+              name="fuel_type"
+              label="Fuel type"
+              options={[...FUEL_TYPES]}
+            />
             <TextField
               control={form.control}
               name="odometer_km"
@@ -206,12 +214,6 @@ export function DriverFuelPage() {
               control={form.control}
               name="litres"
               label="Litres"
-              type="number"
-            />
-            <TextField
-              control={form.control}
-              name="unit_price"
-              label="Unit price (optional)"
               type="number"
             />
             <TextField

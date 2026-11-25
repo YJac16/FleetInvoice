@@ -320,9 +320,38 @@ export type FuelFillup = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** 00094: required on new fills; null on legacy rows. */
+  fuel_type?: string | null;
+  region?: string | null;
+  /**
+   * 00094 billing status. Finance-only (list_fuel_fillup_amounts); null when
+   * masked. 'needs_price' rows carry null money and are never totalled as R0.
+   */
+  price_status?: FuelPriceStatus | null;
+  priced_from_id?: string | null;
+  priced_at?: string | null;
   vehicles?: Pick<Vehicle, "id" | "name" | "registration_number"> | null;
   companies?: Pick<Company, "id" | "name"> | null;
   drivers?: Pick<Driver, "id" | "full_name"> | null;
+};
+
+export type FuelPriceStatus = "priced" | "needs_price";
+
+/** 00093 fuel_prices row (finance only). organisation_id null = global reference. */
+export type FuelPrice = {
+  id: string;
+  organisation_id: string | null;
+  fuel_type: string;
+  region: string;
+  effective_from: string;
+  price_per_litre: number;
+  source: string;
+  status: "pending" | "confirmed";
+  created_by: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Invoice = {

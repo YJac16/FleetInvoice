@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mondayOfWeek, weekPeriodEnd } from "@/features/invoices/lib/week";
 import { downloadCsv, toCsv } from "@/features/reports/lib/csv";
@@ -40,6 +41,7 @@ import {
 } from "@/features/reports/components/owner-split-panel";
 import { OWNER_FILTER_LABELS, OWNER_FILTERS, OWNER_LABELS, type OwnerFilter } from "@/lib/owner-tag";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { fuelTypeLabel } from "@/lib/fuel/fuel-types";
 import {
   ATTENDANCE_EVENT_TYPE_LABELS,
   INVOICE_STATUS_LABELS,
@@ -129,11 +131,25 @@ export function FuelResults({
       { accessorKey: "vehicle", header: "Vehicle" },
       { accessorKey: "company", header: "Company" },
       { accessorKey: "driver", header: "Driver" },
+      { accessorKey: "fuel_type", header: "Fuel type", cell: ({ row }) => fuelTypeLabel(row.original.fuel_type) },
       { accessorKey: "odometer_km", header: "Odometer (km)" },
       { accessorKey: "litres", header: "Litres" },
       { accessorKey: "owner", header: "Owner", cell: ({ row }) => OWNER_LABELS[row.original.owner] },
       ...(showAmounts
-        ? [{ accessorKey: "total_amount", header: "Amount" }]
+        ? [
+            {
+              accessorKey: "total_amount",
+              header: "Amount",
+              cell: ({ row }: { row: { original: FuelReport["rows"][number] } }) =>
+                row.original.price_status === "needs_price" ? (
+                  <Badge variant="destructive">Needs price</Badge>
+                ) : row.original.total_amount != null ? (
+                  Number(row.original.total_amount).toFixed(2)
+                ) : (
+                  "—"
+                ),
+            } as ColumnDef<FuelReport["rows"][number], unknown>,
+          ]
         : []),
     ],
     [showAmounts]
@@ -145,9 +161,14 @@ export function FuelResults({
           Total litres: {report.totalLitres.toFixed(2)}
         </span>
         {showAmounts ? (
-          <span className="rounded-md bg-muted px-2 py-1">
-            Total amount: {report.totalAmount.toFixed(2)}
-          </span>
+          <>
+            <span className="rounded-md bg-muted px-2 py-1">
+              Total amount: {report.totalAmount.toFixed(2)}
+            </span>
+            <span className="rounded-md bg-muted px-2 py-1">
+              Needs price: {report.needsPriceCount} (not in total)
+            </span>
+          </>
         ) : null}
       </div>
       <DataTable
