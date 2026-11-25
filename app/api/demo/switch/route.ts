@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { hubPathForRole } from "@/lib/auth/hub-redirect";
+import { orgEntitledModules } from "@/lib/auth/module-access";
 import { ORG_COOKIE_NAME } from "@/lib/constants";
 import {
   DEMO_ORG_SLUG,
@@ -9,6 +10,7 @@ import {
   isDemoEmail,
 } from "@/lib/demo/accounts";
 import { isDemoEnabled } from "@/lib/demo/guard";
+import { FAIL_OPEN_MODULES, type AppModule } from "@/lib/entitlements";
 import { demoSwitchRateLimited } from "@/lib/demo/rate-limit";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -62,6 +64,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Demo not configured" }, { status: 500 });
   }
 
+  const { data: org } = await admin
+    .from("organisations")
+    .select("id")
+    .eq("slug", DEMO_ORG_SLUG)
+    .maybeSingle();
+  const orgId = (org as { id?: string } | null)?.id ?? null;
+
+  // Hub roles (employee -> passengers, company_manager -> portal) only when
+  // the demo org's plan has the module. Unknown -> FAIL_OPEN_MODULES, which
+  // never includes either, so the switch is refused.
+  if (target.requiresModule) {
+    let modules: AppModule[] = FAIL_OPEN_MODULES;
+    if (orgId) {
+      try {
+        modules = await orgEntitledModules(admin, orgId);
+      } catch {
+        modules = FAIL_OPEN_MODULES;
+      }
+    }
+    if (!modules.includes(target.requiresModule)) {
+      return NextResponse.json({ error: "role_not_on_plan" }, { status: 400 });
+    }
+  }
+
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: "magiclink",
     email: target.email,
@@ -81,15 +107,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Switch failed" }, { status: 500 });
   }
 
-  const { data: org } = await admin
-    .from("organisations")
-    .select("id")
-    .eq("slug", DEMO_ORG_SLUG)
-    .maybeSingle();
-
-  if (org?.id) {
+  if (orgId) {
     const cookieStore = await cookies();
-    cookieStore.set(ORG_COOKIE_NAME, org.id as string, {
+    cookieStore.set(ORG_COOKIE_NAME, orgId, {
       path: "/",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 365,

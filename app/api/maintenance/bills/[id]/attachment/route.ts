@@ -1,13 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
-
-import {
-  assertMaintenanceAccess,
-  getMaintenanceUserId,
-  type MaintenanceAccessGranted,
-  type MaintenanceAccessMode,
-} from "@/lib/auth/maintenance-access";
+import type { MaintenanceAccessMode } from "@/lib/auth/maintenance-access";
 import {
   buildWorkshopBillPath,
   validateWorkshopBillFile,
@@ -15,7 +8,7 @@ import {
   WORKSHOP_BILL_VIEW_URL_SECONDS,
   WORKSHOP_BILLS_BUCKET,
 } from "@/lib/maintenance/attachment";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { maintenanceJson, resolveMaintenanceBill } from "@/lib/maintenance/bill-route";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -28,52 +21,18 @@ type BillRow = {
   attachment_size: number | null;
 };
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** Room for multipart boundaries and headers on top of the file itself. */
 const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
 
-function json(body: Record<string, unknown>, status = 200) {
-  const res = NextResponse.json(body, { status });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
+const json = maintenanceJson;
 
-/**
- * Load the bill with the service role, then check the caller against the
- * bill's organisation. A caller with no membership in that org gets 404, so
- * another org's bill ids don't leak.
- */
-async function resolveBill(
-  id: string,
-  mode: MaintenanceAccessMode
-): Promise<{ ok: true; bill: BillRow; access: MaintenanceAccessGranted } | { ok: false; res: Response }> {
-  if (!UUID_RE.test(id)) return { ok: false, res: json({ error: "not_found" }, 404) };
-
-  const userId = await getMaintenanceUserId();
-  if (!userId) return { ok: false, res: json({ error: "unauthenticated" }, 401) };
-
-  const admin = createServiceClient();
-  if (!admin) return { ok: false, res: json({ error: "service_unavailable" }, 503) };
-
-  const { data: bill, error } = await admin
-    .from("workshop_bills")
-    .select("id, organisation_id, status, attachment_path, attachment_mime, attachment_size, deleted_at")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) return { ok: false, res: json({ error: "lookup_failed" }, 500) };
-  if (!bill || bill.deleted_at) return { ok: false, res: json({ error: "not_found" }, 404) };
-
-  const access = await assertMaintenanceAccess(mode, {
-    organisationId: bill.organisation_id,
-    userId,
-  });
-  if (!access.ok) {
-    if (access.notMember) return { ok: false, res: json({ error: "not_found" }, 404) };
-    return { ok: false, res: json({ error: access.error }, access.status) };
-  }
-
-  return { ok: true, bill: bill as BillRow, access };
+/** See lib/maintenance/bill-route.ts for the check order. */
+function resolveBill(id: string, mode: MaintenanceAccessMode) {
+  return resolveMaintenanceBill<BillRow>(
+    id,
+    mode,
+    "id, organisation_id, status, attachment_path, attachment_mime, attachment_size"
+  );
 }
 
 function rpcErrorResponse(message: string) {

@@ -61,21 +61,24 @@ function parseTripRate(
   return { unitAmount: amount, effectiveFrom };
 }
 
-function CompanyForm({
+export function CompanyForm({
   organisationId,
   initial,
   onSubmit,
   submitting,
+  canSetTripRate,
 }: {
   organisationId: string;
   initial?: Company;
   onSubmit: (values: Record<string, unknown>) => void;
   submitting: boolean;
+  /** rate_cards:manage (admin/manager). Others never see or send the trip rate. */
+  canSetTripRate: boolean;
 }) {
   const ratesQuery = useQuery({
     queryKey: ["company-trip-rates", organisationId, initial?.id],
     queryFn: () => listCompanyTripRateCards(organisationId, initial!.id),
-    enabled: Boolean(initial?.id),
+    enabled: canSetTripRate && Boolean(initial?.id),
   });
 
   const latestRate = useMemo(
@@ -86,7 +89,7 @@ function CompanyForm({
   const earliestQuery = useQuery({
     queryKey: ["company-earliest-unbilled", organisationId, initial?.id],
     queryFn: () => getEarliestUnbilledTripDate(organisationId, initial!.id),
-    enabled: Boolean(initial?.id),
+    enabled: canSetTripRate && Boolean(initial?.id),
   });
 
   const form = useForm<CompanyValues>({
@@ -126,7 +129,7 @@ function CompanyForm({
     <form
       className="space-y-4"
       onSubmit={form.handleSubmit((values) => {
-        const tripRate = parseTripRate(values, latestRate);
+        const tripRate = canSetTripRate ? parseTripRate(values, latestRate) : null;
         onSubmit({
           company: {
             name: values.name.trim(),
@@ -163,19 +166,23 @@ function CompanyForm({
         options={statusOptions}
       />
 
-      <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
-        <div>
-          <p className="text-sm font-medium">Default trip rate (ZAR)</p>
-          <p className="text-xs text-muted-foreground">
-            Saved as a rate card (effective-dated). Keeping the same effective date
-            corrects that card; a new date starts a new card. Draft invoices from that
-            date are re-priced; issued invoices never change.
-          </p>
-          {initial && latestRate ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Current trip rate: ZAR {Number(latestRate.unit_amount).toFixed(2)} effective{" "}
-              {latestRate.effective_from}
+      {canSetTripRate ? (
+        <div
+          className="rounded-lg border bg-muted/30 p-3 space-y-3"
+          data-testid="company-trip-rate"
+        >
+          <div>
+            <p className="text-sm font-medium">Default trip rate (ZAR)</p>
+            <p className="text-xs text-muted-foreground">
+              Saved as a rate card (effective-dated). Keeping the same effective date
+              corrects that card; a new date starts a new card. Draft invoices from that
+              date are re-priced; issued invoices never change.
             </p>
+            {initial && latestRate ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Current trip rate: ZAR {Number(latestRate.unit_amount).toFixed(2)} effective{" "}
+                {latestRate.effective_from}
+              </p>
           ) : null}
         </div>
         <TextField
@@ -192,6 +199,7 @@ function CompanyForm({
           type="date"
         />
       </div>
+      ) : null}
 
       <Button type="submit" disabled={submitting} className="w-full">
         {submitting ? "Saving…" : "Save"}
@@ -283,6 +291,7 @@ export function CompaniesPage() {
             initial={initial}
             onSubmit={onSubmit}
             submitting={submitting}
+            canSetTripRate={can("rate_cards:manage")}
           />
         ) : null
       }

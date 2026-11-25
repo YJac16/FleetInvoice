@@ -8,6 +8,7 @@ import {
 import { hubModuleForRole, NO_ACCESS_PATH, UNAVAILABLE_PATH } from "@/lib/auth/hub-redirect";
 import { getSessionContext } from "@/lib/auth/session";
 import type { AppModule } from "@/lib/entitlements";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import type { SessionContext } from "@/types";
 
 /**
@@ -36,11 +37,14 @@ function toList(modules: ModuleList): readonly [AppModule, ...AppModule[]] {
  *   - member, org not entitled        -> /app/no-access ("not on your plan")
  *   - service role missing            -> /app/unavailable
  *
+ *   - `permission` given, role lacks it -> 404 (checked after the module)
+ *
  * Pass `session` when the layout already resolved it (e.g. via requireRole).
  */
 export async function guardModulePage(
   modules: ModuleList,
-  resolvedSession?: SessionContext
+  resolvedSession?: SessionContext,
+  permission?: Permission
 ): Promise<ModuleAccessGranted> {
   const session = resolvedSession ?? (await getSessionContext());
   if (!session) redirect("/login");
@@ -56,6 +60,12 @@ export async function guardModulePage(
     if (access.status === 401) redirect("/login");
     if (access.status === 503) redirect(UNAVAILABLE_PATH);
     if (access.error === "module_not_entitled") redirect(NO_ACCESS_PATH);
+    notFound();
+  }
+  if (
+    permission &&
+    !hasPermission(session.activeRole, permission, session.isPlatformOwner)
+  ) {
     notFound();
   }
   return access;

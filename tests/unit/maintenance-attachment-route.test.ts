@@ -84,7 +84,9 @@ function seed() {
 }
 
 /** Minimal thenable query builder over `tables`. */
+const tableCalls: string[] = [];
 function query(table: string) {
+  tableCalls.push(table);
   const filters: Array<(r: Row) => boolean> = [];
   let max = Infinity;
   const run = () => ({
@@ -121,8 +123,22 @@ vi.mock("@/lib/supabase/admin", () => ({
   ),
 }));
 
-function signIn(userId: string | null) {
+/** Active org: explicit, else the user's first membership (like getSessionContext). */
+let currentSession: Record<string, unknown> | null = null;
+vi.mock("@/lib/auth/session", () => ({ getSessionContext: vi.fn(async () => currentSession) }));
+
+function signIn(userId: string | null, activeOrganisationId?: string | null) {
   getUser.mockResolvedValue({ data: { user: userId ? { id: userId } : null }, error: null });
+  currentSession = userId
+    ? {
+        userId,
+        activeOrganisationId:
+          activeOrganisationId !== undefined
+            ? activeOrganisationId
+            : ((tables.organisation_members ?? []).find((m) => m.user_id === userId)?.organisation_id ??
+              (userId === USERS.owner ? ORG_A : null)),
+      }
+    : null;
 }
 
 const PDF = new TextEncoder().encode("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF");
@@ -154,6 +170,8 @@ const pdfFile = () => new File([PDF], "bill.pdf", { type: "application/pdf" });
 beforeEach(() => {
   vi.clearAllMocks();
   seed();
+  tableCalls.length = 0;
+  currentSession = null;
   serviceAvailable = true;
   upload.mockResolvedValue({ data: {}, error: null });
   remove.mockResolvedValue({ data: [], error: null });
@@ -307,8 +325,8 @@ describe("POST upload", () => {
     expect(remove).toHaveBeenCalledWith([`${ORG_A}/${BILL_A}/11111111-1111-4111-8111-111111111111.pdf`]);
   });
 
-  it("platform owner can upload for any org's bill", async () => {
-    signIn(USERS.owner);
+  it("platform owner can upload for the active org's bill", async () => {
+    signIn(USERS.owner, ORG_B);
     const r = await post(BILL_B, new File([PNG], "scan.png", { type: "image/png" }));
     expect(r.status).toBe(200);
     expect(upload.mock.calls[0]![0]).toMatch(new RegExp(`^${ORG_B}/${BILL_B}/[0-9a-f-]{36}\\.png$`));
@@ -457,5 +475,106 @@ describe("DELETE /api/maintenance/bills/[id]", () => {
     signIn(USERS.dispatcher);
     expect((await del(BILL_A)).status).toBe(403);
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Check order: access for the active org before any bill lookup (Demo QA6)
+// ---------------------------------------------------------------------------
+
+const UNKNOWN = "e7500000-0000-4000-8000-0000000000ff";
+
+async function del(billId: string) {
+  const { DELETE } = await import("@/app/api/maintenance/bills/[id]/route");
+  const res = await DELETE(new Request(`http://localhost/api/maintenance/bills/${billId}`, { method: "DELETE" }), ctx(billId));
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+describe.each([
+  ["GET attachment", (id: string) => get(id)],
+  ["POST attachment", (id: string) => post(id, pdfFile())],
+  ["DELETE bill", (id: string) => del(id)],
+])("%s route order", (_name, call) => {
+  it.each([
+    ["an unknown id", UNKNOWN],
+    ["a real id", BILL_A],
+  ])("dispatcher gets 403 forbidden for %s, with no bill lookup", async (_l, id) => {
+    signIn(USERS.dispatcher);
+    expect(await call(id)).toMatchObject({ status: 403, body: { error: "forbidden" } });
+    expect(tableCalls).not.toContain("workshop_bills");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("unentitled org admin gets 403 module_not_entitled for an unknown id, with no bill lookup", async () => {
+    signIn(USERS.adminC);
+    expect(await call(UNKNOWN)).toMatchObject({ status: 403, body: { error: "module_not_entitled" } });
+    expect(tableCalls).not.toContain("workshop_bills");
+  });
+
+  it("admin gets 404 for an unknown id", async () => {
+    signIn(USERS.admin);
+    expect(await call(UNKNOWN)).toMatchObject({ status: 404, body: { error: "not_found" } });
+  });
+
+  it("admin gets 404 for a deleted bill", async () => {
+    tables.workshop_bills[0]!.deleted_at = "2026-11-01T00:00:00Z";
+    signIn(USERS.admin);
+    expect(await call(BILL_A)).toMatchObject({ status: 404, body: { error: "not_found" } });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("admin gets 404 for another org's bill (lookup scoped to the active org)", async () => {
+    signIn(USERS.admin);
+    expect(await call(BILL_B)).toMatchObject({ status: 404, body: { error: "not_found" } });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it("no active org -> 404 with no lookup", async () => {
+    signIn(USERS.admin, null);
+    expect(await call(BILL_A)).toMatchObject({ status: 404 });
+    expect(tableCalls).not.toContain("workshop_bills");
+  });
+
+  it("active org the user isn't a member of -> 404 (notMember), no lookup", async () => {
+    signIn(USERS.admin, ORG_B);
+    expect(await call(BILL_B)).toMatchObject({ status: 404, body: { error: "not_found" } });
+    expect(tableCalls).not.toContain("workshop_bills");
+  });
+
+  it("signed out -> 401 before the service client is used", async () => {
+    signIn(null);
+    expect((await call(UNKNOWN)).status).toBe(401);
+    expect(tableCalls).toEqual([]);
+  });
+
+  it("service client missing -> 503 after the session check", async () => {
+    serviceAvailable = false;
+    signIn(USERS.admin);
+    expect((await call(UNKNOWN)).status).toBe(503);
+  });
+
+  it("malformed id -> 404 before the session is read", async () => {
+    signIn(USERS.dispatcher);
+    expect((await call("not-a-uuid")).status).toBe(404);
+    expect(tableCalls).toEqual([]);
+  });
+});
+
+describe("DELETE bill happy path", () => {
+  it("admin deletes a draft in the active org via the RPC", async () => {
+    signIn(USERS.admin);
+    expect(await del(BILL_A)).toMatchObject({ status: 200, body: { ok: true } });
+    expect(rpc).toHaveBeenCalledWith("delete_workshop_bill", {
+      p_actor: USERS.admin,
+      p_org: ORG_A,
+      p_id: BILL_A,
+    });
+  });
+
+  it("maps bill_not_draft to 409", async () => {
+    signIn(USERS.manager);
+    rpc.mockResolvedValue({ data: null, error: { message: "bill_not_draft" } });
+    expect(await del(BILL_A_APPROVED)).toMatchObject({ status: 409, body: { error: "bill_not_draft" } });
   });
 });

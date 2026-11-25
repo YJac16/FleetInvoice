@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AppRole } from "@/lib/constants";
+import type { AppModule } from "@/lib/entitlements";
 
-type Option = { role: AppRole; label: string };
+type Option = {
+  role: AppRole;
+  label: string;
+  requiresModule?: AppModule;
+  unavailableLabel?: string;
+};
 
 export const DEMO_BAR_STORAGE_KEY = "demo-role-switcher:collapsed";
 export const DEMO_BAR_HEIGHT_VAR = "--demo-bar-height";
@@ -12,11 +18,18 @@ export const DEMO_BAR_HEIGHT_VAR = "--demo-bar-height";
 export function DemoRoleSwitcherPanel({
   options,
   currentEmail,
+  currentRole,
+  entitledModules,
 }: {
   options: Option[];
   currentEmail: string;
+  currentRole?: AppRole;
+  /** Demo org's modules; omitted -> every option enabled. */
+  entitledModules?: readonly AppModule[];
 }) {
-  const [role, setRole] = useState<AppRole>(options[0]?.role ?? "organisation_admin");
+  const [role, setRole] = useState<AppRole>(
+    currentRole ?? options[0]?.role ?? "organisation_admin"
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // null = no explicit choice yet. Which of the pill / expanded bar is shown is
@@ -74,7 +87,10 @@ export function DemoRoleSwitcherPanel({
     };
   }, []); // wrapper is stable; its height follows whichever variant CSS shows
 
-  const roleLabel = options.find((o) => o.role === role)?.label ?? role;
+  const isAvailable = (o: Option) =>
+    !o.requiresModule || !entitledModules || entitledModules.includes(o.requiresModule);
+  const shownRole = currentRole ?? role;
+  const roleLabel = options.find((o) => o.role === shownRole)?.label ?? shownRole;
 
   async function onSwitch() {
     setPending(true);
@@ -142,8 +158,8 @@ export function DemoRoleSwitcherPanel({
         disabled={pending}
       >
         {options.map((o) => (
-          <option key={o.role} value={o.role}>
-            {o.label}
+          <option key={o.role} value={o.role} disabled={!isAvailable(o)}>
+            {isAvailable(o) ? o.label : (o.unavailableLabel ?? o.label)}
           </option>
         ))}
       </select>

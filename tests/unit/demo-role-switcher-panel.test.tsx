@@ -87,4 +87,80 @@ describe("DemoRoleSwitcherPanel", () => {
     expect(document.documentElement.style.getPropertyValue("--demo-bar-height")).toBe("");
     expect(document.body.style.paddingBottom).toBe("");
   });
+
+  describe("current role and plan-gated options", () => {
+    const full = [
+      { role: "organisation_admin" as const, label: "Admin" },
+      { role: "dispatcher" as const, label: "Dispatcher" },
+      {
+        role: "employee" as const,
+        label: "Employee",
+        requiresModule: "passengers" as const,
+        unavailableLabel: "Employee (needs Scale + passengers)",
+      },
+      {
+        role: "company_manager" as const,
+        label: "Client portal (Acme)",
+        requiresModule: "portal" as const,
+        unavailableLabel: "Client portal (needs portal)",
+      },
+    ];
+    const growth = ["core", "billing", "payroll", "reports", "maintenance"] as const;
+
+    it("selects the signed-in role (Dispatcher), not the first option", () => {
+      setWidth(1024);
+      render(
+        <DemoRoleSwitcherPanel
+          currentEmail="demo-dispatcher@example.com"
+          currentRole="dispatcher"
+          options={full}
+          entitledModules={growth}
+        />
+      );
+      expect(screen.getByRole("combobox")).toHaveValue("dispatcher");
+      expect(screen.getByRole("option", { name: "Dispatcher" })).toHaveProperty("selected", true);
+    });
+
+    it("collapsed pill shows the current role", () => {
+      setWidth(320);
+      render(
+        <DemoRoleSwitcherPanel
+          currentEmail="demo-dispatcher@example.com"
+          currentRole="dispatcher"
+          options={full}
+          entitledModules={growth}
+        />
+      );
+      expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-collapsed", "true");
+      expect(screen.getByText("Dispatcher")).toBeVisible();
+    });
+
+    it("disables and relabels hub roles the plan lacks", () => {
+      setWidth(1024);
+      render(
+        <DemoRoleSwitcherPanel
+          currentEmail="demo-admin@example.com"
+          currentRole="organisation_admin"
+          options={full}
+          entitledModules={growth}
+        />
+      );
+      expect(screen.getByRole("option", { name: "Employee (needs Scale + passengers)" })).toBeDisabled();
+      expect(screen.getByRole("option", { name: "Client portal (needs portal)" })).toBeDisabled();
+      expect(screen.getByRole("option", { name: "Dispatcher" })).not.toBeDisabled();
+    });
+
+    it("enables hub roles when the plan has them", () => {
+      setWidth(1024);
+      render(
+        <DemoRoleSwitcherPanel
+          currentEmail="demo-admin@example.com"
+          options={full}
+          entitledModules={[...growth, "passengers", "portal"]}
+        />
+      );
+      expect(screen.getByRole("option", { name: "Employee" })).not.toBeDisabled();
+      expect(screen.getByRole("option", { name: "Client portal (Acme)" })).not.toBeDisabled();
+    });
+  });
 });
