@@ -106,7 +106,7 @@ function DriverBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav data-bottom-nav="" className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
         {DRIVER_TABS.map((tab) => {
           const Icon = tab.icon;
