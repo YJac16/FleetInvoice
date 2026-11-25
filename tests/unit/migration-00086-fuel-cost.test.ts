@@ -94,6 +94,16 @@ describe("00086 fuel cost is finance only", () => {
     });
   });
 
+  it("00094 tightens the driver branch: drivers no longer get amounts", () => {
+    const m94 = strip(read("supabase/migrations/00094_fuel_fillup_price_lock.sql"));
+    const list94 = fn(m94, "list_fuel_fillup_amounts");
+    expect(list94).not.toMatch(/current_driver_id|elsif/);
+    expect(list94.match(/return query/g)).toHaveLength(1);
+    const log94 = fn(m94, "log_fuel_fillup");
+    expect(log94).toMatch(/if not is_finance then\s+row\.unit_price := null;/);
+    expect(log94).not.toMatch(/or is_self_driver\s*\)\s*then\s+row\./);
+  });
+
   it("does not touch generate_weekly_fuel_invoice", () => {
     expect(sql).not.toMatch(/generate_weekly_fuel_invoice/);
   });
@@ -128,7 +138,9 @@ describe("no client queries * on fuel_fillups", () => {
     expect(svc).not.toMatch(/select\(\s*["'`]\*/);
     expect(svc).not.toMatch(/["'`]\*,/);
     const safe = svc.match(/FUEL_FILLUP_SAFE_COLUMNS =\s*"([^"]+)"/)![1];
-    expect(safe).not.toMatch(/unit_price|total_amount|currency|\*/);
+    expect(safe).not.toMatch(/unit_price|total_amount|currency|price_status|priced_from_id|priced_at|\*/);
+    expect(safe).toMatch(/\bfuel_type\b/);
+    expect(safe).toMatch(/\bregion\b/);
     expect(svc).toMatch(/FUEL_FILLUP_SELECT = `\$\{FUEL_FILLUP_SAFE_COLUMNS\}/);
   });
 });

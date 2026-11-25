@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/compliance-doc-retention",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/fuel-prices",
+      "schedule": "0 6 * * 1"
     }
   ]
 }

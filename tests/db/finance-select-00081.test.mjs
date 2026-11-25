@@ -35,6 +35,11 @@
  *     org rows to admin/manager, own rows to the driver, 0 rows to dispatcher
  *     and supervisor; log_fuel_fillup masks money for dispatcher/supervisor but
  *     not for manager or the self driver; rollback-00086 restores it all.
+ *     Since 00094 (fuel price table) drivers get NO amounts either: 0 rows
+ *     from list_fuel_fillup_amounts and a masked log_fuel_fillup return; the
+ *     price comes from a confirmed (fake, DEMO) org rate, p_unit_price is
+ *     ignored. The 00093-00095 rollbacks run before the 00086 rollback below
+ *     and the three are re-applied at the end.
  *
  *   - 00087: generate_weekly_fuel_invoice is CALLED as admin and manager with
  *     seeded fuel fills and succeeds (it raised 42702 period_end ambiguous);
@@ -118,9 +123,14 @@ if (!process.env.SKIP_BOOTSTRAP) {
 
 // Local harness only: bootstrap-native.sh runs `GRANT SELECT ... ON ALL TABLES`
 // after the migrations, which re-opens the table-level SELECT that 00086's
-// column grants replace. Hosted Supabase applies migrations after its default
-// grants, so re-apply 00086 here to get the hosted end state (idempotent).
-applyFile("supabase/migrations/00086_fuel_cost_finance_only.sql");
+// column grants replace (and the fuel_prices / fuel_fillups write grants of
+// 00093/00094). Hosted Supabase applies migrations after its default grants,
+// so re-apply them here to get the hosted end state (idempotent). 00086 itself
+// cannot be re-applied on top of 00094 (list_fuel_fillup_amounts return type);
+// 00094 re-asserts its column grants.
+applyFile("supabase/migrations/00093_fuel_prices.sql");
+applyFile("supabase/migrations/00094_fuel_fillup_price_lock.sql");
+applyFile("supabase/migrations/00095_fuel_price_backfill.sql");
 
 // Local harness only (same as tests/db/run-pr-a-waybill-rate.sh): invoker RPCs
 // such as upsert_company_with_trip_rate call auth.uid(); hosted Supabase
@@ -434,11 +444,17 @@ const OTHER_DRIVER = "f8100000-0000-4000-8000-000000000202";
 psqlAdmin(`
 insert into public.drivers (id, organisation_id, full_name, status)
 values ('${OTHER_DRIVER}', '${ORG}', 'Other Fuel Driver', 'active') on conflict (id) do nothing;
-insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency)
+insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency, price_status)
 values
-  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 1000, 40, 25, 1000, 'ZAR'),
-  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 2000, 20, 25, 500, 'ZAR');
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 1000, 40, 25, 1000, 'ZAR', 'priced'),
+  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 2000, 20, 25, 500, 'ZAR', 'priced');
+-- Fake DEMO rate (not a real price) so log_fuel_fillup prices from the table (00094).
+insert into public.fuel_prices (organisation_id, fuel_type, region, effective_from, price_per_litre, source, status, confirmed_at)
+values ('${ORG}', 'diesel_50ppm', 'coastal', date '2020-01-01', 30, 'DEMO', 'confirmed', now())
+on conflict do nothing;
 `);
+const hasPriceLock = () =>
+  psqlAdmin(`select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'fuel_fillups' and column_name = 'price_status'`) === "1";
 const fuelDirect = (user, cols) =>
   psqlAs(user, `select ${cols} from public.fuel_fillups where organisation_id = '${ORG}';`, { allowError: true });
 const permDenied = (r) => !r.ok && /permission denied/i.test(r.text);
@@ -461,7 +477,7 @@ check("00086: dispatcher list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U
 check("00086: supervisor list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.supervisor) === "0|0", fuelAmounts(U.supervisor));
 check("00086: manager list_fuel_fillup_amounts returns org rows", fuelAmounts(U.manager) === "2|1500.00", fuelAmounts(U.manager));
 check("00086: admin list_fuel_fillup_amounts returns org rows", fuelAmounts(U.admin) === "2|1500.00", fuelAmounts(U.admin));
-check("00086: driver list_fuel_fillup_amounts returns own rows only", fuelAmounts(U.driver) === "1|1000.00", fuelAmounts(U.driver));
+check("00094: driver list_fuel_fillup_amounts returns 0 rows (tightened from 00086 own rows)", fuelAmounts(U.driver) === "0|0", fuelAmounts(U.driver));
 check("00086: company_manager list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.cm) === "0|0", fuelAmounts(U.cm));
 const anonAmounts = spawnSync(
   "psql",
@@ -474,7 +490,7 @@ check("00086: anon cannot execute list_fuel_fillup_amounts", anonAmounts.status 
 const logFuel = (user, odo) =>
   psqlAs(
     user,
-    `select (to_jsonb(public.log_fuel_fillup('${ORG}'::uuid, '${VEHICLE}'::uuid, ${odo}, 10, null, null, null, 30, null, null)))::text;`,
+    `select (to_jsonb(public.log_fuel_fillup('${ORG}'::uuid, '${VEHICLE}'::uuid, ${odo}, 10, null, null, null, 30, null, null${hasPriceLock() ? ", 'diesel_50ppm'" : ""})))::text;`,
     { allowError: true }
   );
 for (const [who, user, odo] of [["dispatcher", U.dispatcher, 1100], ["supervisor", U.supervisor, 1200]]) {
@@ -487,7 +503,8 @@ const mj = mgrLog.ok ? JSON.parse(mgrLog.out) : {};
 check("00086: manager log_fuel_fillup keeps money", mgrLog.ok && Number(mj.unit_price) === 30 && Number(mj.total_amount) === 300 && mj.currency === "ZAR", mgrLog.text.slice(0, 160));
 const drvLog = logFuel(U.driver, 1400);
 const dj = drvLog.ok ? JSON.parse(drvLog.out) : {};
-check("00086: self driver log_fuel_fillup keeps money", drvLog.ok && Number(dj.total_amount) === 300, drvLog.text.slice(0, 160));
+check("00094: self driver log_fuel_fillup works, money and price status masked (tightened)", drvLog.ok && dj.total_amount === null && dj.unit_price === null && dj.price_status === null && Number(dj.litres) === 10, drvLog.text.slice(0, 160));
+check("00094: driver-logged row is stored priced from the table", psqlAdmin(`select total_amount::text || '|' || price_status from public.fuel_fillups where odometer_km = 1400 and organisation_id = '${ORG}'`) === "300.00|priced");
 check("00086: dispatcher-logged row still stored with its money", psqlAdmin(`select total_amount::text from public.fuel_fillups where odometer_km = 1100 and organisation_id = '${ORG}'`) === "300.00");
 const weekly = psqlAs(U.manager, `select count(*)::text from (select 1 from public.invoices where organisation_id = '${ORG}') t;`, { allowError: true });
 check("00086: invoices still readable by manager", weekly.ok);
@@ -498,13 +515,17 @@ check("00086: invoices still readable by manager", weekly.ok);
 // ---------------------------------------------------------------------------
 const weeklyFuel = (week) =>
   `select (to_jsonb(public.generate_weekly_fuel_invoice('${ORG}'::uuid, '${COMPANY}'::uuid, date '${week}')))::text;`;
-const FUEL_SEED = `insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency, filled_at)
+const fuelSeed = () => {
+  const lock = hasPriceLock();
+  const st = lock ? ", 'priced'" : "";
+  return `insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency, filled_at${lock ? ", price_status" : ""})
 values
-  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3000, 10, 20, 200, 'ZAR', timestamptz '2027-03-09 08:00:00+00'),
-  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3100, 5, 20, 100, 'ZAR', timestamptz '2027-03-10 08:00:00+00'),
-  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 4000, 10, 30, 300, 'ZAR', timestamptz '2027-03-16 08:00:00+00');`;
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3000, 10, 20, 200, 'ZAR', timestamptz '2027-03-09 08:00:00+00'${st}),
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3100, 5, 20, 100, 'ZAR', timestamptz '2027-03-10 08:00:00+00'${st}),
+  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 4000, 10, 30, 300, 'ZAR', timestamptz '2027-03-16 08:00:00+00'${st});`;
+};
 function checkWeeklyFuel(label) {
-  psqlAdmin(FUEL_SEED); // temporary fills, removed below so 00086 counts are unaffected
+  psqlAdmin(fuelSeed()); // temporary fills, removed below so 00086 counts are unaffected
   const a = psqlAs(U.admin, weeklyFuel("2027-03-08"), { allowError: true });
   const aj = a.ok ? JSON.parse(a.out) : {};
   check(`${label}: admin generate_weekly_fuel_invoice succeeds (no 42702)`, a.ok && !/ambiguous/i.test(a.text), a.text.slice(0, 200));
@@ -544,6 +565,13 @@ function applyFile(rel) {
   );
   check(`apply ${rel}`, res.status === 0, (res.stderr || res.stdout || "").slice(0, 200));
 }
+
+// 00093-00095 sit on top of 00086/00087: roll them back first.
+applyFile("supabase/rollback-00095.sql");
+applyFile("supabase/rollback-00094.sql");
+applyFile("supabase/rollback-00093.sql");
+check("rollback-00094: driver list_fuel_fillup_amounts returns own rows again (00086)", fuelAmounts(U.driver).startsWith("1|") || Number(fuelAmounts(U.driver).split("|")[0]) >= 1, fuelAmounts(U.driver));
+check("rollback-00093: fuel_prices is gone", psqlAdmin(`select (to_regclass('public.fuel_prices') is null)::text`) === "true");
 
 applyFile("supabase/rollback-00086.sql");
 check("rollback-00086: dispatcher can SELECT total_amount again", fuelDirect(U.dispatcher, "total_amount").ok);
@@ -619,5 +647,12 @@ check("re-applied 00086: supervisor list_fuel_fillup_amounts empty", fuelAmounts
 check("re-applied 00086: manager list_fuel_fillup_amounts returns rows", Number(fuelAmounts(U.manager).split("|")[0]) >= 2);
 
 checkWeeklyFuel("re-applied 00087");
+
+applyFile("supabase/migrations/00093_fuel_prices.sql");
+applyFile("supabase/migrations/00094_fuel_fillup_price_lock.sql");
+applyFile("supabase/migrations/00095_fuel_price_backfill.sql");
+check("re-applied 00094: driver list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.driver) === "0|0", fuelAmounts(U.driver));
+check("re-applied 00094: dispatcher cannot SELECT total_amount", permDenied(fuelDirect(U.dispatcher, "total_amount")));
+checkWeeklyFuel("re-applied 00094");
 
 process.exit(failed);

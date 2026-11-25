@@ -16,6 +16,7 @@
     "test:finance-00081": "WORKOPS_AUDIT_PG_PORT=5432 node tests/db/finance-select-00081.test.mjs",
     "test:finance-00084": "npm run test:finance-00081",
     "test:finance-00085": "npm run test:finance-00081",
+    "test:fuel-prices-00093": "WORKOPS_AUDIT_PG_PORT=5432 node tests/db/fuel-price-table.test.mjs",
     "test:compliance-rls": "bash tests/rls/run-compliance-pr36.sh",
     "test:compliance-phase2": "bash tests/rls/run-compliance-phase2.sh",
     "test:admin-capture-rls": "bash tests/rls/run-admin-capture-rls.sh",

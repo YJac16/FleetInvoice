@@ -30,6 +30,12 @@ vi.mock("@/services/fuel-fillups.service", () => ({
   listFuelFillups: vi.fn(),
   logFuelFillup: vi.fn(),
 }));
+vi.mock("@/services/fuel-prices.service", () => ({
+  listFuelPrices: vi.fn(async () => []),
+  confirmFuelPrices: vi.fn(),
+  upsertOrgFuelPrice: vi.fn(),
+  backfillUnpricedFuelFillups: vi.fn(),
+}));
 
 import { listFuelFillups } from "@/services/fuel-fillups.service";
 
@@ -61,7 +67,7 @@ const PERIOD = { periodStart: "2026-11-01", periodEnd: "2026-11-30" };
 function fillupsFor(includeAmounts: boolean): FuelFillup[] {
   return [
     includeAmounts
-      ? { ...FILLUP, unit_price: 25, total_amount: 1000, currency: "ZAR" }
+      ? { ...FILLUP, unit_price: 25, total_amount: 1000, currency: "ZAR", price_status: "priced" }
       : FILLUP,
   ];
 }
@@ -125,13 +131,15 @@ describe("reportToCsvRows fuel", () => {
       includeFuelAmounts: canViewFuelCost,
     });
     expect(csv.headers).toEqual([
-      "id", "filled_at", "vehicle", "company", "driver", "odometer_km", "litres", "owner",
+      "id", "filled_at", "vehicle", "company", "driver", "fuel_type", "odometer_km", "litres", "owner",
     ]);
+    expect(csv.headers).not.toContain("price_status");
     expect(csv.headers).not.toContain("total_amount");
     expect(csv.headers).not.toContain("currency");
     for (const row of csv.rows) {
       expect(row).not.toHaveProperty("total_amount");
       expect(row).not.toHaveProperty("currency");
+      expect(row).not.toHaveProperty("price_status");
     }
   });
 
@@ -196,6 +204,73 @@ describe("FuelFillupsPage", () => {
     await waitFor(() => expect(screen.getAllByText("Van One").length).toBeGreaterThan(0));
     expect(vi.mocked(listFuelFillups)).toHaveBeenCalledWith("org-1", { includeAmounts: true });
     expect(screen.getByText("Amount")).toBeInTheDocument();
-    expect(screen.getByText("ZAR 1000")).toBeInTheDocument();
+    expect(screen.getByText("ZAR 1000.00")).toBeInTheDocument();
+  });
+
+  it.each(["manager", "organisation_admin"] as const)("%s: needs-price fill shows a badge and count, not R0", async (r) => {
+    role = r;
+    vi.mocked(listFuelFillups).mockImplementation(async () => [
+      { ...FILLUP, unit_price: 25, total_amount: 1000, currency: "ZAR", price_status: "priced" },
+      { ...FILLUP, id: "f2", vehicles: { id: "v2", name: "Van Two", registration_number: "REG2" }, price_status: "needs_price" },
+    ]);
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText("Van Two").length).toBeGreaterThan(0));
+    expect(screen.getAllByText("Needs price").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("needs-price-count")).toHaveTextContent("Needs price: 1");
+    expect(screen.getByText("Priced total: 1000.00")).toBeInTheDocument();
+    expect(screen.queryByText("ZAR 0.00")).not.toBeInTheDocument();
+    expect(screen.getByTestId("fuel-prices-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-fuel-history")).toBeInTheDocument();
+  });
+
+  it.each(["dispatcher", "supervisor"] as const)("%s: no price panels, badges or counts", async (r) => {
+    role = r;
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText("Van One").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Needs price")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("needs-price-count")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("fuel-prices-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-fuel-history")).not.toBeInTheDocument();
+  });
+});
+
+describe("needs_price is not R0 in the fuel report", () => {
+  beforeEach(() => {
+    vi.mocked(listFuelFillups).mockImplementation(async (_org, opts) =>
+      opts?.includeAmounts
+        ? [
+            { ...FILLUP, unit_price: 25, total_amount: 1000, currency: "ZAR", price_status: "priced" },
+            { ...FILLUP, id: "f2", price_status: "needs_price" },
+          ]
+        : [FILLUP, { ...FILLUP, id: "f2" }]
+    );
+  });
+
+  it("finance: total excludes unpriced, count reported, row amount stays null", async () => {
+    const r = await report(true);
+    expect(r.totalAmount).toBe(1000);
+    expect(r.needsPriceCount).toBe(1);
+    expect(r.rows.find((x) => x.id === "f2")).toMatchObject({ total_amount: null, price_status: "needs_price" });
+    expect(r.ownerSplit.reduce((s, o) => s + (o.amount ?? 0), 0)).toBe(1000);
+    const csv = reportToCsvRows(r, { includeFuelAmounts: true });
+    expect(csv.headers).toContain("price_status");
+    expect(csv.rows.find((x) => x.id === "f2")).toMatchObject({ total_amount: null, price_status: "needs_price" });
+  });
+
+  it("ops: no count, no status", async () => {
+    const r = await report(false);
+    expect(r.needsPriceCount).toBe(0);
+    expect(r.rows.every((x) => x.price_status === "" && x.total_amount === null)).toBe(true);
+  });
+
+  it("FuelResults shows Needs price and the excluded count for finance only", async () => {
+    const r = await report(true);
+    const { unmount } = render(<FuelResults report={r} showAmounts />);
+    expect(screen.getByText("Needs price")).toBeInTheDocument();
+    expect(screen.getByText(/Needs price: 1 \(not in total\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Total amount: 1000\.00/)).toBeInTheDocument();
+    unmount();
+    render(<FuelResults report={await report(false)} showAmounts={false} />);
+    expect(screen.queryByText(/Needs price/)).not.toBeInTheDocument();
   });
 });
