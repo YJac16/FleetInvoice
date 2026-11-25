@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToString } from "react-dom/server";
@@ -131,8 +131,10 @@ describe("DemoRoleSwitcherPanel", () => {
           entitledModules={growth}
         />
       );
-      expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-collapsed", "true");
-      expect(screen.getByText("Dispatcher")).toBeVisible();
+      expect(screen.getByTestId("demo-role-switcher")).toHaveAttribute("data-pref", "default");
+      // The pill and the <select> option both render now (CSS picks one).
+      const pill = document.querySelector("[data-demo-bar-pill]") as HTMLElement;
+      expect(within(pill).getByText("Dispatcher")).toBeVisible();
     });
 
     it("disables and relabels hub roles the plan lacks", () => {

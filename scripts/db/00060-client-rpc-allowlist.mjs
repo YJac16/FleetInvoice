@@ -46,6 +46,7 @@ export const AUTHENTICATED_CLIENT_RPCS = [
   "issue_qr_token",
   "list_compliance_missing_data",
   "list_compliance_renewals",
+  "list_fuel_fillup_amounts",
   "list_my_compliance",
   "log_fuel_fillup",
   "lookup_white_label",

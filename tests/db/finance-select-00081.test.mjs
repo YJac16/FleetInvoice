@@ -30,6 +30,12 @@
  *     dispatcher + supervisor back on invoices / route prices, rollback-00082
  *     drops supplier_name. Re-applying 00081/00082/00084 restores the lock-down.
  *
+ *   - 00086: fuel_fillups unit_price / total_amount / currency are column-revoked
+ *     (42501 on direct SELECT, any caller); list_fuel_fillup_amounts returns
+ *     org rows to admin/manager, own rows to the driver, 0 rows to dispatcher
+ *     and supervisor; log_fuel_fillup masks money for dispatcher/supervisor but
+ *     not for manager or the self driver; rollback-00086 restores it all.
+ *
  * Run: npm run test:finance-00081   (bootstraps a throwaway local DB)
  */
 import { spawnSync } from "node:child_process";
@@ -104,6 +110,12 @@ if (!process.env.SKIP_BOOTSTRAP) {
     process.exit(1);
   }
 }
+
+// Local harness only: bootstrap-native.sh runs `GRANT SELECT ... ON ALL TABLES`
+// after the migrations, which re-opens the table-level SELECT that 00086's
+// column grants replace. Hosted Supabase applies migrations after its default
+// grants, so re-apply 00086 here to get the hosted end state (idempotent).
+applyFile("supabase/migrations/00086_fuel_cost_finance_only.sql");
 
 // Local harness only (same as tests/db/run-pr-a-waybill-rate.sh): invoker RPCs
 // such as upsert_company_with_trip_rate call auth.uid(); hosted Supabase
@@ -409,6 +421,72 @@ const upsertWithRate = refused(
 check("00085: dispatcher editing a company WITH a trip rate is refused", upsertWithRate.refused, upsertWithRate.text.slice(0, 160));
 check("00085: ...and the whole call rolls back (company not renamed)", psqlAdmin(`select name from public.companies where id = '${COMPANY}'`) === "Finance Co");
 
+
+// ---------------------------------------------------------------------------
+// 00086: fuel cost is finance (column revoke + role-gated amounts RPC)
+// ---------------------------------------------------------------------------
+const OTHER_DRIVER = "f8100000-0000-4000-8000-000000000202";
+psqlAdmin(`
+insert into public.drivers (id, organisation_id, full_name, status)
+values ('${OTHER_DRIVER}', '${ORG}', 'Other Fuel Driver', 'active') on conflict (id) do nothing;
+insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency)
+values
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 1000, 40, 25, 1000, 'ZAR'),
+  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 2000, 20, 25, 500, 'ZAR');
+`);
+const fuelDirect = (user, cols) =>
+  psqlAs(user, `select ${cols} from public.fuel_fillups where organisation_id = '${ORG}';`, { allowError: true });
+const permDenied = (r) => !r.ok && /permission denied/i.test(r.text);
+const fuelAmounts = (user) =>
+  psqlAs(user, `select count(*)::text || '|' || coalesce(sum(total_amount), 0)::text from public.list_fuel_fillup_amounts('${ORG}'::uuid);`).out;
+const ALL_USERS = Object.entries(U);
+for (const [who, id] of ALL_USERS) {
+  for (const cols of ["*", "unit_price", "total_amount", "currency"]) {
+    check(`00086: ${who} cannot SELECT ${cols} from fuel_fillups (permission denied)`, permDenied(fuelDirect(id, cols)), fuelDirect(id, cols).text.slice(0, 120));
+  }
+}
+const SAFE = "id, organisation_id, vehicle_id, driver_id, company_id, filled_at, odometer_km, litres, station_name, notes, created_by, created_at, updated_at, deleted_at";
+const fuelSafeCount = (user) => psqlAs(user, `select count(*)::text from (select ${SAFE} from public.fuel_fillups where organisation_id = '${ORG}') t;`).out;
+check("00086: dispatcher still lists ops columns on all org fill-ups", fuelSafeCount(U.dispatcher) === "2", fuelSafeCount(U.dispatcher));
+check("00086: supervisor still lists ops columns on all org fill-ups", fuelSafeCount(U.supervisor) === "2", fuelSafeCount(U.supervisor));
+check("00086: admin lists ops columns on all org fill-ups", fuelSafeCount(U.admin) === "2");
+check("00086: driver sees only own row (ops columns)", fuelSafeCount(U.driver) === "1", fuelSafeCount(U.driver));
+check("00086: company_manager sees 0 fuel_fillups rows", fuelSafeCount(U.cm) === "0", fuelSafeCount(U.cm));
+check("00086: dispatcher list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.dispatcher) === "0|0", fuelAmounts(U.dispatcher));
+check("00086: supervisor list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.supervisor) === "0|0", fuelAmounts(U.supervisor));
+check("00086: manager list_fuel_fillup_amounts returns org rows", fuelAmounts(U.manager) === "2|1500.00", fuelAmounts(U.manager));
+check("00086: admin list_fuel_fillup_amounts returns org rows", fuelAmounts(U.admin) === "2|1500.00", fuelAmounts(U.admin));
+check("00086: driver list_fuel_fillup_amounts returns own rows only", fuelAmounts(U.driver) === "1|1000.00", fuelAmounts(U.driver));
+check("00086: company_manager list_fuel_fillup_amounts returns 0 rows", fuelAmounts(U.cm) === "0|0", fuelAmounts(U.cm));
+const anonAmounts = spawnSync(
+  "psql",
+  ["-q", "-h", "127.0.0.1", "-U", PG.auditUser, "-d", PG.database, "-tA", "-c",
+   `begin; set local role anon; select * from public.list_fuel_fillup_amounts('${ORG}'::uuid); commit;`],
+  { env: { ...process.env, PGPASSWORD: PG.auditPassword }, encoding: "utf8" }
+);
+check("00086: anon cannot execute list_fuel_fillup_amounts", anonAmounts.status !== 0 && /permission denied/i.test(anonAmounts.stderr ?? ""), anonAmounts.stderr);
+
+const logFuel = (user, odo) =>
+  psqlAs(
+    user,
+    `select (to_jsonb(public.log_fuel_fillup('${ORG}'::uuid, '${VEHICLE}'::uuid, ${odo}, 10, null, null, null, 30, null, null)))::text;`,
+    { allowError: true }
+  );
+for (const [who, user, odo] of [["dispatcher", U.dispatcher, 1100], ["supervisor", U.supervisor, 1200]]) {
+  const r = logFuel(user, odo);
+  const j = r.ok ? JSON.parse(r.out) : {};
+  check(`00086: ${who} log_fuel_fillup works, money masked`, r.ok && j.unit_price === null && j.total_amount === null && j.currency === null && Number(j.litres) === 10, r.text.slice(0, 160));
+}
+const mgrLog = logFuel(U.manager, 1300);
+const mj = mgrLog.ok ? JSON.parse(mgrLog.out) : {};
+check("00086: manager log_fuel_fillup keeps money", mgrLog.ok && Number(mj.unit_price) === 30 && Number(mj.total_amount) === 300 && mj.currency === "ZAR", mgrLog.text.slice(0, 160));
+const drvLog = logFuel(U.driver, 1400);
+const dj = drvLog.ok ? JSON.parse(drvLog.out) : {};
+check("00086: self driver log_fuel_fillup keeps money", drvLog.ok && Number(dj.total_amount) === 300, drvLog.text.slice(0, 160));
+check("00086: dispatcher-logged row still stored with its money", psqlAdmin(`select total_amount::text from public.fuel_fillups where odometer_km = 1100 and organisation_id = '${ORG}'`) === "300.00");
+const weekly = psqlAs(U.manager, `select count(*)::text from (select 1 from public.invoices where organisation_id = '${ORG}') t;`, { allowError: true });
+check("00086: invoices still readable by manager", weekly.ok);
+
 // ---------------------------------------------------------------------------
 // Rollbacks, then re-apply
 // ---------------------------------------------------------------------------
@@ -420,6 +498,14 @@ function applyFile(rel) {
   );
   check(`apply ${rel}`, res.status === 0, (res.stderr || res.stdout || "").slice(0, 200));
 }
+
+applyFile("supabase/rollback-00086.sql");
+check("rollback-00086: dispatcher can SELECT total_amount again", fuelDirect(U.dispatcher, "total_amount").ok);
+check("rollback-00086: manager can SELECT * again", fuelDirect(U.manager, "*").ok);
+check("rollback-00086: list_fuel_fillup_amounts is gone", psqlAdmin(`select count(*) from pg_proc where proname = 'list_fuel_fillup_amounts'`) === "0");
+const unmasked = logFuel(U.dispatcher, 1500);
+check("rollback-00086: dispatcher log_fuel_fillup returns money again (00007)", unmasked.ok && Number(JSON.parse(unmasked.out).total_amount) === 300, unmasked.text.slice(0, 160));
+check("rollback-00086: driver sees only own fill-ups (policy untouched)", fuelSafeCount(U.driver) === "2" || fuelSafeCount(U.driver) === "3", fuelSafeCount(U.driver));
 
 applyFile("supabase/rollback-00085.sql");
 {
@@ -471,5 +557,10 @@ for (const t of [...FINANCE_00081, ...FINANCE_00084]) {
   check(`re-applied: supervisor sees no ${t}`, count(U.supervisor, t) === "0", count(U.supervisor, t));
   check(`re-applied: manager sees ${t}`, Number(count(U.manager, t)) > 0);
 }
+
+applyFile("supabase/migrations/00086_fuel_cost_finance_only.sql");
+check("re-applied 00086: dispatcher cannot SELECT total_amount", permDenied(fuelDirect(U.dispatcher, "total_amount")));
+check("re-applied 00086: supervisor list_fuel_fillup_amounts empty", fuelAmounts(U.supervisor).startsWith("0|"));
+check("re-applied 00086: manager list_fuel_fillup_amounts returns rows", Number(fuelAmounts(U.manager).split("|")[0]) >= 2);
 
 process.exit(failed);
