@@ -10,7 +10,6 @@ import {
   MapPinned,
   Radar,
   Users,
-  UsersRound,
   Warehouse,
 } from "lucide-react";
 
@@ -221,7 +220,7 @@ export function DashboardPage() {
       ) : null}
 
       {showCountsSkeleton ? (
-        <CardGridSkeleton cards={7} />
+        <CardGridSkeleton cards={6} />
       ) : (
         <RangeQueryBody query={countsQuery}>
         <div>
@@ -232,12 +231,6 @@ export function DashboardPage() {
               value={counts?.drivers ?? 0}
               icon={CircleUser}
               href={can("drivers:view") ? "/drivers" : undefined}
-            />
-            <StatCard
-              title="Employees"
-              value={counts?.employees ?? 0}
-              icon={UsersRound}
-              href={can("employees:view") ? "/employees" : undefined}
             />
             <StatCard
               title="Vehicles"
@@ -273,6 +266,17 @@ export function DashboardPage() {
         </div>
         </RangeQueryBody>
       )}
+
+      {can("maintenance:view") && canModule("maintenance") ? (
+        <p className="text-sm text-muted-foreground">
+          <Link
+            href="/maintenance"
+            className="underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Maintenance
+          </Link>
+        </p>
+      ) : null}
 
       {browseGroups.length ? (
         <div className="space-y-6">

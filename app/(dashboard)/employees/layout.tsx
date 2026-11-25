@@ -1,13 +1,10 @@
-import { guardModulePage } from "@/lib/auth/module-guard";
+import { notFound } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-/** Server guard for /employees: allowed with passengers OR attendance. Not entitled -> 404 (see lib/auth/module-guard.ts). */
-export default async function EmployeesLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  await guardModulePage(["passengers", "attendance"]);
-  return <>{children}</>;
+/**
+ * Demo focus pass: the admin Employees UI is hidden, so /employees 404s.
+ * features/employees/** and services/employees.service.ts stay in the repo
+ * (attendance dialogs use the service). The /employee/* portal is separate.
+ */
+export default function EmployeesLayout(_props: { children: React.ReactNode }) {
+  notFound();
 }

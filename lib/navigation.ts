@@ -86,7 +86,6 @@ export const MAIN_NAV: NavItem[] = [
   item("Dashboard", "/dashboard", LayoutDashboard, "dashboard:view", "overview"),
   item("Users", "/users", Users, "users:view", "people"),
   item("Drivers", "/drivers", CircleUser, "drivers:view", "people"),
-  item("Employees", "/employees", UsersRound, "employees:view", "people"),
   item("Vehicles", "/vehicles", Car, "vehicles:view", "fleet"),
   item("Compliance", "/compliance", ShieldCheck, "drivers:view", "fleet"),
   item("Fuel", "/fuel", Fuel, "fuel:view", "fleet"),

@@ -122,12 +122,6 @@ const LAYOUTS: LayoutCase[] = [
   { route: "/reports", modules: ["reports"], user: "admin", load: () => import("@/app/(dashboard)/reports/layout") },
   { route: "/dispatch", modules: ["gps"], user: "admin", load: () => import("@/app/(dashboard)/dispatch/layout") },
   { route: "/geofences", modules: ["gps"], user: "admin", load: () => import("@/app/(dashboard)/geofences/layout") },
-  {
-    route: "/employees",
-    modules: ["passengers", "attendance"],
-    user: "admin",
-    load: () => import("@/app/(dashboard)/employees/layout"),
-  },
   { route: "/company/*", modules: ["portal"], user: "cm", load: () => import("@/app/(company)/layout") },
   { route: "/employee/*", modules: ["passengers"], user: "emp", load: () => import("@/app/(employee)/layout") },
 ];
@@ -216,18 +210,9 @@ describe("explicit expectations", () => {
   const layout = (route: string) => LAYOUTS.find((l) => l.route === route)!;
   const render = async (route: string) => (await layout(route).load()).default({ children: "page" });
 
-  it("/employees: passengers-only and attendance-only orgs both pass; core-only goes to /app/no-access", async () => {
-    signIn("u-admin-pass", ORG.pass);
-    await expect(render("/employees")).resolves.toBeTruthy();
-    signIn("u-admin-att", ORG.att);
-    await expect(render("/employees")).resolves.toBeTruthy();
-    signIn("u-admin-core", ORG.core);
-    await expect(render("/employees")).rejects.toThrow(NO_ACCESS);
-  });
-
-  it("/employees is open under fail-open (attendance), by design", async () => {
-    signIn("u-admin-none", ORG.none);
-    await expect(render("/employees")).resolves.toBeTruthy();
+  it("/employees is hidden: always 404s, whatever the org's plan", async () => {
+    const { default: EmployeesLayout } = await import("@/app/(dashboard)/employees/layout");
+    expect(() => EmployeesLayout({ children: "page" })).toThrow("NEXT_NOT_FOUND");
   });
 
   it.each(["/company/*", "/employee/*"])("%s never fails open", async (route) => {

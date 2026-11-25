@@ -505,6 +505,7 @@ export function ReportsPage({
         <SelectField
           control={form.control}
           name="report_type"
+          id="report-type"
           label="Report"
           options={reportKinds.map((t) => ({
             value: t,

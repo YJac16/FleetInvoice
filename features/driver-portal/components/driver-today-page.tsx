@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useShowListSkeleton } from "@/hooks/use-list-query-skeleton";
 import { RangeQueryBody } from "@/components/shared/range-query-body";
@@ -201,7 +202,11 @@ export function DriverTodayPage() {
           <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
             Today
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{tripCountLabel}</p>
+          {showTripsSkeleton ? (
+            <Skeleton className="mt-1 h-3 w-28" aria-label="Loading trips" />
+          ) : (
+            <p className="mt-0.5 text-xs text-muted-foreground">{tripCountLabel}</p>
+          )}
         </div>
         <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground">
           {nowLabel}
