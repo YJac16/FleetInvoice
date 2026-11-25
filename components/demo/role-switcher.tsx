@@ -4,6 +4,7 @@ import {
   DEMO_ORG_SLUG,
   demoRoleOptions,
   findDemoAccountByEmail,
+  isDemoEmail,
 } from "@/lib/demo/accounts";
 import { isDemoEnabled } from "@/lib/demo/guard";
 import { FAIL_OPEN_MODULES, isAppModule, type AppModule } from "@/lib/entitlements";
@@ -22,8 +23,9 @@ export async function DemoRoleSwitcher() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const account = user ? findDemoAccountByEmail(user.email) : null;
-  if (!user || !account) return null;
+  if (!user || !isDemoEmail(user.email)) return null;
+  // Extra demo sign-ins (e.g. demo@goops.co.za) have no mapped role: no current role.
+  const account = findDemoAccountByEmail(user.email);
 
   const entitledModules = await demoOrgEntitledModules(supabase);
 
@@ -31,7 +33,7 @@ export async function DemoRoleSwitcher() {
     <DemoRoleSwitcherPanel
       options={demoRoleOptions()}
       currentEmail={user.email ?? ""}
-      currentRole={account.role}
+      currentRole={account?.role}
       entitledModules={entitledModules}
     />
   );
