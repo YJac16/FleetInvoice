@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { Button } from "@/components/ui/button";
 import { StaffTripCard } from "@/features/driver-portal/components/staff-trip-card";
@@ -79,9 +80,13 @@ export function DriverWeekPage() {
           <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
             Week
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {tripCount} trip{tripCount === 1 ? "" : "s"} this week
-          </p>
+          {tripsQuery.isLoading ? (
+            <Skeleton className="mt-2 h-4 w-32" aria-label="Loading trips" />
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tripCount} trip{tripCount === 1 ? "" : "s"} this week
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button

@@ -164,6 +164,8 @@ type SelectFieldProps<T extends FieldValues> = {
   label: string;
   options: SelectOption[];
   placeholder?: string;
+  /** Wires the label to the trigger (click label opens the dropdown). */
+  id?: string;
 };
 
 export function SelectField<T extends FieldValues>({
@@ -172,13 +174,14 @@ export function SelectField<T extends FieldValues>({
   label,
   options,
   placeholder = "Select…",
+  id,
 }: SelectFieldProps<T>) {
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <FieldShell label={label} error={fieldState.error?.message}>
+        <FieldShell label={label} error={fieldState.error?.message} htmlFor={id}>
           <Select
             key={`${String(name)}:${options.map((option) => option.value).join(",")}`}
             items={options}
@@ -187,7 +190,7 @@ export function SelectField<T extends FieldValues>({
               field.onChange(value ?? "");
             }}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger id={id} className="w-full">
               <SelectValue placeholder={placeholder}>
                 {(value) => resolveSelectLabel(options, value, placeholder)}
               </SelectValue>
