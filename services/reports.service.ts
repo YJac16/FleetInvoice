@@ -39,6 +39,8 @@ export type FuelReport = {
     filled_at: string;
     vehicle: string;
     company: string;
+    driver: string;
+    odometer_km: number;
     litres: number;
     total_amount: number | null;
     currency: string;
@@ -100,8 +102,10 @@ function tripInPeriod(trip: Trip, period: ReportPeriod): boolean {
 export async function buildOpsReport(
   organisationId: string,
   reportType: ReportType,
-  period: ReportPeriod
+  period: ReportPeriod,
+  options?: { includeFuelAmounts?: boolean }
 ): Promise<OpsReport> {
+  const includeFuelAmounts = options?.includeFuelAmounts ?? false;
   switch (reportType) {
     case "trips": {
       const trips = await listTrips(organisationId);
@@ -122,7 +126,9 @@ export async function buildOpsReport(
       };
     }
     case "fuel": {
-      const fillups = await listFuelFillups(organisationId);
+      const fillups = await listFuelFillups(organisationId, {
+        includeAmounts: includeFuelAmounts,
+      });
       const inPeriod = fillups.filter((f) =>
         isInstantInPeriod(f.filled_at, period.periodStart, period.periodEnd)
       );
@@ -130,7 +136,7 @@ export async function buildOpsReport(
       let totalAmount = 0;
       const rows = inPeriod.map((f: FuelFillup) => {
         totalLitres += Number(f.litres) || 0;
-        totalAmount += Number(f.total_amount) || 0;
+        if (includeFuelAmounts) totalAmount += Number(f.total_amount) || 0;
         return {
           id: f.id,
           filled_at: f.filled_at,
@@ -139,9 +145,11 @@ export async function buildOpsReport(
             f.vehicles?.registration_number ??
             f.vehicle_id.slice(0, 8),
           company: f.companies?.name ?? "",
+          driver: f.drivers?.full_name ?? "",
+          odometer_km: Number(f.odometer_km) || 0,
           litres: Number(f.litres) || 0,
-          total_amount: f.total_amount,
-          currency: f.currency,
+          total_amount: includeFuelAmounts ? f.total_amount : null,
+          currency: includeFuelAmounts ? (f.currency ?? "") : "",
         };
       });
       return { type: "fuel", totalLitres, totalAmount, rows };
@@ -231,7 +239,8 @@ export async function buildOpsReport(
 }
 
 export function reportToCsvRows(
-  report: OpsReport
+  report: OpsReport,
+  options?: { includeFuelAmounts?: boolean }
 ): { headers: string[]; rows: Record<string, unknown>[]; filename: string } {
   switch (report.type) {
     case "trips":
@@ -240,20 +249,31 @@ export function reportToCsvRows(
         headers: ["id", "planned_start", "status", "route"],
         rows: report.rows,
       };
-    case "fuel":
+    case "fuel": {
+      const opsHeaders = [
+        "id",
+        "filled_at",
+        "vehicle",
+        "company",
+        "driver",
+        "odometer_km",
+        "litres",
+      ];
+      if (options?.includeFuelAmounts) {
+        return {
+          filename: "fuel-report.csv",
+          headers: [...opsHeaders, "total_amount", "currency"],
+          rows: report.rows,
+        };
+      }
       return {
         filename: "fuel-report.csv",
-        headers: [
-          "id",
-          "filled_at",
-          "vehicle",
-          "company",
-          "litres",
-          "total_amount",
-          "currency",
-        ],
-        rows: report.rows,
+        headers: opsHeaders,
+        rows: report.rows.map(
+          ({ total_amount: _a, currency: _c, ...ops }) => ops
+        ),
       };
+    }
     case "attendance":
       return {
         filename: "attendance-report.csv",
