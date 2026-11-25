@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { isMissingRpcError } from "@/features/trips/lib/waybill-billing-readiness";
 import {
   listTenantRows,
   type ListTenantOptions,
@@ -24,6 +25,35 @@ type FuelAmountRow = {
   currency: string | null;
 };
 
+/**
+ * Money columns for the fill-ups the caller may price. Uses the 00086 RPC.
+ * Deploy order is app first, then 00086: until 00086 is applied the RPC does
+ * not exist (PGRST202 / 42883) but the money columns are still selectable, so
+ * fall back to reading them directly (RLS still applies). If they are not
+ * selectable either (42501), return no amounts rather than failing the page.
+ */
+async function loadFuelFillupAmounts(
+  organisationId: string
+): Promise<FuelAmountRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("list_fuel_fillup_amounts", {
+    p_organisation_id: organisationId,
+  });
+  if (!error) return (data ?? []) as FuelAmountRow[];
+  if (!isMissingRpcError(error)) throw error;
+
+  const fallback = await supabase
+    .from(TABLE)
+    .select("id, unit_price, total_amount, currency")
+    .eq("organisation_id", organisationId)
+    .is("deleted_at", null);
+  if (fallback.error) {
+    if ((fallback.error as { code?: string }).code === "42501") return [];
+    throw fallback.error;
+  }
+  return (fallback.data ?? []) as FuelAmountRow[];
+}
+
 export async function listFuelFillups(
   organisationId: string,
   options?: ListTenantOptions & { includeAmounts?: boolean }
@@ -42,14 +72,8 @@ export async function listFuelFillups(
   }));
   if (!includeAmounts) return masked;
 
-  const supabase = createClient();
-  const { data, error } = await supabase.rpc("list_fuel_fillup_amounts", {
-    p_organisation_id: organisationId,
-  });
-  if (error) throw error;
-  const byId = new Map(
-    ((data ?? []) as FuelAmountRow[]).map((a) => [a.id, a])
-  );
+  const amounts = await loadFuelFillupAmounts(organisationId);
+  const byId = new Map(amounts.map((a) => [a.id, a]));
   return masked.map((r) => {
     const a = byId.get(r.id);
     return a

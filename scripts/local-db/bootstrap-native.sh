@@ -72,6 +72,12 @@ if [[ -f "$ROOT/scripts/local-db/seed-compliance-test-fixtures.sql" ]]; then
     -f "$ROOT/scripts/local-db/seed-compliance-test-fixtures.sql"
 fi
 
+# Record column-only SELECT ACLs (00079 trips, 00086 fuel_fillups) before the
+# broad grant below re-opens those tables; restored at the end of this script.
+echo "Snapshotting column-level SELECT ACLs..."
+sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
+  -f "$ROOT/scripts/local-db/column-acl-snapshot.sql"
+
 sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'audit_rls') THEN
@@ -197,5 +203,9 @@ if [[ -z "${WORKOPS_SKIP_MIGRATION_PREFIX:-}" && -f "$ROOT/supabase/migrations/0
   sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
     -f "$ROOT/supabase/migrations/00052_security_hardening_anon_rpc_quota_rls.sql"
 fi
+
+echo "Restoring column-level SELECT ACLs after bootstrap broad grants..."
+sudo -u postgres psql -d workops_audit -v ON_ERROR_STOP=1 \
+  -f "$ROOT/scripts/local-db/column-acl-restore.sql"
 
 echo "Native audit DB ready: db=workops_audit host=127.0.0.1 port=${PORT}"
