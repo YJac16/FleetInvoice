@@ -8,7 +8,6 @@ type Option = { role: AppRole; label: string };
 
 export const DEMO_BAR_STORAGE_KEY = "demo-role-switcher:collapsed";
 export const DEMO_BAR_HEIGHT_VAR = "--demo-bar-height";
-const NARROW_VIEWPORT_PX = 640;
 
 export function DemoRoleSwitcherPanel({
   options,
@@ -20,9 +19,12 @@ export function DemoRoleSwitcherPanel({
   const [role, setRole] = useState<AppRole>(options[0]?.role ?? "organisation_admin");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Start compact (safe on every viewport, matches SSR); the stored or
-  // viewport-based preference is applied after mount.
-  const [collapsed, setCollapsed] = useState(true);
+  // null = no explicit choice yet. Which of the pill / expanded bar is shown is
+  // decided by CSS (app/globals.css, keyed on data-pref and a max-width: 639px
+  // media query), so the server-rendered markup is already correct on small
+  // screens before any JS runs. Only an explicit user choice (read from
+  // localStorage after mount) overrides the viewport default.
+  const [pref, setPref] = useState<"expanded" | "collapsed" | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,15 +34,14 @@ export function DemoRoleSwitcherPanel({
     } catch {
       /* storage unavailable */
     }
-    if (stored === "1" || stored === "0") setCollapsed(stored === "1");
-    else setCollapsed(window.innerWidth < NARROW_VIEWPORT_PX);
+    if (stored === "1") setPref("collapsed");
+    else if (stored === "0") setPref("expanded");
   }, []);
 
-  function toggle() {
-    const next = !collapsed;
-    setCollapsed(next);
+  function choose(next: "expanded" | "collapsed") {
+    setPref(next);
     try {
-      window.localStorage.setItem(DEMO_BAR_STORAGE_KEY, next ? "1" : "0");
+      window.localStorage.setItem(DEMO_BAR_STORAGE_KEY, next === "collapsed" ? "1" : "0");
     } catch {
       /* storage unavailable */
     }
@@ -71,7 +72,7 @@ export function DemoRoleSwitcherPanel({
       root.style.removeProperty(DEMO_BAR_HEIGHT_VAR);
       body.style.paddingBottom = prevPadding;
     };
-  }, [collapsed]); // the bar element is swapped on toggle, so re-observe
+  }, []); // wrapper is stable; its height follows whichever variant CSS shows
 
   const roleLabel = options.find((o) => o.role === role)?.label ?? role;
 
@@ -100,37 +101,30 @@ export function DemoRoleSwitcherPanel({
     }
   }
 
-  if (collapsed) {
-    return (
-      <div
-        ref={barRef}
-        data-testid="demo-role-switcher"
-        data-collapsed="true"
-        className="fixed right-3 bottom-3 z-[100]"
-      >
-        <button
-          type="button"
-          aria-expanded={false}
-          aria-label={`Show demo role switcher (${roleLabel})`}
-          onClick={toggle}
-          className="flex h-8 items-center gap-1.5 rounded-full border border-amber-500 bg-background/95 px-2 text-xs shadow-lg backdrop-blur"
-        >
-          <span className="rounded bg-amber-500 px-1.5 py-0.5 font-bold tracking-wide text-black">
-            Demo
-          </span>
-          <span className="max-w-[8rem] truncate">{roleLabel}</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={barRef}
       data-testid="demo-role-switcher"
-      data-collapsed="false"
-      className="fixed right-3 bottom-3 z-[100] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-lg border border-amber-500 bg-background/95 p-2 text-xs shadow-lg backdrop-blur"
+      data-demo-bar=""
+      data-pref={pref ?? "default"}
+      className="fixed right-3 bottom-3 z-[100]"
     >
+      <button
+        type="button"
+        data-demo-bar-pill=""
+        aria-label={`Show demo role switcher (${roleLabel})`}
+        onClick={() => choose("expanded")}
+        className="h-8 items-center gap-1.5 rounded-full border border-amber-500 bg-background/95 px-2 text-xs shadow-lg backdrop-blur"
+      >
+        <span className="rounded bg-amber-500 px-1.5 py-0.5 font-bold tracking-wide text-black">
+          Demo
+        </span>
+        <span className="max-w-[8rem] truncate">{roleLabel}</span>
+      </button>
+      <div
+        data-demo-bar-expanded=""
+        className="max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-lg border border-amber-500 bg-background/95 p-2 text-xs shadow-lg backdrop-blur"
+      >
       <span className="rounded bg-amber-500 px-1.5 py-0.5 font-bold tracking-wide text-black">
         DEMO
       </span>
@@ -163,14 +157,14 @@ export function DemoRoleSwitcherPanel({
       </button>
       <button
         type="button"
-        aria-expanded={true}
         aria-label="Collapse demo role switcher"
         className="h-7 rounded border border-border px-2"
-        onClick={toggle}
+        onClick={() => choose("collapsed")}
       >
         ×
       </button>
       {error ? <span className="w-full text-destructive">{error}</span> : null}
+      </div>
     </div>
   );
 }
