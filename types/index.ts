@@ -388,6 +388,8 @@ export type InvoiceLine = {
   fuel_fillup_id: string | null;
   rate_card_id: string | null;
   trip_id: string | null;
+  /** Trip this line billed before its invoice was voided (00097). */
+  voided_trip_id?: string | null;
   trip_company_id: string | null;
   rate_effective_on: string | null;
   description: string;

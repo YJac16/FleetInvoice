@@ -36,6 +36,7 @@
     "test:driver-trip-admin-enforcement": "node tests/db/driver-trip-admin-enforcement.test.mjs",
     "test:rate-card-00069": "node tests/db/rate-card-edit-archive.test.mjs",
     "test:driver-invoice-override-00089": "node tests/db/driver-invoice-print-override.test.mjs",
+    "test:void-regenerate-00097": "node tests/db/void-regenerate-00097.test.mjs",
     "test:jacobs-org-copy": "node tests/db/jacobs-org-copy.test.mjs",
     "test:migration-00076": "node tests/db/migration-00076-goops-entitlements.test.mjs",
     "test:rollback-00061-00067": "bash tests/db/run-rollback-00061-00067.sh",

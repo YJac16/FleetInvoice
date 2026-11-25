@@ -32,7 +32,10 @@ describe("migration numbering", () => {
       expect(files.filter((f) => f.startsWith(`${n}_`))).toHaveLength(1);
     }
     expect(files.some((f) => f.startsWith("00092_"))).toBe(true);
-    expect(files.filter((f) => f > "00096")).toEqual([]);
+    // 00096 is reserved (PR #100); 00097 is void-then-regenerate.
+    expect(
+      files.filter((f) => f > "00096" && !f.startsWith("00097_"))
+    ).toEqual([]);
   });
 
   it.each([
