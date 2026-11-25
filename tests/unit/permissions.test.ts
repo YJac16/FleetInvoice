@@ -108,7 +108,8 @@ describe("permissions", () => {
     expect(hasPermission("company_manager", "payroll:view")).toBe(false);
     expect(hasPermission("organisation_admin", "invoices:manage")).toBe(true);
     expect(hasPermission("manager", "invoices:manage")).toBe(true);
-    expect(hasPermission("dispatcher", "invoices:manage")).toBe(true);
+    expect(hasPermission("dispatcher", "invoices:manage")).toBe(false);
+    expect(hasPermission("dispatcher", "invoices:view")).toBe(false);
     expect(hasPermission("organisation_admin", "fuel:view")).toBe(true);
     expect(hasPermission("dispatcher", "vehicles:view")).toBe(true);
     expect(hasPermission("supervisor", "drivers:view")).toBe(true);
@@ -132,14 +133,18 @@ describe("permissions", () => {
 
   it("gives ops rate_cards manage and denies company_manager rate cards", () => {
     expect(hasPermission("organisation_admin", "rate_cards:manage")).toBe(true);
-    expect(hasPermission("dispatcher", "rate_cards:manage")).toBe(true);
+    expect(hasPermission("manager", "rate_cards:manage")).toBe(true);
+    expect(hasPermission("dispatcher", "rate_cards:view")).toBe(false);
+    expect(hasPermission("dispatcher", "rate_cards:manage")).toBe(false);
     expect(hasPermission("company_manager", "rate_cards:view")).toBe(false);
     expect(hasPermission("company_manager", "rate_cards:manage")).toBe(false);
   });
 
   it("gives ops payroll manage and denies company_manager and driver", () => {
     expect(hasPermission("organisation_admin", "payroll:manage")).toBe(true);
-    expect(hasPermission("dispatcher", "payroll:view")).toBe(true);
+    expect(hasPermission("manager", "payroll:view")).toBe(true);
+    expect(hasPermission("dispatcher", "payroll:view")).toBe(false);
+    expect(hasPermission("dispatcher", "payroll:manage")).toBe(false);
     expect(hasPermission("company_manager", "payroll:view")).toBe(false);
     expect(hasPermission("driver", "payroll:view")).toBe(false);
   });

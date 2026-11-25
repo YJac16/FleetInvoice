@@ -433,10 +433,15 @@ expectCount("EMP-trips", employeeA, "trips", "true", 3);
 expectCount("EMP-own-employee", employeeA, "employees", `id = '${employeeRow}'`, 1);
 expectCount("EMP-vehicles", employeeA, "vehicles", "true", 6);
 
-expectCount("DISP-invoices", dispatcher, "invoices", "true", 4);
+// Finance is admin/manager only (00081, 00084).
+expectCount("DISP-invoices", dispatcher, "invoices", "true", 0);
+expectCount("DISP-lines", dispatcher, "invoice_lines", "true", 0);
+expectCount("DISP-rates", dispatcher, "rate_cards", "true", 0);
 expectCount("DISP-trips", dispatcher, "trips", "true", 3);
 expectCount("DISP-vehicles", dispatcher, "vehicles", "true", 6);
-expectCount("SUP-invoices", supervisorA, "invoices", "true", 4);
+expectCount("SUP-invoices", supervisorA, "invoices", "true", 0);
+expectCount("SUP-lines", supervisorA, "invoice_lines", "true", 0);
+expectCount("SUP-rates", supervisorA, "rate_cards", "true", 0);
 expectCount("SUP-rates-org", supervisorA, "rate_cards", "company_id is null", 0);
 expectCount("SUP-vehicles", supervisorA, "vehicles", "true", 6);
 expectCount("SUP-passengers", supervisorA, "trip_passengers", "true", 3);

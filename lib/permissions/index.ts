@@ -69,9 +69,6 @@ const VIEW_OPS: Permission[] = [
   "settings:view",
   "profile:view",
   "fuel:view",
-  "invoices:view",
-  "rate_cards:view",
-  "payroll:view",
   "gps:view",
   "dispatch:view",
   "geofences:view",
@@ -95,9 +92,26 @@ const MANAGE_OPS: Permission[] = [
   "geofences:manage",
 ];
 
+/**
+ * Finance views (invoices, rate cards + route prices, pay rates + payroll).
+ * Not in VIEW_OPS: platform_owner, organisation_admin and manager get all of
+ * it. Dispatcher and supervisor get none. company_manager has its own
+ * invoices:view. Route prices share rate_cards:view and pay rates share
+ * payroll:view. DB side: 00081 (invoices, invoice_lines, route_prices).
+ */
+const FINANCE_VIEW: Permission[] = ["invoices:view", "rate_cards:view", "payroll:view"];
+
+/** Manage counterparts; dispatcher gets MANAGE_OPS without these. */
+const FINANCE_MANAGE: Permission[] = [
+  "invoices:manage",
+  "rate_cards:manage",
+  "payroll:manage",
+];
+
 const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   platform_owner: [
     ...VIEW_OPS,
+    ...FINANCE_VIEW,
     ...MANAGE_OPS,
     "trips:admin_edit",
     "organisations:view",
@@ -113,6 +127,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   ],
   organisation_admin: [
     ...VIEW_OPS,
+    ...FINANCE_VIEW,
     ...MANAGE_OPS,
     "trips:admin_edit",
     "users:view",
@@ -125,6 +140,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   ],
   manager: [
     ...VIEW_OPS,
+    ...FINANCE_VIEW,
     ...MANAGE_OPS,
     "trips:admin_edit",
     "users:view",
@@ -134,7 +150,7 @@ const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
   ],
   dispatcher: [
     ...VIEW_OPS,
-    ...MANAGE_OPS,
+    ...MANAGE_OPS.filter((p) => !FINANCE_MANAGE.includes(p)),
     "attendance:view",
     "attendance:manage",
   ],
