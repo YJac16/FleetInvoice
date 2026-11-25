@@ -1,0 +1,105 @@
+/* GoOps loader demo + integration helpers.
+   Design asset only. Engineering owns app integration.
+   Brand colours are the locked GoOps gradient. */
+
+:root {
+  --goops-loader-size: 160px;
+  --goops-blue: #0056FC;
+  --goops-cyan: #00B4F3;
+  --goops-teal: #01C7C7;
+  --goops-green: #01F183;
+  --goops-bg-light: #ffffff;
+  --goops-bg-dark: #0b0f14;
+  --goops-caption: #5b6570;
+  --goops-caption-on-dark: #9aa3ad;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: #e8eaee;
+  color: #1a1f26;
+}
+
+.demo {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.demo-panel {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 48px 24px;
+}
+
+.demo-panel--light {
+  background: var(--goops-bg-light);
+  color: #1a1f26;
+}
+
+.demo-panel--dark {
+  background: var(--goops-bg-dark);
+  color: #f4f6f8;
+}
+
+.demo-stage {
+  width: var(--goops-loader-size);
+  height: var(--goops-loader-size);
+  display: grid;
+  place-items: center;
+}
+
+.demo-stage .goops-loader,
+.goops-loader-wrap .goops-loader,
+svg.goops-loader {
+  width: var(--goops-loader-size);
+  height: var(--goops-loader-size);
+  display: block;
+}
+
+.demo-caption {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.demo-panel--light .demo-caption {
+  color: var(--goops-caption);
+}
+
+.demo-panel--dark .demo-caption {
+  color: var(--goops-caption-on-dark);
+}
+
+/* Optional tight preview crop: add ?preview or .is-preview on <body> */
+body.is-preview {
+  background: #000;
+}
+
+body.is-preview .demo {
+  min-height: 0;
+  height: 100vh;
+}
+
+body.is-preview .demo-caption {
+  /* keep captions; they help the side-by-side read as light/dark */
+}

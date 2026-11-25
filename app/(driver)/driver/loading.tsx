@@ -1,5 +1,5 @@
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { GoOpsLoaderCentered } from "@/components/brand/goops-loader";
 
 export default function DriverTodayLoading() {
-  return <LoadingSkeleton rows={4} />;
+  return <GoOpsLoaderCentered />;
 }
