@@ -7,9 +7,13 @@ import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { InvoicePrintView } from "@/features/invoices/components/invoice-print-view";
-import { parseInvoicePrintSettings } from "@/features/invoices/lib/invoice-print-settings";
+import {
+  applyDriverInvoicePrintOverride,
+  parseInvoicePrintSettings,
+} from "@/features/invoices/lib/invoice-print-settings";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { getCompany } from "@/services/companies.service";
+import { getDriverInvoicePrintOverride } from "@/services/driver-invoice-print-override.service";
 import {
   getInvoice,
   listInvoiceLinesWithTrips,
@@ -66,6 +70,16 @@ export function InvoicePrintPage({
     enabled: Boolean(organisationId && invoiceQuery.data?.company_id) && canView,
   });
 
+  const driverId = rejectDriverInvoice ? null : invoiceQuery.data?.driver_id ?? null;
+  const driverOverrideQuery = useQuery({
+    queryKey:
+      organisationId && driverId
+        ? ["driver-invoice-print-override", organisationId, driverId]
+        : ["driver-invoice-print-override", "none"],
+    queryFn: () => getDriverInvoicePrintOverride(organisationId!, driverId!),
+    enabled: Boolean(organisationId && driverId) && canView,
+  });
+
   const linesQuery = useQuery({
     queryKey:
       organisationId && invoiceId
@@ -97,7 +111,8 @@ export function InvoicePrintPage({
     orgQuery.isLoading ||
     invoiceQuery.isLoading ||
     linesQuery.isLoading ||
-    companyQuery.isLoading
+    companyQuery.isLoading ||
+    driverOverrideQuery.isLoading
   ) {
     return (
       <div className="p-6">
@@ -129,7 +144,10 @@ export function InvoicePrintPage({
       company={companyQuery.data ?? null}
       invoice={invoice}
       lines={linesQuery.data ?? []}
-      printSettings={parseInvoicePrintSettings(organisation)}
+      printSettings={applyDriverInvoicePrintOverride(
+        parseInvoicePrintSettings(organisation),
+        driverOverrideQuery.data ?? null
+      )}
       backHref={backHref}
       autoPrint={autoPrint}
       emailDeliveryConfigured={emailDeliveryConfigured}

@@ -5,6 +5,7 @@ import type {
   InvoiceSortOrder,
   InvoiceStatusFilter,
 } from "@/features/invoices/lib/invoice-list-filters";
+import { OWNER_FILTER_LABELS, OWNER_FILTERS, type OwnerFilter } from "@/lib/owner-tag";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS: { value: InvoiceStatusFilter; label: string }[] = [
@@ -13,6 +14,11 @@ const STATUS_OPTIONS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "issued", label: "Issued" },
   { value: "void", label: "Void" },
 ];
+
+const OWNER_OPTIONS: { value: OwnerFilter; label: string }[] = OWNER_FILTERS.map((value) => ({
+  value,
+  label: OWNER_FILTER_LABELS[value],
+}));
 
 function FilterChipRow<T extends string>({
   options,
@@ -87,16 +93,30 @@ export function InvoiceSortToggle({
 export function InvoiceListFilters({
   statusFilter,
   onStatusFilterChange,
+  ownerFilter,
+  onOwnerFilterChange,
 }: {
   statusFilter: InvoiceStatusFilter;
   onStatusFilterChange: (value: InvoiceStatusFilter) => void;
+  ownerFilter?: OwnerFilter;
+  onOwnerFilterChange?: (value: OwnerFilter) => void;
 }) {
   return (
-    <FilterChipRow
-      ariaLabel="Filter by invoice status"
-      options={STATUS_OPTIONS}
-      value={statusFilter}
-      onChange={onStatusFilterChange}
-    />
+    <div className="space-y-2">
+      <FilterChipRow
+        ariaLabel="Filter by invoice status"
+        options={STATUS_OPTIONS}
+        value={statusFilter}
+        onChange={onStatusFilterChange}
+      />
+      {ownerFilter && onOwnerFilterChange ? (
+        <FilterChipRow
+          ariaLabel="Filter by owner"
+          options={OWNER_OPTIONS}
+          value={ownerFilter}
+          onChange={onOwnerFilterChange}
+        />
+      ) : null}
+    </div>
   );
 }

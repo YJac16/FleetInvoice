@@ -45,6 +45,8 @@ import {
   weekPeriodEnd,
 } from "@/services/invoices.service";
 import type { Invoice } from "@/types";
+import { OwnerBadge } from "@/components/shared/owner-badge";
+import { resolveInvoiceOwner, type OwnerFilter } from "@/lib/owner-tag";
 import { buildInvoicePrintRows } from "@/features/invoices/lib/invoice-print-rows";
 import { InvoiceDraftLineEditor } from "@/features/invoices/components/invoice-draft-line-editor";
 import { InvoiceLineAreaEditor } from "@/features/invoices/components/invoice-line-area-editor";
@@ -55,6 +57,7 @@ import {
 import {
   DEFAULT_INVOICE_LIST_FILTERS,
   compareInvoicesByPeriodEnd,
+  matchesInvoiceOwnerFilter,
   matchesInvoiceStatusFilter,
   type InvoiceSortOrder,
   type InvoiceStatusFilter,
@@ -292,6 +295,7 @@ export function InvoicesPage({
   const [statusFilter, setStatusFilter] = useState<InvoiceStatusFilter>(
     DEFAULT_INVOICE_LIST_FILTERS.statusFilter
   );
+  const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("all");
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
 
   const invoicesQuery = useQuery({
@@ -318,9 +322,13 @@ export function InvoicesPage({
 
   const filteredInvoices = useMemo(() => {
     return (invoicesQuery.data ?? [])
-      .filter((invoice) => matchesInvoiceStatusFilter(invoice, statusFilter))
+      .filter(
+        (invoice) =>
+          matchesInvoiceStatusFilter(invoice, statusFilter) &&
+          matchesInvoiceOwnerFilter(invoice, ownerFilter)
+      )
       .sort((a, b) => compareInvoicesByPeriodEnd(a, b, sortOrder));
-  }, [invoicesQuery.data, sortOrder, statusFilter]);
+  }, [invoicesQuery.data, sortOrder, statusFilter, ownerFilter]);
 
   const listEmptyMessage = useMemo(() => {
     if ((invoicesQuery.data ?? []).length === 0) {
@@ -362,6 +370,11 @@ export function InvoicesPage({
         cell: ({ row }) =>
           row.original.drivers?.full_name ??
           (row.original.driver_id ? row.original.driver_id.slice(0, 8) : "—"),
+      },
+      {
+        id: "owner",
+        header: "Owner",
+        cell: ({ row }) => <OwnerBadge owner={resolveInvoiceOwner(row.original)} />,
       },
       {
         id: "period",
@@ -578,6 +591,8 @@ export function InvoicesPage({
             <InvoiceListFilters
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
+              ownerFilter={ownerFilter}
+              onOwnerFilterChange={setOwnerFilter}
             />
           ) : null}
         </div>

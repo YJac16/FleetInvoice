@@ -35,7 +35,20 @@
     "organisation",
     "organisations",
     "enrol",
-    "enrolment"
+    "enrolment",
+    "Yaseen",
+    "yaseen",
+    "Fadia",
+    "fadia",
+    "Faadiah",
+    "Shaheed",
+    "Paulin",
+    "Mansur",
+    "Jacobs",
+    "dedupe",
+    "deduped",
+    "NEDBANK",
+    "ABSA"
   ],
   "ignorePaths": [
     "node_modules/**",

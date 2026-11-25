@@ -125,7 +125,7 @@ describe("reportToCsvRows fuel", () => {
       includeFuelAmounts: canViewFuelCost,
     });
     expect(csv.headers).toEqual([
-      "id", "filled_at", "vehicle", "company", "driver", "odometer_km", "litres",
+      "id", "filled_at", "vehicle", "company", "driver", "odometer_km", "litres", "owner",
     ]);
     expect(csv.headers).not.toContain("total_amount");
     expect(csv.headers).not.toContain("currency");

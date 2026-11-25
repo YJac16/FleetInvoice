@@ -11,14 +11,17 @@ import { ComplianceExpiryBadge } from "@/features/compliance/components/complian
 import { PRDP_SHORT_LABEL } from "@/features/compliance/lib/prdp-label";
 import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
 import { useComplianceScanAssist } from "@/hooks/use-compliance-scan-assist";
+import { DriverInvoiceIssuerDialog } from "@/features/drivers/components/driver-invoice-issuer-dialog";
 import { DriverVehicleAssignDialog } from "@/features/drivers/components/driver-vehicle-assign-dialog";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
+import { OwnerBadge } from "@/components/shared/owner-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { driverImportSchema } from "@/features/import/schemas/import-schemas";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
+import { ownerLabel } from "@/lib/owner-tag";
 import {
   createDriver,
   createDriversBulk,
@@ -78,9 +81,12 @@ export function DriversPage() {
   const { can } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("drivers:manage");
+  // Issuer/banking override: org admins only (RPC enforces organisation_admin).
+  const canManageIssuer = canManage && can("invoices:manage");
   const queryClient = useQueryClient();
   const [importOpen, setImportOpen] = useState(false);
   const [assignDriver, setAssignDriver] = useState<Driver | null>(null);
+  const [issuerDriver, setIssuerDriver] = useState<Driver | null>(null);
 
   const assignmentsQuery = useQuery({
     queryKey: organisationId
@@ -128,6 +134,11 @@ export function DriversPage() {
         cell: ({ row }) => (
           <ComplianceExpiryBadge expiresOn={row.original.pdp_expires_on} />
         ),
+      },
+      {
+        accessorKey: "owner_tag",
+        header: "Owner",
+        cell: ({ row }) => <OwnerBadge owner={row.original.owner_tag} />,
       },
       {
         id: "assigned_vehicle",
@@ -191,6 +202,7 @@ export function DriversPage() {
             row.license_number,
             row.profiles?.email,
             row.profiles?.full_name,
+            ownerLabel(row.owner_tag),
           ]
             .filter(Boolean)
             .join(" ")
@@ -228,6 +240,15 @@ export function DriversPage() {
                   >
                     Vehicle
                   </Button>
+                  {canManageIssuer ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIssuerDriver(row)}
+                    >
+                      Invoice issuer
+                    </Button>
+                  ) : null}
                 </>
               )
             : undefined
@@ -261,6 +282,7 @@ export function DriversPage() {
             { key: "license_expires_on", label: "Licence expires (YYYY-MM-DD)" },
             { key: "pdp_number", label: `${PRDP_SHORT_LABEL} number` },
             { key: "pdp_expires_on", label: `${PRDP_SHORT_LABEL} expires` },
+            { key: "owner_tag", label: "Owner (yaseen / fadia / blank)" },
             { key: "status", label: "Status" },
           ]}
           schema={driverImportSchema}
@@ -277,6 +299,7 @@ export function DriversPage() {
                 license_expires_on: row.license_expires_on || null,
                 pdp_number: row.pdp_number || null,
                 pdp_expires_on: row.pdp_expires_on || null,
+                owner_tag: row.owner_tag,
                 status: row.status,
               }))
             );
@@ -293,6 +316,15 @@ export function DriversPage() {
           onOpenChange={(open) => !open && setAssignDriver(null)}
           organisationId={organisationId}
           driver={assignDriver}
+        />
+      ) : null}
+
+      {organisationId && canManageIssuer ? (
+        <DriverInvoiceIssuerDialog
+          open={Boolean(issuerDriver)}
+          onOpenChange={(open) => !open && setIssuerDriver(null)}
+          organisationId={organisationId}
+          driver={issuerDriver}
         />
       ) : null}
     </>

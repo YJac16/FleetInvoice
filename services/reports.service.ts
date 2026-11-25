@@ -1,4 +1,18 @@
+import {
+  EMPTY_OWNER_LOOKUP,
+  filterRowsByOwner,
+  resolveFleetOwner,
+  splitByOwner,
+  toBucket,
+  type OwnerLookup,
+  type OwnerSplitRow,
+} from "@/features/reports/lib/owner-split";
 import { isDateInPeriod, isInstantInPeriod } from "@/features/reports/lib/period";
+import { actorName, toActorNameMap, type ActorNameMap } from "@/features/trips/lib/actor-labels";
+import { OWNER_LABELS, resolveInvoiceOwner, type OwnerBucket, type OwnerFilter } from "@/lib/owner-tag";
+import { listOrgActorNames } from "@/services/actor-names.service";
+import { listDrivers } from "@/services/drivers.service";
+import { listVehicles } from "@/services/vehicles.service";
 import type { ReportType } from "@/features/reports/schemas/report";
 import type { TripStatus } from "@/lib/constants";
 import { listAttendanceEvents } from "@/services/attendance.service";
@@ -22,11 +36,15 @@ export type ReportPeriod = {
 export type TripsReport = {
   type: "trips";
   statusCounts: Record<string, number>;
+  ownerSplit: OwnerSplitRow[];
   rows: Array<{
     id: string;
     planned_start: string;
     status: TripStatus;
     route: string;
+    owner: OwnerBucket;
+    entered_by: string;
+    updated_by: string;
   }>;
 };
 
@@ -34,7 +52,9 @@ export type FuelReport = {
   type: "fuel";
   totalLitres: number;
   totalAmount: number;
+  ownerSplit: OwnerSplitRow[];
   rows: Array<{
+    owner: OwnerBucket;
     id: string;
     filled_at: string;
     vehicle: string;
@@ -66,7 +86,9 @@ export type CommercialReport = {
   invoiceCount: number;
   payrollFinalizedTotal: number;
   payrollCount: number;
+  ownerSplit: OwnerSplitRow[];
   invoiceRows: Array<{
+    owner: OwnerBucket;
     id: string;
     period_start: string;
     period_end: string;
@@ -99,38 +121,94 @@ function tripInPeriod(trip: Trip, period: ReportPeriod): boolean {
   );
 }
 
+/** Driver / vehicle owner tags. Best effort: a failed lookup leaves rows unassigned. */
+async function loadOwnerLookup(organisationId: string): Promise<OwnerLookup> {
+  try {
+    const [drivers, vehicles] = await Promise.all([
+      listDrivers(organisationId),
+      listVehicles(organisationId),
+    ]);
+    return {
+      drivers: new Map((drivers ?? []).map((d) => [d.id, d.owner_tag ?? null])),
+      vehicles: new Map((vehicles ?? []).map((v) => [v.id, v.owner_tag ?? null])),
+    };
+  } catch {
+    return EMPTY_OWNER_LOOKUP;
+  }
+}
+
+async function loadActorNames(organisationId: string): Promise<ActorNameMap> {
+  try {
+    return toActorNameMap(await listOrgActorNames(organisationId));
+  } catch {
+    return new Map();
+  }
+}
+
+export type BuildOpsReportOptions = {
+  includeFuelAmounts?: boolean;
+  /** All (default) / Yaseen / Fadia. Totals always describe the filtered rows. */
+  owner?: OwnerFilter;
+  /** Pre-loaded lookups (tests, or callers that already hold them). */
+  ownerLookup?: OwnerLookup;
+  actorNames?: ActorNameMap;
+};
+
 export async function buildOpsReport(
   organisationId: string,
   reportType: ReportType,
   period: ReportPeriod,
-  options?: { includeFuelAmounts?: boolean }
+  options?: BuildOpsReportOptions
 ): Promise<OpsReport> {
   const includeFuelAmounts = options?.includeFuelAmounts ?? false;
+  const ownerFilter: OwnerFilter = options?.owner ?? "all";
+  const lookupFor = async () => options?.ownerLookup ?? (await loadOwnerLookup(organisationId));
   switch (reportType) {
     case "trips": {
-      const trips = await listTrips(organisationId);
+      const [trips, lookup, names] = await Promise.all([
+        listTrips(organisationId),
+        lookupFor(),
+        options?.actorNames ? Promise.resolve(options.actorNames) : loadActorNames(organisationId),
+      ]);
       const inPeriod = trips.filter((t) => tripInPeriod(t, period));
+      const rows = filterRowsByOwner(
+        inPeriod.map((t) => {
+          const active = t.trip_assignments?.find((a) => !a.released_at) ?? t.trip_assignments?.[0];
+          return {
+            id: t.id,
+            planned_start: t.planned_start,
+            status: t.status,
+            route: t.routes?.name ?? "",
+            owner: toBucket(resolveFleetOwner(lookup, active?.driver_id, active?.vehicle_id)),
+            entered_by: actorName(names, t.created_by) ?? "",
+            updated_by: actorName(names, t.updated_by) ?? "",
+          };
+        }),
+        ownerFilter
+      );
       const statusCounts: Record<string, number> = {};
-      for (const t of inPeriod) {
+      for (const t of rows) {
         statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
       }
       return {
         type: "trips",
         statusCounts,
-        rows: inPeriod.map((t) => ({
-          id: t.id,
-          planned_start: t.planned_start,
-          status: t.status,
-          route: t.routes?.name ?? "",
-        })),
+        ownerSplit: splitByOwner(rows),
+        rows,
       };
     }
     case "fuel": {
-      const fillups = await listFuelFillups(organisationId, {
-        includeAmounts: includeFuelAmounts,
-      });
-      const inPeriod = fillups.filter((f) =>
-        isInstantInPeriod(f.filled_at, period.periodStart, period.periodEnd)
+      const [fillups, lookup] = await Promise.all([
+        listFuelFillups(organisationId, {
+          includeAmounts: includeFuelAmounts,
+        }),
+        lookupFor(),
+      ]);
+      const inPeriod = fillups.filter(
+        (f) =>
+          isInstantInPeriod(f.filled_at, period.periodStart, period.periodEnd) &&
+          (ownerFilter === "all" ||
+            resolveFleetOwner(lookup, f.driver_id, f.vehicle_id) === ownerFilter)
       );
       let totalLitres = 0;
       let totalAmount = 0;
@@ -138,6 +216,7 @@ export async function buildOpsReport(
         totalLitres += Number(f.litres) || 0;
         if (includeFuelAmounts) totalAmount += Number(f.total_amount) || 0;
         return {
+          owner: toBucket(resolveFleetOwner(lookup, f.driver_id, f.vehicle_id)),
           id: f.id,
           filled_at: f.filled_at,
           vehicle:
@@ -152,7 +231,19 @@ export async function buildOpsReport(
           currency: includeFuelAmounts ? (f.currency ?? "") : "",
         };
       });
-      return { type: "fuel", totalLitres, totalAmount, rows };
+      return {
+        type: "fuel",
+        totalLitres,
+        totalAmount,
+        ownerSplit: splitByOwner(
+          rows.map((r) => ({
+            owner: r.owner,
+            litres: r.litres,
+            amount: includeFuelAmounts ? Number(r.total_amount) || 0 : 0,
+          }))
+        ),
+        rows,
+      };
     }
     case "attendance": {
       const events = await listAttendanceEvents(organisationId);
@@ -183,10 +274,13 @@ export async function buildOpsReport(
       const invoiceInPeriod = invoices.filter(
         (i: Invoice) =>
           i.status !== "void" &&
-          isDateInPeriod(i.period_start, period.periodStart, period.periodEnd)
+          isDateInPeriod(i.period_start, period.periodStart, period.periodEnd) &&
+          (ownerFilter === "all" || resolveInvoiceOwner(i) === ownerFilter)
       );
+      // Payroll runs have no owner: only part of the combined (All) view.
       const payrollInPeriod = payrollRuns.filter(
         (r) =>
+          ownerFilter === "all" &&
           r.status !== "void" &&
           isDateInPeriod(r.period_start, period.periodStart, period.periodEnd)
       );
@@ -212,7 +306,16 @@ export async function buildOpsReport(
         invoiceCount: invoiceInPeriod.length,
         payrollFinalizedTotal,
         payrollCount: payrollInPeriod.length,
+        ownerSplit: splitByOwner(
+          invoiceInPeriod.map((i) => ({
+            owner: toBucket(resolveInvoiceOwner(i)),
+            amount: Number(i.total) || 0,
+            issued: i.status === "issued" ? Number(i.total) || 0 : 0,
+            paid: i.status === "paid" ? Number(i.total) || 0 : 0,
+          }))
+        ),
         invoiceRows: invoiceInPeriod.map((i) => ({
+          owner: toBucket(resolveInvoiceOwner(i)),
           id: i.id,
           period_start: i.period_start,
           period_end: i.period_end,
@@ -246,8 +349,8 @@ export function reportToCsvRows(
     case "trips":
       return {
         filename: "trips-report.csv",
-        headers: ["id", "planned_start", "status", "route"],
-        rows: report.rows,
+        headers: ["id", "planned_start", "status", "route", "owner", "entered_by", "updated_by"],
+        rows: report.rows.map((r) => ({ ...r, owner: OWNER_LABELS[r.owner] })),
       };
     case "fuel": {
       const opsHeaders = [
@@ -258,18 +361,20 @@ export function reportToCsvRows(
         "driver",
         "odometer_km",
         "litres",
+        "owner",
       ];
+      const labelled = report.rows.map((r) => ({ ...r, owner: OWNER_LABELS[r.owner] }));
       if (options?.includeFuelAmounts) {
         return {
           filename: "fuel-report.csv",
           headers: [...opsHeaders, "total_amount", "currency"],
-          rows: report.rows,
+          rows: labelled,
         };
       }
       return {
         filename: "fuel-report.csv",
         headers: opsHeaders,
-        rows: report.rows.map(
+        rows: labelled.map(
           ({ total_amount: _a, currency: _c, ...ops }) => ops
         ),
       };
@@ -292,12 +397,14 @@ export function reportToCsvRows(
           "company",
           "total",
           "currency",
+          "owner",
         ],
         rows: [
-          ...report.invoiceRows.map((r) => ({ kind: "invoice", ...r })),
+          ...report.invoiceRows.map((r) => ({ kind: "invoice", ...r, owner: OWNER_LABELS[r.owner] })),
           ...report.payrollRows.map((r) => ({
             kind: "payroll",
             company: "",
+            owner: OWNER_LABELS.unassigned,
             ...r,
           })),
         ],

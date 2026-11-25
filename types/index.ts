@@ -1,3 +1,4 @@
+import type { OwnerTag } from "@/lib/owner-tag";
 import type {
   AppRole,
   EntityStatus,
@@ -146,7 +147,10 @@ export type Driver = {
   pdp_categories: string | null;
   pdp_expires_on: string | null;
   status: EntityStatus;
+  /** 00088 owner dimension (null = unassigned). */
+  owner_tag?: OwnerTag | null;
   created_by: string | null;
+  updated_by?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -287,7 +291,10 @@ export type Vehicle = {
   vehicle_type: VehicleType;
   capacity: number | null;
   status: EntityStatus;
+  /** 00088 owner dimension (null = unassigned). */
+  owner_tag?: OwnerTag | null;
   created_by: string | null;
+  updated_by?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -332,13 +339,16 @@ export type Invoice = {
   total: number;
   notes: string | null;
   generated_by: string | null;
+  updated_by?: string | null;
+  /** Owner for invoices without a driver, or an explicit override (00088). */
+  owner_tag?: OwnerTag | null;
   issued_at: string | null;
   paid_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
   companies?: Pick<Company, "id" | "name"> | null;
-  drivers?: Pick<Driver, "id" | "full_name"> | null;
+  drivers?: (Pick<Driver, "id" | "full_name"> & { owner_tag?: OwnerTag | null }) | null;
 };
 
 export type InvoiceLine = {
@@ -540,6 +550,8 @@ export type Trip = {
   notes: string | null;
   service_locations: string | null;
   created_by: string | null;
+  /** Last editor (00088 set_audit_user). */
+  updated_by?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

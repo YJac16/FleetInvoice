@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { LICENSE_CODES } from "@/features/compliance/lib/compliance-status";
 import { ENTITY_STATUSES, VEHICLE_TYPES } from "@/lib/constants";
+import { OWNER_TAGS } from "@/lib/owner-tag";
 
 const isoDate = z
   .string()
@@ -10,6 +11,22 @@ const isoDate = z
     message: "Use YYYY-MM-DD",
   })
   .transform((v) => v?.trim() || undefined);
+
+/** Owner column: blank / "unassigned" -> null; otherwise yaseen | fadia. */
+const optionalOwner = z
+  .string()
+  .optional()
+  .refine(
+    (value) => {
+      const v = (value ?? "").trim().toLowerCase();
+      return v === "" || v === "unassigned" || (OWNER_TAGS as readonly string[]).includes(v);
+    },
+    { message: "owner_tag must be yaseen, fadia or blank" }
+  )
+  .transform((value) => {
+    const v = (value ?? "").trim().toLowerCase();
+    return (OWNER_TAGS as readonly string[]).includes(v) ? (v as (typeof OWNER_TAGS)[number]) : null;
+  });
 
 const optionalStatus = z
   .string()
@@ -33,6 +50,7 @@ export const driverImportSchema = z
     license_expires_on: isoDate,
     pdp_number: z.string().optional(),
     pdp_expires_on: isoDate,
+    owner_tag: optionalOwner,
     status: optionalStatus,
   })
   .superRefine((row, ctx) => {
@@ -83,6 +101,7 @@ export const vehicleImportSchema = z.object({
       const n = Number(value);
       return Number.isFinite(n) ? n : null;
     }),
+  owner_tag: optionalOwner,
   status: optionalStatus,
 });
 

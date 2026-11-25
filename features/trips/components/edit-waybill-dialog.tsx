@@ -16,6 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTripPriceDraft } from "@/features/billing/lib/use-trip-price-draft";
 import { TripAuditTimeline } from "@/features/trips/components/trip-audit-timeline";
+import { TripActorLine } from "@/features/trips/components/trip-actor-line";
+import { useOrg } from "@/components/layout/org-context";
+import { useOrgActorNames } from "@/hooks/use-org-actor-names";
+import { canSeeActorNames } from "@/lib/permissions/actor-names";
 import { formatVehicleOptionLabel } from "@/features/trips/lib/staff-waybill-form";
 import { listActiveCompanies } from "@/services/companies.service";
 import { updateStaffTrip } from "@/services/staff-trips.service";
@@ -63,6 +67,8 @@ export function EditWaybillDialog({
   variant = "standard",
 }: EditWaybillDialogProps) {
   const queryClient = useQueryClient();
+  const { activeRole, isPlatformOwner } = useOrg();
+  const actorNames = useOrgActorNames(organisationId, open && canSeeActorNames(activeRole, isPlatformOwner));
   const [priceSeeded, setPriceSeeded] = useState(false);
   const [overrideAmount, setOverrideAmount] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
@@ -274,6 +280,7 @@ export function EditWaybillDialog({
         className="space-y-4"
         onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
       >
+        {trip ? <TripActorLine trip={trip} names={actorNames} /> : null}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="edit-date">Date</Label>
