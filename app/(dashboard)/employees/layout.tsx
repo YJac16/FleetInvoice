@@ -5,6 +5,6 @@ import { notFound } from "next/navigation";
  * features/employees/** and services/employees.service.ts stay in the repo
  * (attendance dialogs use the service). The /employee/* portal is separate.
  */
-export default function EmployeesLayout(_props: { children: React.ReactNode }) {
+export default function EmployeesLayout() {
   notFound();
 }

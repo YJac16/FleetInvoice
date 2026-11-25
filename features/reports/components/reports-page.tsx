@@ -10,7 +10,6 @@ import {
   Download,
   MapPinned,
   Users,
-  UsersRound,
   Warehouse,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -568,11 +567,6 @@ export function ReportsPage({
                 title="Drivers"
                 value={counts?.drivers ?? 0}
                 icon={CircleUser}
-              />
-              <StatCard
-                title="Employees"
-                value={counts?.employees ?? 0}
-                icon={UsersRound}
               />
               <StatCard
                 title="Vehicles"

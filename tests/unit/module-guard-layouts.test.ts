@@ -212,7 +212,7 @@ describe("explicit expectations", () => {
 
   it("/employees is hidden: always 404s, whatever the org's plan", async () => {
     const { default: EmployeesLayout } = await import("@/app/(dashboard)/employees/layout");
-    expect(() => EmployeesLayout({ children: "page" })).toThrow("NEXT_NOT_FOUND");
+    expect(() => EmployeesLayout()).toThrow("NEXT_NOT_FOUND");
   });
 
   it.each(["/company/*", "/employee/*"])("%s never fails open", async (route) => {
