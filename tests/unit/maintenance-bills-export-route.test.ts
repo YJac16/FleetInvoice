@@ -147,7 +147,7 @@ describe("bills export route: response", () => {
     const [header, line] = text.split("\r\n");
     expect(header.startsWith("Bill date,Supplier,Supplier VAT no.,")).toBe(true);
     expect(line).toBe(
-      `2026-11-20,'=cmd,4123456789,INV-1,,Service,"Oil, filter",1,800.00,800.00,120.00,920.00,exclusive,15.00,draft`
+      `2026-11-20,'=cmd,4123456789,INV-1,,Service,"Oil, filter",1,800.00,800.00,120.00,920.00,exclusive,15.00,Draft`
     );
   });
 });

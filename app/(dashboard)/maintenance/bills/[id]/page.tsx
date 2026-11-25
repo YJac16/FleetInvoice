@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { BillDetailView } from "@/features/maintenance/components/bill-detail";
+import { FinaliseBillButton } from "@/features/maintenance/components/finalise-bill-button";
 import { DeleteBillButton } from "@/features/maintenance/components/delete-bill-button";
 import { BillStatusBadge } from "@/features/maintenance/components/bill-status-badge";
 import { getMaintenancePageContext } from "@/features/maintenance/lib/page-context";
@@ -36,6 +37,9 @@ export default async function WorkshopBillPage({ params }: { params: Promise<{ i
               <Button size="lg" variant="outline" render={<Link href={`/maintenance/bills/${bill.id}/edit`} />}>
                 <Pencil className="size-4" /> Edit
               </Button>
+            ) : null}
+            {ctx.canManage && bill.status === "draft" ? (
+              <FinaliseBillButton billId={bill.id} />
             ) : null}
             {ctx.canManage && bill.status === "draft" ? (
               <DeleteBillButton billId={bill.id} invoiceRef={bill.invoice_ref} />

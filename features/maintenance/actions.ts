@@ -167,3 +167,36 @@ export async function deleteWorkshopBillAction(billId: string): Promise<Maintena
   revalidatePath(`/maintenance/bills/${billId}`);
   return { ok: true, id: billId };
 }
+
+/**
+ * Finalise a draft workshop bill (one-way). Calls approve_workshop_bill, which
+ * locks the bill, audits 'workshop_bill.approved' and is service_role only.
+ * The DB value stays 'approved'; the UI calls it "Final". There is no reopen.
+ */
+export async function finaliseWorkshopBillAction(billId: string): Promise<MaintenanceActionResult> {
+  if (typeof billId !== "string" || !UUID_RE.test(billId)) {
+    return { ok: false, error: "not_found", message: "That bill no longer exists." };
+  }
+
+  const writer = await resolveWriter();
+  if (!writer.ok) return writer;
+
+  const { error } = await writer.admin.rpc("approve_workshop_bill", {
+    p_actor: writer.userId,
+    p_org: writer.organisationId,
+    p_id: billId,
+  });
+  if (error) {
+    const mapped = mapMaintenanceRpcError(error);
+    const failed = mapped.error === "save_failed";
+    return {
+      ok: false,
+      error: failed ? "finalise_failed" : mapped.error,
+      message: failed ? "Couldn't finalise. Please try again." : mapped.message,
+    };
+  }
+
+  revalidatePath("/maintenance/bills");
+  revalidatePath(`/maintenance/bills/${billId}`);
+  return { ok: true, id: billId };
+}

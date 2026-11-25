@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getSessionContext }));
 vi.mock("@/lib/auth/maintenance-access", () => ({ assertMaintenanceAccess }));
 vi.mock("next/cache", () => ({ revalidatePath }));
 
-const { saveWorkshopBillAction, createSupplierAction, deleteWorkshopBillAction } = await import("@/features/maintenance/actions");
+const { saveWorkshopBillAction, createSupplierAction, deleteWorkshopBillAction, finaliseWorkshopBillAction } = await import("@/features/maintenance/actions");
 
 function validBill(overrides: Record<string, unknown> = {}) {
   return {
@@ -219,5 +219,42 @@ describe("deleteWorkshopBillAction", () => {
     assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 503, error: "service_unavailable", notMember: false });
     const result = await deleteWorkshopBillAction(BILL);
     expect(result).toMatchObject({ ok: false, error: "service_unavailable" });
+  });
+});
+
+describe("finaliseWorkshopBillAction", () => {
+  it("checks 'manage', calls approve_workshop_bill as the user for the session org, revalidates", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect(await finaliseWorkshopBillAction(BILL)).toEqual({ ok: true, id: BILL });
+    expect(assertMaintenanceAccess).toHaveBeenCalledWith("manage", { organisationId: ORG_A, userId: "u-admin" });
+    expect(rpc).toHaveBeenCalledWith("approve_workshop_bill", { p_actor: "u-admin", p_org: ORG_A, p_id: BILL });
+    expect(revalidatePath).toHaveBeenCalledWith("/maintenance/bills");
+    expect(revalidatePath).toHaveBeenCalledWith(`/maintenance/bills/${BILL}`);
+  });
+
+  it("rejects a malformed id without calling the RPC", async () => {
+    expect(await finaliseWorkshopBillAction("nope")).toMatchObject({ ok: false, error: "not_found" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("403s a dispatcher (no manage access) without calling the RPC", async () => {
+    assertMaintenanceAccess.mockResolvedValue({ ok: false, status: 403, error: "forbidden", notMember: false });
+    expect(await finaliseWorkshopBillAction(BILL)).toMatchObject({ ok: false, error: "forbidden" });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["bill_has_no_lines", "Add at least one line before finalising."],
+    ["bill_already_approved", "This bill is already final."],
+  ])("maps %s", async (code, message) => {
+    rpc.mockResolvedValue({ data: null, error: { message: code, code: "P0001" } });
+    expect(await finaliseWorkshopBillAction(BILL)).toEqual({ ok: false, error: code, message });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a generic message for unknown errors", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "boom", code: "XX000" } });
+    expect(await finaliseWorkshopBillAction(BILL)).toMatchObject({ ok: false, error: "finalise_failed", message: "Couldn't finalise. Please try again." });
   });
 });

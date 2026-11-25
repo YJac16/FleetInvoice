@@ -144,6 +144,34 @@ describe("bill pages", () => {
     await expect(Page({ params })).resolves.toBeTruthy();
   });
 
+  async function renderDetail(status: "draft" | "approved", manage = true) {
+    allow(true, manage);
+    getBill.mockResolvedValue(draft(status));
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: Page } = await import("@/app/(dashboard)/maintenance/bills/[id]/page");
+    return renderToStaticMarkup(await Page({ params }));
+  }
+
+  it("detail shows Finalise, Edit and Delete for a draft (manager)", async () => {
+    const html = await renderDetail("draft");
+    expect(html).toContain("Finalise");
+    expect(html).toContain("Edit");
+    expect(html).toContain("Delete");
+    expect(html).toContain("Draft");
+  });
+
+  it("detail shows a Final badge and no Edit/Delete/Upload/Finalise for a final bill", async () => {
+    const html = await renderDetail("approved");
+    expect(html).toContain("Final");
+    expect(html).not.toContain("Approved");
+    expect(html).not.toMatch(/Finalise|Edit|Delete|Upload/);
+  });
+
+  it("detail hides Finalise from a view-only user", async () => {
+    const html = await renderDetail("draft", false);
+    expect(html).not.toMatch(/Finalise|Delete/);
+  });
+
   it("edit redirects an approved bill to its detail page", async () => {
     getBill.mockResolvedValue(draft("approved"));
     const { default: Page } = await import("@/app/(dashboard)/maintenance/bills/[id]/edit/page");

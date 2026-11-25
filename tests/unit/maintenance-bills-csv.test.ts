@@ -72,7 +72,7 @@ describe("buildBillsCsv", () => {
   it("writes one row per line with the stored figures", () => {
     const [, line] = parse(buildBillsCsv([row()]));
     expect(line).toBe(
-      "2026-11-20,Tyre World,4123456789,INV-1,Truck 1 / CA 123-456,Tyres,Front tyres,2,1500.00,3000.00,450.00,3450.00,exclusive,15.00,approved"
+      "2026-11-20,Tyre World,4123456789,INV-1,Truck 1 / CA 123-456,Tyres,Front tyres,2,1500.00,3000.00,450.00,3450.00,exclusive,15.00,Final"
     );
   });
 
