@@ -39,6 +39,7 @@ import {
   removeOrganisationLogo,
   uploadOrganisationLogo,
 } from "@/services/org-logo.service";
+import { InvoicePrintPreview } from "@/features/settings/components/invoice-print-preview";
 import { PrintsAsCard } from "@/features/settings/components/prints-as-card";
 import { ServiceLocationsSettings } from "@/features/settings/components/service-locations-settings";
 import { getErrorMessage } from "@/utils/errors";
@@ -115,6 +116,8 @@ export function SettingsPage() {
       invoicePrintSettingsFromOrganisation(orgQuery.data)
     );
   }, [orgQuery.data, form, invoiceForm]);
+
+  const previewValues = invoiceForm.watch();
 
   const updateMutation = useMutation({
     mutationFn: (values: OrganisationValues) =>
@@ -310,6 +313,7 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)] lg:items-start">
           <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>Invoice print</CardTitle>
@@ -439,6 +443,12 @@ export function SettingsPage() {
               </form>
             </CardContent>
           </Card>
+          <InvoicePrintPreview
+            values={previewValues}
+            logoUrl={logoUrl}
+            organisationName={orgQuery.data?.name ?? ""}
+          />
+          </div>
 
           {orgQuery.data ? <PrintsAsCard organisation={orgQuery.data} /> : null}
 

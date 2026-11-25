@@ -25,6 +25,87 @@ import {
 import type { InvoiceLineWithTrip } from "@/services/invoices.service";
 import type { Company, Invoice, Organisation } from "@/types";
 
+type PrintSupplier = NonNullable<InvoicePrintSettings["supplier"]>;
+
+/** Supplier letterhead (logo, name, address, phone). Shared with the Settings preview. */
+export function InvoicePrintSupplierBlock({
+  logoUrl,
+  logoAlt,
+  supplier,
+}: {
+  logoUrl?: string | null;
+  logoAlt: string;
+  supplier: PrintSupplier;
+}) {
+  return (
+    <div className="space-y-0.5 leading-snug">
+      {logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={logoUrl}
+          alt={logoAlt}
+          className="mb-2 h-12 w-auto max-w-[220px] object-contain object-left"
+        />
+      ) : (
+        <p className="text-lg font-semibold">{supplier.name}</p>
+      )}
+      {logoUrl ? <p className="text-base font-semibold">{supplier.name}</p> : null}
+      {supplier.address_lines?.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+      {supplier.phone ? <p>{supplier.phone}</p> : null}
+    </div>
+  );
+}
+
+/** Banking details block. Shared with the Settings preview. */
+export function InvoicePrintBankingBlock({
+  banking,
+}: {
+  banking: InvoicePrintSettings["banking"];
+}) {
+  if (
+    !banking ||
+    !(
+      banking.bank ||
+      banking.account_name ||
+      banking.account_number ||
+      banking.branch_code ||
+      banking.account_type
+    )
+  ) {
+    return null;
+  }
+  return (
+    <div className="space-y-1 leading-snug">
+      <p className="text-xs font-semibold tracking-wide">BANKING DETAILS</p>
+      {banking.bank ? <p>Bank: {banking.bank}</p> : null}
+      {banking.account_name ? <p>Account Name: {banking.account_name}</p> : null}
+      {banking.account_number ? (
+        <p>Account Number: {banking.account_number}</p>
+      ) : null}
+      {banking.branch_code ? <p>Branch Code: {banking.branch_code}</p> : null}
+      {banking.account_type ? <p>Account Type: {banking.account_type}</p> : null}
+    </div>
+  );
+}
+
+/** Contact footer (screen only). Shared with the Settings preview. */
+export function InvoicePrintContactBlock({
+  contact,
+}: {
+  contact: InvoicePrintSettings["contact"];
+}) {
+  return (
+    <div className="space-y-0.5 leading-snug print:hidden">
+      {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
+      {contact?.phone ? <p>{contact.phone}</p> : null}
+      {contact?.email ? <p>{contact.email}</p> : null}
+      <p className="pt-2">Thank You</p>
+    </div>
+  );
+}
+
 export function InvoicePrintView({
   organisation,
   company,
@@ -127,25 +208,11 @@ export function InvoicePrintView({
 
       <article className="invoice-print-sheet invoice-print-flow rounded-xl border border-border bg-background p-8 font-sans text-sm text-foreground shadow-none print:rounded-none print:border-0 print:shadow-none">
         <header className="grid gap-6 border-b border-black/20 pb-4 sm:grid-cols-2">
-          <div className="space-y-0.5 leading-snug">
-            {organisation.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={organisation.logo_url}
-                alt={organisation.name}
-                className="mb-2 h-12 w-auto max-w-[220px] object-contain object-left"
-              />
-            ) : (
-              <p className="text-lg font-semibold">{supplier.name}</p>
-            )}
-            {organisation.logo_url ? (
-              <p className="text-base font-semibold">{supplier.name}</p>
-            ) : null}
-            {supplier.address_lines?.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-            {supplier.phone ? <p>{supplier.phone}</p> : null}
-          </div>
+          <InvoicePrintSupplierBlock
+            logoUrl={organisation.logo_url}
+            logoAlt={organisation.name}
+            supplier={supplier}
+          />
           <div className="space-y-1 sm:text-right">
             <p>
               <span className="font-medium">Date:</span> {invoiceDate}
@@ -249,38 +316,9 @@ export function InvoicePrintView({
             </p>
           </div>
 
-          {banking &&
-          (banking.bank ||
-            banking.account_name ||
-            banking.account_number ||
-            banking.branch_code ||
-            banking.account_type) ? (
-            <div className="space-y-1 leading-snug">
-              <p className="text-xs font-semibold tracking-wide">
-                BANKING DETAILS
-              </p>
-              {banking.bank ? <p>Bank: {banking.bank}</p> : null}
-              {banking.account_name ? (
-                <p>Account Name: {banking.account_name}</p>
-              ) : null}
-              {banking.account_number ? (
-                <p>Account Number: {banking.account_number}</p>
-              ) : null}
-              {banking.branch_code ? (
-                <p>Branch Code: {banking.branch_code}</p>
-              ) : null}
-              {banking.account_type ? (
-                <p>Account Type: {banking.account_type}</p>
-              ) : null}
-            </div>
-          ) : null}
+          <InvoicePrintBankingBlock banking={banking} />
 
-          <div className="space-y-0.5 leading-snug print:hidden">
-            {contact?.name ? <p className="font-medium">{contact.name}</p> : null}
-            {contact?.phone ? <p>{contact.phone}</p> : null}
-            {contact?.email ? <p>{contact.email}</p> : null}
-            <p className="pt-2">Thank You</p>
-          </div>
+          <InvoicePrintContactBlock contact={contact} />
         </footer>
       </article>
     </div>

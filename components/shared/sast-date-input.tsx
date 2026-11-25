@@ -1,5 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import {
+  useController,
+  type Control,
+  type FieldPath,
+  type FieldValues,
+} from "react-hook-form";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -68,5 +76,40 @@ export function SastDateInput({
         {hintText}
       </p>
     </div>
+  );
+}
+
+/**
+ * react-hook-form binding for SastDateInput. The form value stays an ISO
+ * `YYYY-MM-DD` string (or "" while empty/invalid); the user types `dd/mm/yyyy`.
+ */
+export function SastDateField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  className,
+}: {
+  control: Control<T>;
+  name: FieldPath<T>;
+  label: string;
+  className?: string;
+}) {
+  const { field, fieldState } = useController({ control, name });
+  const stored = typeof field.value === "string" ? field.value : "";
+  const [text, setText] = useState(() => (stored ? isoDateToDisplay(stored) : ""));
+
+  return (
+    <SastDateInput
+      id={`${String(name)}-date`}
+      label={label}
+      text={text}
+      className={className}
+      invalid={text.trim() !== "" && parseDisplayDateToIso(text) === null}
+      fieldError={fieldState.error?.message ?? null}
+      onTextChange={(next) => {
+        setText(next);
+        field.onChange(parseDisplayDateToIso(next) ?? "");
+      }}
+    />
   );
 }

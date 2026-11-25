@@ -7,7 +7,6 @@ export default function Page() {
     <ReportsPage
       title="Company reports"
       description="Trips and invoices for your company."
-      showMasterCounts={false}
       allowedKinds={["trips", "commercial"]}
       hidePayroll
     />

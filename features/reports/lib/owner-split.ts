@@ -20,6 +20,8 @@ export type OwnerSplitRow = {
 export type OwnerLookup = {
   drivers: ReadonlyMap<string, OwnerTag | null>;
   vehicles: ReadonlyMap<string, OwnerTag | null>;
+  /** Driver display names (optional; reports fall back to blank). */
+  driverNames?: ReadonlyMap<string, string>;
 };
 
 export const EMPTY_OWNER_LOOKUP: OwnerLookup = { drivers: new Map(), vehicles: new Map() };
