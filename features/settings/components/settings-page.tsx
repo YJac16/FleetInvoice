@@ -39,6 +39,7 @@ import {
   removeOrganisationLogo,
   uploadOrganisationLogo,
 } from "@/services/org-logo.service";
+import { PrintsAsCard } from "@/features/settings/components/prints-as-card";
 import { ServiceLocationsSettings } from "@/features/settings/components/service-locations-settings";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
@@ -438,6 +439,8 @@ export function SettingsPage() {
               </form>
             </CardContent>
           </Card>
+
+          {orgQuery.data ? <PrintsAsCard organisation={orgQuery.data} /> : null}
 
           <ServiceLocationsSettings organisationId={organisationId} />
         </>

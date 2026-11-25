@@ -8,9 +8,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { InvoicePrintView } from "@/features/invoices/components/invoice-print-view";
 import {
-  applyDriverInvoicePrintOverride,
-  parseInvoicePrintSettings,
+  resolveInvoicePrintSettings,
 } from "@/features/invoices/lib/invoice-print-settings";
+import { resolveInvoiceOwner } from "@/lib/owner-tag";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { getCompany } from "@/services/companies.service";
 import { getDriverInvoicePrintOverride } from "@/services/driver-invoice-print-override.service";
@@ -144,8 +144,9 @@ export function InvoicePrintPage({
       company={companyQuery.data ?? null}
       invoice={invoice}
       lines={linesQuery.data ?? []}
-      printSettings={applyDriverInvoicePrintOverride(
-        parseInvoicePrintSettings(organisation),
+      printSettings={resolveInvoicePrintSettings(
+        organisation,
+        resolveInvoiceOwner(invoice),
         driverOverrideQuery.data ?? null
       )}
       backHref={backHref}
