@@ -2,7 +2,7 @@
 
 Branch: `docs/ui-review-2026-11-25` (from `demo`). Do not touch `main`, production, or live DBs.
 
-1. Read `docs/ui-review/2026-11-25/index.md` and every screenshot in that folder. Read the relevant app/feature code on this branch.
+1. Read `docs/ui-review/2026-11-25/index.md`. View every screenshot there: the `.png` files if present, and the same images embedded in the sibling markdown files (`dashboard-trips-list.md`, `trips-detail-invoices.md`, `invoices-print-drivers.md`, `maintenance.md`, `reports-settings-driver.md`). Read the relevant app/feature code on this branch.
 2. The Product charts/UI plan is already at `docs/ui-review/charts-plan.md` — use it.
 3. Focus is invoices, fleet maintenance, and drivers only. Employees are going away: recommend hiding them from People, dashboard tiles, reports, and shortcuts. Do not drop tables or delete data.
 

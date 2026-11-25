@@ -9,6 +9,9 @@ Roles:
 
 Credentials are not recorded here.
 
+The same images are also embedded (phone first) in these markdown files, which is how they are carried on the GitHub branch: `dashboard-trips-list.md`, `trips-detail-invoices.md`, `invoices-print-drivers.md`, `maintenance.md`, `reports-settings-driver.md`.
+
+
 **How to use these shots:** design each screen for the 390px phone first, then say how it scales up to the 1440px desktop.
 
 ## Console and overflow
