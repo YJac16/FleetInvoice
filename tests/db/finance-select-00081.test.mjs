@@ -34,6 +34,11 @@
  *     and supervisor; log_fuel_fillup masks money for dispatcher/supervisor but
  *     not for manager or the self driver; rollback-00086 restores it all.
  *
+ *   - 00087: generate_weekly_fuel_invoice is CALLED as admin and manager with
+ *     seeded fuel fills and succeeds (it raised 42702 period_end ambiguous);
+ *     dispatcher/supervisor still refused; rollback-00087 restores the 00085
+ *     definition.
+ *
  * Run: npm run test:finance-00081   (bootstraps a throwaway local DB)
  */
 import { spawnSync } from "node:child_process";
@@ -459,6 +464,47 @@ const weekly = psqlAs(U.manager, `select count(*)::text from (select 1 from publ
 check("00086: invoices still readable by manager", weekly.ok);
 
 // ---------------------------------------------------------------------------
+// 00087: generate_weekly_fuel_invoice must actually run (was 42702 "period_end
+// is ambiguous" for every authorised caller) and stay admin/manager only.
+// ---------------------------------------------------------------------------
+const weeklyFuel = (week) =>
+  `select (to_jsonb(public.generate_weekly_fuel_invoice('${ORG}'::uuid, '${COMPANY}'::uuid, date '${week}')))::text;`;
+const FUEL_SEED = `insert into public.fuel_fillups (organisation_id, vehicle_id, driver_id, company_id, odometer_km, litres, unit_price, total_amount, currency, filled_at)
+values
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3000, 10, 20, 200, 'ZAR', timestamptz '2027-03-09 08:00:00+00'),
+  ('${ORG}', '${VEHICLE}', '${DRIVER_ROW}', '${COMPANY}', 3100, 5, 20, 100, 'ZAR', timestamptz '2027-03-10 08:00:00+00'),
+  ('${ORG}', '${VEHICLE2}', '${OTHER_DRIVER}', '${COMPANY}', 4000, 10, 30, 300, 'ZAR', timestamptz '2027-03-16 08:00:00+00');`;
+function checkWeeklyFuel(label) {
+  psqlAdmin(FUEL_SEED); // temporary fills, removed below so 00086 counts are unaffected
+  const a = psqlAs(U.admin, weeklyFuel("2027-03-08"), { allowError: true });
+  const aj = a.ok ? JSON.parse(a.out) : {};
+  check(`${label}: admin generate_weekly_fuel_invoice succeeds (no 42702)`, a.ok && !/ambiguous/i.test(a.text), a.text.slice(0, 200));
+  check(`${label}: admin invoice covers the week and totals the two fills`, aj.period_end === "2027-03-15" && Number(aj.total) === 300 && aj.status === "issued", a.out.slice(0, 200));
+  const again = psqlAs(U.admin, weeklyFuel("2027-03-08"), { allowError: true });
+  check(`${label}: second call returns the same invoice (existing-invoice lookup)`, again.ok && JSON.parse(again.out).id === aj.id, again.text.slice(0, 200));
+  const m = psqlAs(U.manager, weeklyFuel("2027-03-15"), { allowError: true });
+  const mj = m.ok ? JSON.parse(m.out) : {};
+  check(`${label}: manager generate_weekly_fuel_invoice succeeds (no 42702)`, m.ok && !/ambiguous/i.test(m.text) && Number(mj.total) === 300, m.text.slice(0, 200));
+  check(
+    `${label}: one fuel line per fill`,
+    psqlAdmin(`select count(*) from public.invoice_lines where invoice_id in ('${aj.id}'::uuid, '${mj.id}'::uuid) and line_type = 'fuel'`) === "3"
+  );
+  for (const [who, id] of [["dispatcher", U.dispatcher], ["supervisor", U.supervisor]]) {
+    const r = refused(id, weeklyFuel("2027-03-22"));
+    check(`${label}: ${who} still refused (not authorised)`, r.refused, r.text.slice(0, 160));
+  }
+  check(
+    `${label}: refused calls created no invoice`,
+    psqlAdmin(`select count(*) from public.invoices where organisation_id = '${ORG}' and company_id = '${COMPANY}' and period_start = date '2027-03-22'`) === "0"
+  );
+  // reset so the next phase starts clean
+  psqlAdmin(`delete from public.invoice_lines where invoice_id in ('${aj.id}'::uuid, '${mj.id}'::uuid);
+    delete from public.invoices where id in ('${aj.id}'::uuid, '${mj.id}'::uuid);
+    delete from public.fuel_fillups where organisation_id = '${ORG}' and odometer_km in (3000, 3100, 4000);`);
+}
+checkWeeklyFuel("00087");
+
+// ---------------------------------------------------------------------------
 // Rollbacks, then re-apply
 // ---------------------------------------------------------------------------
 function applyFile(rel) {
@@ -477,6 +523,14 @@ check("rollback-00086: list_fuel_fillup_amounts is gone", psqlAdmin(`select coun
 const unmasked = logFuel(U.dispatcher, 1500);
 check("rollback-00086: dispatcher log_fuel_fillup returns money again (00007)", unmasked.ok && Number(JSON.parse(unmasked.out).total_amount) === 300, unmasked.text.slice(0, 160));
 check("rollback-00086: driver sees only own fill-ups (policy untouched)", fuelSafeCount(U.driver) === "2" || fuelSafeCount(U.driver) === "3", fuelSafeCount(U.driver));
+
+applyFile("supabase/rollback-00087.sql");
+{
+  const r = psqlAs(U.admin, weeklyFuel("2027-03-08"), { allowError: true });
+  check("rollback-00087: restores the 00085 definition (admin hits 42702 again)", !r.ok && /ambiguous/i.test(r.text), r.text.slice(0, 160));
+  check("rollback-00087: dispatcher still refused", refused(U.dispatcher, weeklyFuel("2027-03-22")).refused);
+}
+applyFile("supabase/migrations/00087_fix_weekly_fuel_invoice_ambiguity.sql");
 
 applyFile("supabase/rollback-00085.sql");
 {
@@ -511,6 +565,7 @@ for (const t of FINANCE_00081) {
 applyFile("supabase/migrations/00081_finance_select_exclude_supervisor.sql");
 applyFile("supabase/migrations/00084_finance_rate_cards_payrates_admin_only.sql");
 applyFile("supabase/migrations/00085_finance_writes_admin_only.sql");
+applyFile("supabase/migrations/00087_fix_weekly_fuel_invoice_ambiguity.sql");
 check("re-applied 00085: dispatcher cannot insert rate_cards", refused(U.dispatcher, WRITES["insert rate_cards"]).refused);
 check("re-applied 00085: list_archived_rate_cards empty for dispatcher", listArchived(U.dispatcher) === "0");
 check("re-applied 00085: generate_payroll_run refuses dispatcher", refused(U.dispatcher, RPCS.generate_payroll_run).refused);
@@ -524,5 +579,7 @@ applyFile("supabase/migrations/00086_fuel_cost_finance_only.sql");
 check("re-applied 00086: dispatcher cannot SELECT total_amount", permDenied(fuelDirect(U.dispatcher, "total_amount")));
 check("re-applied 00086: supervisor list_fuel_fillup_amounts empty", fuelAmounts(U.supervisor).startsWith("0|"));
 check("re-applied 00086: manager list_fuel_fillup_amounts returns rows", Number(fuelAmounts(U.manager).split("|")[0]) >= 2);
+
+checkWeeklyFuel("re-applied 00087");
 
 process.exit(failed);
