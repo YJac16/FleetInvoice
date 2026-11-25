@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import { CountUp } from "@/components/shared/count-up";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +34,7 @@ export function StatCard({
         {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-semibold tracking-tight">{value}</div>
+        <div className="text-3xl font-semibold tracking-tight tabular-nums"><CountUp value={value} /></div>
         {description ? (
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         ) : null}

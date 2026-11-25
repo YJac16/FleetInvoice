@@ -1,3 +1,4 @@
+import { PageFadeIn } from "@/components/shared/page-fade-in";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CardGridSkeleton({
@@ -8,7 +9,8 @@ export function CardGridSkeleton({
   className?: string;
 }) {
   return (
-    <div
+    <PageFadeIn
+      data-skeleton-fade=""
       className={className ?? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"}
     >
       {Array.from({ length: cards }).map((_, index) => (
@@ -21,7 +23,7 @@ export function CardGridSkeleton({
           <Skeleton className="h-3 w-full max-w-[12rem]" />
         </div>
       ))}
-    </div>
+    </PageFadeIn>
   );
 }
 
