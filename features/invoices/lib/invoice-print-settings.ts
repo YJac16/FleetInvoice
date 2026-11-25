@@ -313,3 +313,36 @@ export function applyDriverInvoicePrintOverride(
 
   return next;
 }
+
+/** Owners that can carry their own issuer block in settings.invoice_print.owners. */
+export const PRINT_OWNER_KEYS = ["yaseen", "fadia"] as const;
+export type PrintOwnerKey = (typeof PRINT_OWNER_KEYS)[number];
+
+/** Reads settings.invoice_print.owners.{yaseen|fadia}; null when unset or empty. */
+export function parseOwnerInvoicePrintOverride(
+  organisation: Pick<Organisation, "settings">,
+  owner: string | null | undefined
+): DriverInvoicePrintOverride | null {
+  if (!owner || !(PRINT_OWNER_KEYS as readonly string[]).includes(owner)) return null;
+  const printRaw = organisation.settings?.invoice_print;
+  if (!isRecord(printRaw) || !isRecord(printRaw.owners)) return null;
+  return parseDriverInvoicePrintOverride(printRaw.owners[owner]);
+}
+
+/**
+ * Issuer for one invoice. Precedence (block-level, never mixing parties):
+ * driver override > owner block (when owner_tag is set) > the invoice's own
+ * organisation settings. Unassigned invoices use the org issuer.
+ */
+export function resolveInvoicePrintSettings(
+  organisation: Pick<Organisation, "name" | "settings">,
+  owner: string | null | undefined,
+  driverOverride: DriverInvoicePrintOverride | null | undefined
+): InvoicePrintSettings {
+  const base = parseInvoicePrintSettings(organisation);
+  const withOwner = applyDriverInvoicePrintOverride(
+    base,
+    parseOwnerInvoicePrintOverride(organisation, owner)
+  );
+  return applyDriverInvoicePrintOverride(withOwner, driverOverride);
+}

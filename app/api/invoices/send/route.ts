@@ -8,13 +8,13 @@ import { parseEmailList, validateEmailList } from "@/lib/notifications/email-add
 import { buildInvoiceEmailContent } from "@/lib/notifications/invoice-email";
 import { sendResendEmail } from "@/lib/notifications/resend-server";
 import {
-  applyDriverInvoicePrintOverride,
-  parseInvoicePrintSettings,
+  resolveInvoicePrintSettings,
 } from "@/features/invoices/lib/invoice-print-settings";
 import {
   fetchDriverInvoicePrintOverride,
   type OverrideClient,
 } from "@/features/invoices/lib/driver-invoice-print-override";
+import { resolveInvoiceOwner } from "@/lib/owner-tag";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
-    .select("*, companies:company_id (id, name, contact_email)")
+    .select("*, companies:company_id (id, name, contact_email), drivers:driver_id (id, owner_tag)")
     .eq("id", invoiceId)
     .eq("organisation_id", organisationId)
     .is("deleted_at", null)
@@ -115,11 +115,12 @@ export async function POST(request: Request) {
       )
     : null;
 
-  const printSettings = applyDriverInvoicePrintOverride(
-    parseInvoicePrintSettings({
+  const printSettings = resolveInvoicePrintSettings(
+    {
       name: organisation?.name ?? "WorkOps",
       settings: (organisation?.settings as Record<string, unknown>) ?? {},
-    }),
+    },
+    resolveInvoiceOwner(invoice),
     driverOverride
   );
 

@@ -121,7 +121,12 @@ export function invoicePrintSettingsToOrganisationSettings(
       : {}),
   };
 
+  const existingPrint = isRecord(existingSettings.invoice_print)
+    ? existingSettings.invoice_print
+    : {};
   const invoicePrint: Record<string, unknown> = {
+    // Per-owner issuer blocks are edited in the "Prints as" card; keep them.
+    ...(isRecord(existingPrint.owners) ? { owners: existingPrint.owners } : {}),
     ...(Object.keys(banking).length > 0 ? { banking } : {}),
     ...(Object.keys(contact).length > 0 ? { contact } : {}),
     ...(trimOrUndefined(values.vehicle_reg)

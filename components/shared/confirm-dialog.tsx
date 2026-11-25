@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +21,8 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   onConfirm: () => void;
   loading?: boolean;
+  /** Styles the confirm button as destructive. Cancel always has initial focus. */
+  destructive?: boolean;
 };
 
 export function ConfirmDialog({
@@ -29,17 +33,23 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   onConfirm,
   loading = false,
+  destructive = false,
 }: ConfirmDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent initialFocus={cancelRef}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={loading}>
+          <AlertDialogCancel ref={cancelRef} disabled={loading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant={destructive ? "destructive" : "default"}
+            onClick={onConfirm}
+            disabled={loading}
+          >
             {loading ? "Working…" : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
