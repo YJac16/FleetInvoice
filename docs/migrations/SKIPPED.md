@@ -13,3 +13,4 @@ These numbers are permanently skipped on demo. Do not reuse them.
 - PR #49's original number 00056 is now **00099** (`00099_security_privilege_and_billing.sql`).
 - PR #73's original number 00071 is now **00100**.
 - PR #100's original number 00096 is now **00101** (`00101_period_invoice_owner_stamp.sql`).
+- PR #69's original number 00070 is now **00102** (`00102_self_serve_invoice_bill_to.sql`; 00070 is demo's applied `route_price_templates`).
