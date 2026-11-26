@@ -7,10 +7,11 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
+import { BusyButton } from "@/components/ui/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SelectField, TextField, TextAreaField } from "@/components/forms/form-fields";
 import { Badge } from "@/components/ui/badge";
@@ -177,9 +178,14 @@ export function LogFuelForm({
         type="datetime-local"
       />
       <TextAreaField control={form.control} name="notes" label="Notes" />
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Saving…" : "Log fill-up"}
-      </Button>
+      <BusyButton
+        type="submit"
+        className="w-full"
+        pending={mutation.isPending}
+        pendingLabel="Saving…"
+      >
+        Log fill-up
+      </BusyButton>
     </form>
   );
 }
@@ -298,41 +304,52 @@ export function FuelFillupsPage({
           title="No organisation"
           description="Select an organisation to view fuel fill-ups."
         />
-      ) : fillupsQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
       ) : (
-        <div className="space-y-4">
-          {canViewFuelCost ? (
-            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-              <span className="rounded-md bg-muted px-2 py-1">
-                Priced total: {pricedTotal.toFixed(2)}
-              </span>
-              <span className="rounded-md bg-muted px-2 py-1" data-testid="needs-price-count">
-                Needs price: {needsPriceCount}
-              </span>
-            </div>
-          ) : null}
-          <DataTable
-            columns={columns}
-            data={fills}
-            emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
-          />
-          {canViewFuelCost ? (
-            <>
-              <FuelPricesPanel
-                organisationId={organisationId}
-                prices={pricesQuery.data ?? []}
-                fills={fills}
-                canManage={canManageFuelPrices}
-              />
-              <VehicleFuelHistoryPanel
-                organisationId={organisationId}
-                fills={fills}
-                prices={pricesQuery.data ?? []}
-              />
-            </>
-          ) : null}
-        </div>
+        <AdminQueryGate
+          label="Loading fuel fill-ups"
+          isLoading={fillupsQuery.isLoading}
+          isFetching={fillupsQuery.isFetching}
+          isError={fillupsQuery.isError}
+          data={fillupsQuery.data}
+          error={fillupsQuery.error}
+          onRetry={() => {
+            void fillupsQuery.refetch();
+          }}
+          rows={5}
+        >
+          <div className="space-y-4">
+            {canViewFuelCost ? (
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                <span className="rounded-md bg-muted px-2 py-1">
+                  Priced total: {pricedTotal.toFixed(2)}
+                </span>
+                <span className="rounded-md bg-muted px-2 py-1" data-testid="needs-price-count">
+                  Needs price: {needsPriceCount}
+                </span>
+              </div>
+            ) : null}
+            <DataTable
+              columns={columns}
+              data={fills}
+              emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
+            />
+            {canViewFuelCost ? (
+              <>
+                <FuelPricesPanel
+                  organisationId={organisationId}
+                  prices={pricesQuery.data ?? []}
+                  fills={fills}
+                  canManage={canManageFuelPrices}
+                />
+                <VehicleFuelHistoryPanel
+                  organisationId={organisationId}
+                  fills={fills}
+                  prices={pricesQuery.data ?? []}
+                />
+              </>
+            ) : null}
+          </div>
+        </AdminQueryGate>
       )}
 
       {organisationId ? (

@@ -12,7 +12,7 @@ import {
   type DriverValues,
 } from "@/features/drivers/schemas/driver";
 import { SelectField, TextField } from "@/components/forms/form-fields";
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import { OWNER_LABELS, OWNER_TAGS } from "@/lib/owner-tag";
 import type { Driver } from "@/types";
@@ -206,9 +206,9 @@ export function DriverCaptureForm({
         />
       </CaptureSection>
 
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Saving…" : submitLabel}
-      </Button>
+      <BusyButton type="submit" pending={submitting} pendingLabel="Saving…" className="w-full">
+        {submitLabel}
+      </BusyButton>
     </form>
   );
 }

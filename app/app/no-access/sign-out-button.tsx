@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { signOut } from "@/services/auth.service";
 
 export function SignOutButton() {
@@ -21,8 +21,8 @@ export function SignOutButton() {
   }
 
   return (
-    <Button variant="outline" disabled={pending} onClick={() => void handleClick()}>
+    <BusyButton variant="outline" pending={pending} onClick={() => void handleClick()}>
       Sign out
-    </Button>
+    </BusyButton>
   );
 }

@@ -6,12 +6,12 @@ import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { ComplianceExpiryBadge } from "@/features/compliance/components/compliance-expiry-badge";
 import { PRDP_SHORT_LABEL } from "@/features/compliance/lib/prdp-label";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
@@ -204,9 +204,20 @@ export function CompliancePage() {
         </button>
         {missingOpen ? (
           <div className="mt-3 space-y-4">
-            {missingQuery.isLoading ? (
-              <LoadingSkeleton rows={2} />
-            ) : missing.length === 0 ? (
+            <AdminQueryGate
+              label="Loading compliance gaps"
+              isLoading={missingQuery.isLoading}
+              isFetching={missingQuery.isFetching}
+              isError={missingQuery.isError}
+              data={missingQuery.data}
+              error={missingQuery.error}
+              onRetry={() => {
+                void missingQuery.refetch();
+              }}
+              rows={2}
+              size="md"
+            >
+            {missing.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 All tracked fields are captured for active drivers and vehicles.
               </p>
@@ -239,6 +250,7 @@ export function CompliancePage() {
                 );
               })
             )}
+            </AdminQueryGate>
           </div>
         ) : null}
       </div>
@@ -256,9 +268,18 @@ export function CompliancePage() {
         ))}
       </div>
 
-      {renewalsQuery.isLoading ? (
-        <LoadingSkeleton rows={4} />
-      ) : (
+      <AdminQueryGate
+        label="Loading renewals"
+        isLoading={renewalsQuery.isLoading}
+        isFetching={renewalsQuery.isFetching}
+        isError={renewalsQuery.isError}
+        data={renewalsQuery.data}
+        error={renewalsQuery.error}
+        onRetry={() => {
+          void renewalsQuery.refetch();
+        }}
+        rows={4}
+      >
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
@@ -298,7 +319,7 @@ export function CompliancePage() {
             />
           )}
         </>
-      )}
+      </AdminQueryGate>
     </div>
   );
 }

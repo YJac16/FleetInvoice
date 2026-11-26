@@ -33,7 +33,7 @@ export default async function NoAccessPage() {
       ?.organisations?.name ?? "this organisation";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-auth-surface-simple px-6">
+    <div className="flex min-h-screen items-center justify-center bg-auth-surface-simple px-6 pb-40">
       <div className="w-full max-w-md space-y-6">
         <GoOpsLogo size="lg" showTagline />
         <Card className="rounded-2xl shadow-none">

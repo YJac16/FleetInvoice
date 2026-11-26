@@ -5,10 +5,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { QrCode, ScanLine } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -146,16 +146,27 @@ export function AttendancePage() {
         </Card>
       ) : null}
 
-      {eventsQuery.isLoading ? (
-        <LoadingSkeleton rows={5} />
-      ) : (eventsQuery.data ?? []).length === 0 ? (
-        <EmptyState
-          title="No attendance events"
-          description="Issue a boarding QR for a trip to start recording presence."
-        />
-      ) : (
-        <DataTable columns={columns} data={eventsQuery.data ?? []} />
-      )}
+      <AdminQueryGate
+        label="Loading attendance"
+        isLoading={eventsQuery.isLoading}
+        isFetching={eventsQuery.isFetching}
+        isError={eventsQuery.isError}
+        data={eventsQuery.data}
+        error={eventsQuery.error}
+        onRetry={() => {
+          void eventsQuery.refetch();
+        }}
+        rows={5}
+      >
+        {(eventsQuery.data ?? []).length === 0 ? (
+          <EmptyState
+            title="No attendance events"
+            description="Issue a boarding QR for a trip to start recording presence."
+          />
+        ) : (
+          <DataTable columns={columns} data={eventsQuery.data ?? []} />
+        )}
+      </AdminQueryGate>
 
       <IssueQrDialog
         open={issueOpen}

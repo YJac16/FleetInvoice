@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 
+import { GoOpsLoader } from "@/components/brand/goops-loader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +50,10 @@ export function ConfirmDialog({
             variant={destructive ? "destructive" : "default"}
             onClick={onConfirm}
             disabled={loading}
+            aria-busy={loading || undefined}
+            className={loading ? "disabled:opacity-100" : undefined}
           >
+            {loading ? <GoOpsLoader size="xs" decorative /> : null}
             {loading ? "Working…" : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

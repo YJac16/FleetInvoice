@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { useOrg } from "@/components/layout/org-context";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AdminLoadError, AdminLoading } from "@/components/admin/admin-loading";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { DriverCaptureForm } from "@/features/drivers/components/driver-capture-form";
@@ -96,14 +96,23 @@ export function DriverCaptureScreen({ driverId }: { driverId?: string }) {
   }
 
   if (!organisationId) {
-    return <LoadingSkeleton rows={6} />;
-  }
-
-  if (driverId && driverQuery.isLoading) {
-    return <LoadingSkeleton rows={8} />;
+    return <AdminLoading label="Loading driver" rows={6} />;
   }
 
   if (driverId && !driverQuery.data) {
+    if (driverQuery.isLoading || (driverQuery.isFetching && driverQuery.isError)) {
+      return <AdminLoading label="Loading driver" rows={8} />;
+    }
+    if (driverQuery.isError) {
+      return (
+        <AdminLoadError
+          error={driverQuery.error}
+          onRetry={() => {
+            void driverQuery.refetch();
+          }}
+        />
+      );
+    }
     return (
       <EmptyState title="Driver not found" description="This driver may belong to another organisation." />
     );

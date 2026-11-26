@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
+import { BusyButton } from "@/components/ui/busy-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,12 +118,13 @@ export function AdminManualTripDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            disabled={createMutation.isPending}
+          <BusyButton
+            pending={createMutation.isPending}
+            pendingLabel="Creating…"
             onClick={() => createMutation.mutate()}
           >
-            {createMutation.isPending ? "Creating…" : "Create trip"}
-          </Button>
+            Create trip
+          </BusyButton>
         </>
       }
     >

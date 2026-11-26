@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Building2, Bus, Car, CircleUser, Radar } from "lucide-react";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -184,17 +185,31 @@ export function DashboardPage() {
       ) : null}
 
       {(can("trips:view") || can("dispatch:view")) && can("dashboard:view") ? (
+        <>
         <DateRangeFilter
           range={range}
           onPresetChange={setPreset}
           onCustomChange={setCustomRange}
           updating={opsRefreshing}
         />
-      ) : null}
-
-      {showOpsSkeleton ? (
-        <CardGridSkeleton cards={5} className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-5" />
-      ) : ops ? (
+        <AdminQueryGate
+          label="Loading operations"
+          isLoading={showOpsSkeleton}
+          isFetching={opsQuery.isFetching}
+          isError={opsQuery.isError}
+          data={opsQuery.data}
+          error={opsQuery.error}
+          onRetry={() => {
+            void opsQuery.refetch();
+          }}
+          skeleton={
+            <CardGridSkeleton
+              cards={5}
+              className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-5"
+            />
+          }
+        >
+        {ops ? (
         <RangeQueryBody query={opsQuery} refreshing={opsRefreshing}>
           <div>
           <h2 className="mb-3 font-heading text-lg">
@@ -244,11 +259,23 @@ export function DashboardPage() {
           </div>
           </div>
         </RangeQueryBody>
+        ) : null}
+        </AdminQueryGate>
+        </>
       ) : null}
 
-      {showCountsSkeleton ? (
-        <CardGridSkeleton cards={6} />
-      ) : (
+      <AdminQueryGate
+        label="Loading organisation"
+        isLoading={showCountsSkeleton}
+        isFetching={countsQuery.isFetching}
+        isError={countsQuery.isError}
+        data={countsQuery.data}
+        error={countsQuery.error}
+        onRetry={() => {
+          void countsQuery.refetch();
+        }}
+        skeleton={<CardGridSkeleton cards={6} />}
+      >
         <RangeQueryBody query={countsQuery}>
         <div>
           <h2 className="mb-3 font-heading text-lg">Organisation</h2>
@@ -277,7 +304,7 @@ export function DashboardPage() {
           </div>
         </div>
         </RangeQueryBody>
-      )}
+      </AdminQueryGate>
 
       {browseGroups.length ? (
         <details className="group space-y-6 md:hidden">

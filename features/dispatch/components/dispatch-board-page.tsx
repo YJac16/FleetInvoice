@@ -3,11 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import { AdminQueryGate } from "@/components/admin/admin-loading";
 import { useOrg } from "@/components/layout/org-context";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KanbanSkeleton } from "@/components/shared/card-grid-skeleton";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { useDateRangeFilter } from "@/hooks/use-date-range-filter";
 import {
@@ -157,9 +157,20 @@ export function DispatchBoardPage() {
 
       <div>
         <h2 className="mb-3 font-heading text-lg">Driver positions</h2>
-        {positionsQuery.isLoading ? (
-          <LoadingSkeleton rows={2} />
-        ) : (positionsQuery.data ?? []).length === 0 ? (
+        <AdminQueryGate
+          label="Loading driver positions"
+          isLoading={positionsQuery.isLoading}
+          isFetching={positionsQuery.isFetching}
+          isError={positionsQuery.isError}
+          data={positionsQuery.data}
+          error={positionsQuery.error}
+          onRetry={() => {
+            void positionsQuery.refetch();
+          }}
+          rows={2}
+          size="md"
+        >
+        {(positionsQuery.data ?? []).length === 0 ? (
           <EmptyState
             title="No live positions"
             description="Ask drivers to share location from the driver portal."
@@ -184,13 +195,23 @@ export function DispatchBoardPage() {
             ))}
           </ul>
         )}
+        </AdminQueryGate>
       </div>
 
       <div>
         <h2 className="mb-3 font-heading text-lg">Trip board</h2>
-        {showTripsSkeleton ? (
-          <KanbanSkeleton />
-        ) : (
+        <AdminQueryGate
+          label="Loading trips"
+          isLoading={showTripsSkeleton}
+          isFetching={tripsQuery.isFetching}
+          isError={tripsQuery.isError}
+          data={tripsQuery.data}
+          error={tripsQuery.error}
+          onRetry={() => {
+            void tripsQuery.refetch();
+          }}
+          skeleton={<KanbanSkeleton />}
+        >
           <RangeQueryBody query={tripsQuery} refreshing={rangeRefreshing}>
           {filteredTrips.length === 0 ? (
             <EmptyState
@@ -242,7 +263,7 @@ export function DispatchBoardPage() {
           </div>
           )}
           </RangeQueryBody>
-        )}
+        </AdminQueryGate>
       </div>
     </div>
   );

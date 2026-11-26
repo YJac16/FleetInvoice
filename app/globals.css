@@ -334,6 +334,50 @@
   [data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-pill] { display: flex; }
   [data-demo-bar]:not([data-pref="expanded"]) [data-demo-bar-expanded] { display: none; }
 }
+/*
+ * Position + reserved space honour the safe-area insets. With a driver/employee
+ * tab bar ([data-bottom-nav], 4rem + safe area) the bar sits above it instead
+ * of over it; the tab-bar pages already clear the nav in their own padding.
+ */
+:root {
+  --bottom-nav-height: 4rem;
+  --demo-bar-offset: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  --demo-bar-reserve-extra: env(safe-area-inset-bottom, 0px);
+}
+body:has([data-bottom-nav]) {
+  --demo-bar-offset: calc(0.75rem + var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  --demo-bar-reserve-extra: 0px;
+}
+[data-demo-bar] {
+  right: calc(0.75rem + env(safe-area-inset-right, 0px));
+  bottom: var(--demo-bar-offset);
+}
 body:has([data-demo-bar]) {
-  padding-bottom: calc(var(--demo-bar-height, 2rem) + 0.75rem);
+  padding-bottom: calc(var(--demo-bar-height, 2rem) + 0.75rem + var(--demo-bar-reserve-extra, 0px));
+}
+
+/*
+ * Motion (<=300ms, opacity only, off under reduced motion). Skeletons fade in
+ * once, then keep pulsing; a skeleton inside a PageFadeIn grid skips its own
+ * fade so there is only one.
+ */
+@keyframes skeleton-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="skeleton"] {
+    animation: skeleton-fade-in 300ms ease-out, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  [data-skeleton-fade] [data-slot="skeleton"] {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  /* One toast style: sonner's 400ms enter/exit tightened to 300ms. */
+  [data-sonner-toast] {
+    transition: transform 300ms, opacity 300ms, height 300ms, box-shadow 200ms !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] { animation: none; }
+  [data-sonner-toast] { transition: none !important; animation: none !important; }
 }
