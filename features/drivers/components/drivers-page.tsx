@@ -259,7 +259,7 @@ export function DriversPage() {
                     >
                       ⋯
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="start" className="min-w-40">
                       <DropdownMenuItem
                         render={<Link href={`/drivers/${row.id}/capture`} />}
                       >

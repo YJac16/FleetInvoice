@@ -3,28 +3,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Building2,
-  Car,
-  CircleUser,
-  Download,
-  MapPinned,
-  Users,
-  Warehouse,
-} from "lucide-react";
+import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useOrg } from "@/components/layout/org-context";
-import { SelectField, TextField } from "@/components/forms/form-fields";
+import { SelectField } from "@/components/forms/form-fields";
+import { SastDateField } from "@/components/shared/sast-date-input";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
-import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mondayOfWeek, weekPeriodEnd } from "@/features/invoices/lib/week";
+import { inclusiveEndToExclusive } from "@/features/reports/lib/period";
 import { downloadCsv, toCsv } from "@/features/reports/lib/csv";
 import {
   REPORT_TYPE_LABELS,
@@ -52,7 +45,6 @@ import {
   type TripStatus,
 } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/utils/format";
-import { getDashboardCounts } from "@/services/dashboard.service";
 import {
   buildOpsReport,
   reportToCsvRows,
@@ -82,6 +74,7 @@ function TripsResults({ report }: { report: TripsReport }) {
         cell: ({ row }) => tripStatusLabel(row.original.status),
       },
       { accessorKey: "route", header: "Route" },
+      { accessorKey: "driver", header: "Driver" },
       { accessorKey: "owner", header: "Owner", cell: ({ row }) => OWNER_LABELS[row.original.owner] },
       { accessorKey: "entered_by", header: "Entered by" },
       {
@@ -387,13 +380,11 @@ function ReportBody({
 export function ReportsPage({
   title = "Reports",
   description = "Period reports with CSV export for trips, fuel, attendance, and commercial summaries.",
-  showMasterCounts = true,
   allowedKinds,
   hidePayroll: hidePayrollProp = false,
 }: {
   title?: string;
   description?: string;
-  showMasterCounts?: boolean;
   allowedKinds?: readonly ReportType[];
   hidePayroll?: boolean;
 } = {}) {
@@ -416,7 +407,7 @@ export function ReportsPage({
   } | null>({
     report_type: "trips",
     period_start: weekStart,
-    period_end: weekPeriodEnd(weekStart),
+    period_end: inclusiveEndToExclusive(weekPeriodEnd(weekStart)),
     owner: "all",
   });
 
@@ -428,14 +419,6 @@ export function ReportsPage({
       period_end: weekPeriodEnd(weekStart),
       owner: "all",
     },
-  });
-
-  const countsQuery = useQuery({
-    queryKey: organisationId
-      ? [...queryKeys.dashboard(organisationId), "reports"]
-      : ["reports", "none"],
-    queryFn: () => getDashboardCounts(organisationId!),
-    enabled: Boolean(organisationId) && canView && showMasterCounts,
   });
 
   const reportQuery = useQuery({
@@ -485,8 +468,6 @@ export function ReportsPage({
     );
   }
 
-  const counts = countsQuery.data;
-
   return (
     <div className="space-y-8">
       <PageHeader
@@ -514,10 +495,14 @@ export function ReportsPage({
       <form
         className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={form.handleSubmit((values) => {
+          if (values.period_end < values.period_start) {
+            form.setError("period_end", { message: "Must be on or after From" });
+            return;
+          }
           setApplied({
             report_type: values.report_type,
             period_start: values.period_start,
-            period_end: values.period_end,
+            period_end: inclusiveEndToExclusive(values.period_end),
             owner: values.owner ?? "all",
           });
         })}
@@ -535,18 +520,8 @@ export function ReportsPage({
                 : REPORT_TYPE_LABELS[t],
           }))}
         />
-        <TextField
-          control={form.control}
-          name="period_start"
-          label="Period start"
-          type="date"
-        />
-        <TextField
-          control={form.control}
-          name="period_end"
-          label="Period end (exclusive)"
-          type="date"
-        />
+        <SastDateField control={form.control} name="period_start" label="From" />
+        <SastDateField control={form.control} name="period_end" label="To (last day included)" />
         <SelectField
           control={form.control}
           name="owner"
@@ -576,44 +551,6 @@ export function ReportsPage({
           description="Choose a report type and period, then run."
         />
       )}
-
-      {showMasterCounts ? (
-        <div className="space-y-3">
-          <h2 className="font-heading text-xl">At a glance</h2>
-          {countsQuery.isLoading ? (
-            <LoadingSkeleton rows={2} />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                title="Drivers"
-                value={counts?.drivers ?? 0}
-                icon={CircleUser}
-              />
-              <StatCard
-                title="Vehicles"
-                value={counts?.vehicles ?? 0}
-                icon={Car}
-              />
-              <StatCard
-                title="Companies"
-                value={counts?.companies ?? 0}
-                icon={Building2}
-              />
-              <StatCard
-                title="Sites"
-                value={counts?.sites ?? 0}
-                icon={Warehouse}
-              />
-              <StatCard
-                title="Pickup points"
-                value={counts?.pickup_points ?? 0}
-                icon={MapPinned}
-              />
-              <StatCard title="Users" value={counts?.users ?? 0} icon={Users} />
-            </div>
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }

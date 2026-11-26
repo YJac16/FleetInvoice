@@ -2,16 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import {
-  Building2,
-  Bus,
-  Car,
-  CircleUser,
-  MapPinned,
-  Radar,
-  Users,
-  Warehouse,
-} from "lucide-react";
+import { Building2, Bus, Car, CircleUser, Radar } from "lucide-react";
 
 import { useOrg } from "@/components/layout/org-context";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
@@ -38,7 +29,9 @@ import {
 import {
   getDashboardCounts,
   getDashboardOpsSummary,
+  getDashboardSummary,
 } from "@/services/dashboard.service";
+import { DashboardSummaryCards } from "@/features/dashboard/components/dashboard-summary";
 import { queryKeys } from "@/utils/query";
 
 const BROWSE_GROUP_ORDER: NavGroupId[] = [
@@ -52,7 +45,7 @@ const BROWSE_GROUP_ORDER: NavGroupId[] = [
 ];
 
 export function DashboardPage() {
-  const { can, canModule } = useOrg();
+  const { can, canModule, profile } = useOrg();
   const organisationId = useActiveOrgId();
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
@@ -80,6 +73,22 @@ export function DashboardPage() {
     meta: primaryRouteQueryMeta,
   });
 
+  const summaryAccess = {
+    invoices: can("invoices:view") && canModule("billing"),
+    vehicles: can("vehicles:view"),
+    trips: can("trips:view") && can("drivers:view"),
+  };
+  const summaryQuery = useQuery({
+    queryKey: organisationId
+      ? ["dashboard-summary", organisationId, summaryAccess]
+      : ["dashboard-summary", "none"],
+    queryFn: () => getDashboardSummary(organisationId!, summaryAccess),
+    enabled:
+      Boolean(organisationId) &&
+      can("dashboard:view") &&
+      (summaryAccess.invoices || summaryAccess.vehicles || summaryAccess.trips),
+  });
+
   const showOpsSkeleton = useShowListSkeleton(opsQuery);
   const opsRefreshing = isRangeQueryRefreshing(opsQuery);
   const showCountsSkeleton = useShowListSkeleton(countsQuery);
@@ -102,11 +111,23 @@ export function DashboardPage() {
   const counts = countsQuery.data;
   const ops = opsQuery.data;
 
+  const firstName = profile.full_name?.trim().split(/\s+/)[0] ?? "";
+
   const quickLinks = [
     {
-      href: rangeHref("/dispatch"),
-      label: "Dispatch",
-      show: can("dispatch:view") && canModule("gps"),
+      href: rangeHref("/invoices"),
+      label: "Invoices",
+      show: can("invoices:view") && canModule("billing"),
+    },
+    {
+      href: "/maintenance",
+      label: "Maintenance",
+      show: can("maintenance:view") && canModule("maintenance"),
+    },
+    {
+      href: "/drivers",
+      label: "Drivers",
+      show: can("drivers:view"),
     },
     {
       href: rangeHref("/trips"),
@@ -114,14 +135,9 @@ export function DashboardPage() {
       show: can("trips:view"),
     },
     {
-      href: "/attendance",
-      label: "Attendance",
-      show: can("attendance:view") && canModule("attendance"),
-    },
-    {
-      href: rangeHref("/invoices"),
-      label: "Invoices",
-      show: can("invoices:view") && canModule("billing"),
+      href: rangeHref("/dispatch"),
+      label: "Dispatch",
+      show: can("dispatch:view") && canModule("gps"),
     },
   ].filter((link) => link.show);
 
@@ -143,17 +159,22 @@ export function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard"
+        title={firstName ? `Morning, ${firstName}` : "Dashboard"}
         description="Overview of your organisation operations."
       />
 
+      {summaryQuery.data ? (
+        <DashboardSummaryCards summary={summaryQuery.data} />
+      ) : null}
+
       {quickLinks.length ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
           {quickLinks.map((link) => (
             <Button
               key={link.href}
               variant="outline"
               size="sm"
+              className="shrink-0"
               render={<Link href={link.href} />}
             >
               {link.label}
@@ -172,36 +193,42 @@ export function DashboardPage() {
       ) : null}
 
       {showOpsSkeleton ? (
-        <CardGridSkeleton cards={5} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" />
+        <CardGridSkeleton cards={5} className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-5" />
       ) : ops ? (
         <RangeQueryBody query={opsQuery} refreshing={opsRefreshing}>
           <div>
           <h2 className="mb-3 font-heading text-lg">
             Operations · {formatRangeLabel(range)}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
             <StatCard
+              compact
               title="In progress"
               value={ops.today_in_progress}
               icon={Bus}
               href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
+              compact
               title="Assigned"
               value={ops.today_assigned}
               href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
+              compact
               title="Planned"
               value={ops.today_planned}
               href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
+              compact
               title="Completed"
               value={ops.today_completed}
               href={can("trips:view") ? rangeHref("/trips") : undefined}
             />
             <StatCard
+              compact
+              className="col-span-2 xl:col-span-1"
               title="Unassigned"
               value={ops.unassigned}
               description="Need a driver"
@@ -225,67 +252,38 @@ export function DashboardPage() {
         <RangeQueryBody query={countsQuery}>
         <div>
           <h2 className="mb-3 font-heading text-lg">Organisation</h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
+              compact
               title="Drivers"
               value={counts?.drivers ?? 0}
               icon={CircleUser}
               href={can("drivers:view") ? "/drivers" : undefined}
             />
             <StatCard
+              compact
               title="Vehicles"
               value={counts?.vehicles ?? 0}
               icon={Car}
               href={can("vehicles:view") ? "/vehicles" : undefined}
             />
             <StatCard
+              compact
               title="Companies"
               value={counts?.companies ?? 0}
               icon={Building2}
               href={can("companies:view") ? "/companies" : undefined}
-            />
-            <StatCard
-              title="Sites"
-              value={counts?.sites ?? 0}
-              icon={Warehouse}
-              href={can("sites:view") ? "/sites" : undefined}
-            />
-            <StatCard
-              title="Pickup points"
-              value={counts?.pickup_points ?? 0}
-              icon={MapPinned}
-              href={can("pickup_points:view") ? "/pickup-points" : undefined}
-            />
-            <StatCard
-              title="Users"
-              value={counts?.users ?? 0}
-              icon={Users}
-              href={can("users:view") ? "/users" : undefined}
             />
           </div>
         </div>
         </RangeQueryBody>
       )}
 
-      {can("maintenance:view") && canModule("maintenance") ? (
-        <p className="text-sm text-muted-foreground">
-          <Link
-            href="/maintenance"
-            className="underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Maintenance
-          </Link>
-        </p>
-      ) : null}
-
       {browseGroups.length ? (
-        <div className="space-y-6">
-          <div>
-            <h2 className="font-heading text-lg">Browse modules</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Jump to any area you can access — same destinations as the sidebar.
-            </p>
-          </div>
+        <details className="group space-y-6 md:hidden">
+          <summary className="cursor-pointer list-none font-heading text-lg">
+            All modules
+          </summary>
           {browseGroups.map((group) => (
             <div key={group.id}>
               <h3 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -308,7 +306,7 @@ export function DashboardPage() {
               </div>
             </div>
           ))}
-        </div>
+        </details>
       ) : null}
     </div>
   );

@@ -284,7 +284,7 @@ describe("buildOpsReport owner split", () => {
   it("trips CSV has owner, entered_by and updated_by", async () => {
     primeMocks();
     const csv = reportToCsvRows(await buildOpsReport("org", "trips", PERIOD));
-    expect(csv.headers).toEqual(["id", "planned_start", "status", "route", "owner", "entered_by", "updated_by"]);
+    expect(csv.headers).toEqual(["id", "planned_start", "status", "route", "driver", "owner", "entered_by", "updated_by"]);
     const t2 = csv.rows.find((r) => r.id === "t2")!;
     expect(t2).toMatchObject({ owner: "Yaseen", entered_by: "Demo Ops Clerk", updated_by: "Demo Yaseen Jacobs" });
     expect(csv.rows.find((r) => r.id === "t5")).toMatchObject({ owner: "Unassigned" });

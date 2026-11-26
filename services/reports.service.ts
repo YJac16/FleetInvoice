@@ -20,6 +20,7 @@ import { isPricedFill, needsPrice } from "@/features/fuel/lib/fuel-pricing";
 import { listFuelFillups } from "@/services/fuel-fillups.service";
 import { listInvoices } from "@/services/invoices.service";
 import { listPayrollRuns } from "@/services/payroll.service";
+import { tripRouteLabel } from "@/features/trips/lib/trip-display";
 import { listTrips } from "@/services/trips.service";
 import type {
   AttendanceEvent,
@@ -43,6 +44,7 @@ export type TripsReport = {
     planned_start: string;
     status: TripStatus;
     route: string;
+    driver: string;
     owner: OwnerBucket;
     entered_by: string;
     updated_by: string;
@@ -138,6 +140,7 @@ async function loadOwnerLookup(organisationId: string): Promise<OwnerLookup> {
     return {
       drivers: new Map((drivers ?? []).map((d) => [d.id, d.owner_tag ?? null])),
       vehicles: new Map((vehicles ?? []).map((v) => [v.id, v.owner_tag ?? null])),
+      driverNames: new Map((drivers ?? []).map((d) => [d.id, d.full_name ?? ""])),
     };
   } catch {
     return EMPTY_OWNER_LOOKUP;
@@ -185,7 +188,8 @@ export async function buildOpsReport(
             id: t.id,
             planned_start: t.planned_start,
             status: t.status,
-            route: t.routes?.name ?? "",
+            route: tripRouteLabel(t) === "—" ? "" : tripRouteLabel(t),
+            driver: (active?.driver_id && lookup.driverNames?.get(active.driver_id)) || "",
             owner: toBucket(resolveFleetOwner(lookup, active?.driver_id, active?.vehicle_id)),
             entered_by: actorName(names, t.created_by) ?? "",
             updated_by: actorName(names, t.updated_by) ?? "",
@@ -362,7 +366,7 @@ export function reportToCsvRows(
     case "trips":
       return {
         filename: "trips-report.csv",
-        headers: ["id", "planned_start", "status", "route", "owner", "entered_by", "updated_by"],
+        headers: ["id", "planned_start", "status", "route", "driver", "owner", "entered_by", "updated_by"],
         rows: report.rows.map((r) => ({ ...r, owner: OWNER_LABELS[r.owner] })),
       };
     case "fuel": {

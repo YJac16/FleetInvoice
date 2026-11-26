@@ -449,7 +449,7 @@ export function InvoicesPage({
                   >
                     ⋯
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="start" className="min-w-40">
                     <DropdownMenuItem
                       variant="destructive"
                       disabled={statusMutation.isPending}

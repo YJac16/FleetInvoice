@@ -21,3 +21,13 @@ export function isDateInPeriod(
 ): boolean {
   return dateOnly >= periodStart && dateOnly < periodEnd;
 }
+
+/**
+ * The report form asks for the last day to include ("To"); queries use an
+ * exclusive upper bound. Returns the day after `lastDay` (YYYY-MM-DD).
+ */
+export function inclusiveEndToExclusive(lastDay: string): string {
+  const d = new Date(`${lastDay}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}

@@ -1,4 +1,12 @@
+import {
+  countTripsPerDriver,
+  sumIssuedInvoices,
+  summariseVehicleDue,
+  type DashboardSummary,
+} from "@/features/dashboard/lib/summary";
+import { mondayOfWeek, weekPeriodEnd } from "@/features/invoices/lib/week";
 import { createClient } from "@/lib/supabase/client";
+import { listComplianceRenewals } from "@/services/compliance.service";
 import type { DashboardCounts, DashboardOpsSummary } from "@/types";
 
 async function countRows(
@@ -104,4 +112,64 @@ export async function getDashboardOpsSummary(
     today_completed,
     unassigned,
   };
+}
+
+export type DashboardSummaryAccess = {
+  /** invoices:view: the only gate for money. Drivers never have it. */
+  invoices: boolean;
+  vehicles: boolean;
+  trips: boolean;
+};
+
+/**
+ * Morning summary. Only runs the queries the viewer is allowed to see; every
+ * query is scoped to the organisation. Never reads invoices without `access.invoices`.
+ */
+export async function getDashboardSummary(
+  organisationId: string,
+  access: DashboardSummaryAccess,
+  now: Date = new Date()
+): Promise<DashboardSummary> {
+  const supabase = createClient();
+
+  const invoices = access.invoices
+    ? (async () => {
+        const { data, error } = await supabase
+          .from("invoices")
+          .select("total")
+          .eq("organisation_id", organisationId)
+          .eq("status", "issued")
+          .is("deleted_at", null);
+        if (error) throw error;
+        return sumIssuedInvoices(data ?? []);
+      })()
+    : Promise.resolve(null);
+
+  const vehiclesDue = access.vehicles
+    ? listComplianceRenewals(organisationId, 30).then(summariseVehicleDue)
+    : Promise.resolve(null);
+
+  const driverTrips = access.trips
+    ? (async () => {
+        const monday = mondayOfWeek(now);
+        const nextMonday = new Date(`${weekPeriodEnd(monday)}T00:00:00+02:00`);
+        nextMonday.setUTCDate(nextMonday.getUTCDate() + 1);
+        const { data, error } = await supabase
+          .from("trips")
+          .select(
+            "status, trip_assignments(driver_id, released_at, drivers:driver_id (full_name))"
+          )
+          .eq("organisation_id", organisationId)
+          .is("deleted_at", null)
+          .gte("planned_start", `${monday}T00:00:00+02:00`)
+          .lt("planned_start", nextMonday.toISOString());
+        if (error) throw error;
+        return countTripsPerDriver(
+          (data ?? []) as Parameters<typeof countTripsPerDriver>[0]
+        );
+      })()
+    : Promise.resolve(null);
+
+  const [inv, veh, trips] = await Promise.all([invoices, vehiclesDue, driverTrips]);
+  return { invoices: inv, vehiclesDue: veh, driverTrips: trips };
 }
