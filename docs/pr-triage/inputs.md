@@ -12,7 +12,9 @@ Repo: `YJac16/FleetInvoice`. Branch `docs/pr-triage-2026-11-26` was cut from `or
 | `origin/demo` | `8556f05d825d38b2c9441571925f2555a9522aa4` | 2026-11-25 15:21 SAST | Void then regenerate: free trips from void invoices (demo only) (#102) |
 | `origin/main` | `25a2dedfd28a43c7499f14e424234f61ba7940cc` | 2026-11-11 11:16 SAST | Add editable route price templates that pre-fill trip prices (#72) |
 
-Open PR count: **29**. All still `open` (none merged). Author on all: YJac16.
+Open PR count at first snapshot: **29**. Author on all: YJac16.
+
+**Postscript (26 Nov 2026, 10:32 SAST):** After this branch was cut from `8556f05`, PR **#103 was squash-merged to `demo`** at `bf4c843291a566cfb9f971a06de98cf8a470b2d5` (merge 2026-11-26 10:22 SAST). #103 is now closed. Current `origin/demo` is `bf4c843`. The table still describes #103 as it was at snapshot (open, 25 files, +1355/−233 vs then-current demo). Treat #103 as already landed on demo. Because it was squashed, old head `c2c0b91` is **not** an ancestor of `bf4c843`. Re-fetch the open-PR list before judging; remaining open count is **28**. This triage branch was left on `8556f05` plus these docs commits and was not rebased onto `bf4c843`. `origin/main` is unchanged at `25a2ded`.
 
 **Rules for the judgement pass:** read-only on every existing PR and PR branch. Do not close, merge, comment, or push to them. Do not touch `main`, fyx, tggx, or prod Vercel. After writing `docs/pr-triage/verdict.md`, commit it, delete `GO.md`, and push only `docs/pr-triage-2026-11-26`. Do not open a PR.
 
