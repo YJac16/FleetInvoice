@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+
+import { CompactSelect } from "@/components/shared/compact-select";
 
 import { cn } from "@/lib/utils";
 
@@ -17,9 +19,20 @@ const WORTH_KEEPING_TAB = { href: "/maintenance/vehicles", label: "Worth keeping
  *  only; the page itself 404s for everyone else. */
 export function MaintenanceTabs({ showWorthKeeping = false }: { showWorthKeeping?: boolean }) {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
   const tabs = showWorthKeeping ? [...TABS, WORTH_KEEPING_TAB] : TABS;
+  const current = tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`));
   return (
-    <nav aria-label="Maintenance sections" className="-mt-2 mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-muted p-1 sm:inline-flex">
+    <>
+    <CompactSelect
+      className="-mt-2 mb-6 lg:hidden"
+      label="Section"
+      value={current?.href ?? ""}
+      placeholder="Choose a section"
+      options={tabs.map((t) => ({ value: t.href, label: t.label }))}
+      onChange={(href) => router.push(href)}
+    />
+    <nav aria-label="Maintenance sections" className="-mt-2 mb-6 hidden gap-1 overflow-x-auto rounded-xl border bg-muted p-1 lg:inline-flex">
       {tabs.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
@@ -37,5 +50,6 @@ export function MaintenanceTabs({ showWorthKeeping = false }: { showWorthKeeping
         );
       })}
     </nav>
+    </>
   );
 }

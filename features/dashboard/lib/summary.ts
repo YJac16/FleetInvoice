@@ -4,9 +4,17 @@ export type InvoiceTotals = { count: number; total: number };
 export type VehicleDue = { overdue: number; dueSoon: number };
 export type DriverTripCount = { driverId: string; name: string; trips: number };
 
+export type InvoiceStatusKey = "draft" | "issued" | "void";
+export type InvoiceStatusTotals = Record<InvoiceStatusKey, InvoiceTotals>;
+export type MaintenanceMonth = { month: string; total: number };
+
 export type DashboardSummary = {
   /** Issued (unpaid) invoices. null when the viewer may not see money. */
   invoices: InvoiceTotals | null;
+  /** Invoice totals by status. null when the viewer may not see money. */
+  invoiceStatusTotals?: InvoiceStatusTotals | null;
+  /** Final workshop bills per month (last 6). null unless admin. */
+  maintenanceCosts?: MaintenanceMonth[] | null;
   /** Vehicle papers overdue / due soon. null when none or not permitted. */
   vehiclesDue: VehicleDue | null;
   /** Trips per driver this week. null when not permitted. */
@@ -20,6 +28,41 @@ export function sumIssuedInvoices(
     count: rows.length,
     total: rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0),
   };
+}
+
+export function totalsByInvoiceStatus(
+  rows: Array<{ status: string; total: number | string | null }>
+): InvoiceStatusTotals {
+  const out: InvoiceStatusTotals = {
+    draft: { count: 0, total: 0 },
+    issued: { count: 0, total: 0 },
+    void: { count: 0, total: 0 },
+  };
+  for (const r of rows) {
+    if (r.status !== "draft" && r.status !== "issued" && r.status !== "void") continue;
+    out[r.status].count += 1;
+    out[r.status].total += Number(r.total) || 0;
+  }
+  return out;
+}
+
+/** Last `months` calendar months ending at `now` (YYYY-MM), oldest first, zero-filled. */
+export function sumBillsByMonth(
+  rows: Array<{ bill_date: string; total_incl: number | string | null }>,
+  now: Date,
+  months = 6
+): MaintenanceMonth[] {
+  const keys: string[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  const totals = new Map(keys.map((k) => [k, 0]));
+  for (const r of rows) {
+    const k = String(r.bill_date).slice(0, 7);
+    if (totals.has(k)) totals.set(k, (totals.get(k) ?? 0) + (Number(r.total_incl) || 0));
+  }
+  return keys.map((month) => ({ month, total: totals.get(month) ?? 0 }));
 }
 
 export function summariseVehicleDue(rows: ComplianceRenewalRow[]): VehicleDue | null {

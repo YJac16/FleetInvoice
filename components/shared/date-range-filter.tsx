@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { CompactSelect } from "@/components/shared/compact-select";
 import { SastDateInput } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
 import { isoDateToDisplay } from "@/lib/date-range/calendar-text";
@@ -64,7 +65,7 @@ function FilterChipRow({
   }, [activePreset, customPanelOpen]);
 
   return (
-    <div className="relative min-w-0 flex-1">
+    <div className="relative hidden min-w-0 flex-1 lg:block">
       {fadeLeft ? (
         <div
           className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background via-background/80 to-transparent"
@@ -207,6 +208,13 @@ export function DateRangeFilter({
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <CompactSelect
+          className="lg:hidden"
+          label="Period"
+          value={customPanelOpen ? "custom" : range.preset}
+          options={DATE_RANGE_PRESETS.map((o) => ({ value: o.value, label: o.label }))}
+          onChange={handlePresetClick}
+        />
         <FilterChipRow
           activePreset={customPanelOpen ? "custom" : range.preset}
           customPanelOpen={customPanelOpen}

@@ -89,4 +89,24 @@ describe("DateRangeFilter custom panel", () => {
     expect(screen.queryByRole("dialog", { name: "Custom date range" })).toBeNull();
     expect(onCustomChange).toHaveBeenCalledTimes(1);
   });
+
+  it("compact period dropdown shows the preset, updates preset state, and opens the Custom panel", () => {
+    render(
+      <DateRangeFilter
+        range={range}
+        onPresetChange={onPresetChange}
+        onCustomChange={onCustomChange}
+      />
+    );
+
+    const select = screen.getByRole("combobox", { name: "Period" }) as HTMLSelectElement;
+    expect(select.value).toBe("this_week");
+
+    fireEvent.change(select, { target: { value: "yesterday" } });
+    expect(onPresetChange).toHaveBeenCalledWith("yesterday");
+
+    fireEvent.change(select, { target: { value: "custom" } });
+    expect(screen.getByRole("dialog", { name: "Custom date range" })).toBeTruthy();
+    expect(screen.getByLabelText("From")).toBeTruthy();
+  });
 });

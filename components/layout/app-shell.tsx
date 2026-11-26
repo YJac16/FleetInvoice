@@ -32,7 +32,7 @@ export function AppShell({
     >
       <div className="invoice-print-flow flex min-h-screen bg-background">
         <div className="hidden min-h-screen shrink-0 self-stretch bg-sidebar md:flex md:flex-col print:hidden">
-          <AppSidebar />
+          <AppSidebar rail />
         </div>
         <div className="invoice-print-flow flex min-w-0 flex-1 flex-col">
           <div className="print:hidden">
