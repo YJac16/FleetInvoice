@@ -12,7 +12,7 @@ import {
   type DriverValues,
 } from "@/features/drivers/schemas/driver";
 import { SelectField, TextField } from "@/components/forms/form-fields";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { ENTITY_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import { OWNER_LABELS, OWNER_TAGS } from "@/lib/owner-tag";
 import type { Driver } from "@/types";

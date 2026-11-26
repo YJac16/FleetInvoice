@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AdminQueryGate } from "@/components/admin/admin-loading";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField, TextField } from "@/components/forms/form-fields";

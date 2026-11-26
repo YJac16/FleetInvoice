@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,

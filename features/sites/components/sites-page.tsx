@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextAreaField, TextField } from "@/components/forms/form-fields";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { siteSchema, type SiteValues, parseOptionalCoord } from "@/features/sites/schemas/site";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";

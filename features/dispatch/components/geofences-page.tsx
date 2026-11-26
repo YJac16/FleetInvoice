@@ -10,7 +10,7 @@ import { useOrg } from "@/components/layout/org-context";
 import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SelectField, TextField } from "@/components/forms/form-fields";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import {
   geofenceSchema,
   type GeofenceValues,

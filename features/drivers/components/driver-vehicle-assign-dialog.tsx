@@ -22,7 +22,7 @@ import type { Driver } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
 import { useState } from "react";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 
 type Props = {
   open: boolean;

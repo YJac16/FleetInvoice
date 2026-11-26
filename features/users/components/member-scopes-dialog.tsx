@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AdminQueryGate } from "@/components/admin/admin-loading";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import {
   Select,
   SelectContent,

@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { AdminQueryGate } from "@/components/admin/admin-loading";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { useOrg } from "@/components/layout/org-context";
 import { SelectField } from "@/components/forms/form-fields";
 import { SastDateField } from "@/components/shared/sast-date-input";

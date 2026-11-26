@@ -5,7 +5,7 @@ import {
   AdminQueryGate,
   resolveAdminQueryPhase,
 } from "@/components/admin/admin-loading";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { GoOpsLoader } from "@/components/brand/goops-loader";
 
 describe("resolveAdminQueryPhase", () => {
@@ -84,9 +84,7 @@ describe("admin loading UI", () => {
   it("draws the GoOps mark with a visible caption", () => {
     render(<GoOpsLoader layout="block" size="lg" label="Loading trips" />);
     expect(screen.getByRole("status").textContent).toContain("Loading trips");
-    expect(document.querySelector("img")?.getAttribute("src")).toBe(
-      "/brand/goops-mark-ui.png"
-    );
+    expect(document.querySelector("svg path")).toBeTruthy();
     expect(document.querySelector("style")?.textContent).toContain(
       "prefers-reduced-motion"
     );

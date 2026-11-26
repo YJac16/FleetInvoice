@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { LocationInput } from "@/features/locations/components/location-input";
 import { normalizeAreaValue } from "@/features/locations/lib/location-match";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { Button } from "@/components/ui/button";
 import { listServiceLocations } from "@/services/locations.service";
 import { updateInvoiceLineArea } from "@/services/invoices.service";

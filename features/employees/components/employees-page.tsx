@@ -12,7 +12,7 @@ import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { employeeImportSchema } from "@/features/import/schemas/import-schemas";
 import {

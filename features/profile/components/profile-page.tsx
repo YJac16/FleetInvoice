@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AdminLoading } from "@/components/admin/admin-loading";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { DriverThemeControl } from "@/features/driver-portal/components/driver-theme-control";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";

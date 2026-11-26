@@ -13,8 +13,7 @@ import {
 } from "@/features/vehicles/schemas/vehicle";
 import { SelectField, TextField } from "@/components/forms/form-fields";
 import { SastDateField } from "@/components/shared/sast-date-input";
-import { Button } from "@/components/ui/button";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import {
   ENTITY_STATUSES,
   STATUS_LABELS,

@@ -14,7 +14,7 @@ import {
   SelectField,
   TextField,
 } from "@/components/forms/form-fields";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   scheduleSchema,

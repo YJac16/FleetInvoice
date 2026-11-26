@@ -11,7 +11,7 @@ import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SelectField, TextAreaField, TextField } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { RouteStopsDialog } from "@/features/routes/components/route-stops-dialog";
 import { routeSchema, type RouteValues } from "@/features/routes/schemas/route";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";

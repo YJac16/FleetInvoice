@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 
 import { FormDialog } from "@/components/forms/form-dialog";
-import { BusyButton } from "@/components/admin/busy-button";
+import { BusyButton } from "@/components/ui/busy-button";
 import { Button } from "@/components/ui/button";
 import {
   csvToObjects,
