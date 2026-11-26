@@ -36,7 +36,7 @@ export default async function WorkshopBillsPage() {
           ) : undefined
         }
       />
-      <MaintenanceTabs />
+      <MaintenanceTabs showWorthKeeping={ctx.isAdmin} />
       <BillsList bills={bills} canManage={ctx.canManage} />
     </div>
   );

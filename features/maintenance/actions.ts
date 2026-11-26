@@ -8,8 +8,9 @@ import { mapMaintenanceRpcError } from "@/features/maintenance/lib/rpc-errors";
 import { supplierFormSchema } from "@/features/maintenance/schemas/supplier";
 import { billFormSchema } from "@/features/maintenance/schemas/workshop-bill";
 import type { MaintenanceActionResult } from "@/features/maintenance/types";
-import { assertMaintenanceAccess } from "@/lib/auth/maintenance-access";
+import { assertMaintenanceAccess, assertMaintenanceAdminAccess } from "@/lib/auth/maintenance-access";
 import { getSessionContext } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Server actions for fleet maintenance writes. Each one:
@@ -199,4 +200,60 @@ export async function finaliseWorkshopBillAction(billId: string): Promise<Mainte
   revalidatePath("/maintenance/bills");
   revalidatePath(`/maintenance/bills/${billId}`);
   return { ok: true, id: billId };
+}
+
+/**
+ * Set (or clear) the service interval for one category. Admin only; the
+ * write goes through the signed-in user's client so the 00098 RLS policies
+ * apply as well. Both blank removes the row.
+ */
+export async function saveIntervalAction(
+  categoryId: string,
+  intervalKm: string,
+  intervalMonths: string
+): Promise<MaintenanceActionResult> {
+  const session = await getSessionContext();
+  if (!session) return { ok: false, error: "unauthenticated", message: "Please sign in again." };
+  const organisationId = session.activeOrganisationId;
+  if (!organisationId) return { ok: false, error: "forbidden", message: "Choose an organisation first." };
+  const access = await assertMaintenanceAdminAccess({ organisationId, userId: session.userId });
+  if (!access.ok) {
+    return { ok: false, error: access.error, message: "Only an administrator can change intervals." };
+  }
+  if (!UUID_RE.test(categoryId)) return { ok: false, error: "invalid", message: "Unknown category." };
+
+  const parse = (v: string): number | null | "bad" => {
+    const t = v.trim();
+    if (t === "") return null;
+    if (!/^\d+$/.test(t)) return "bad";
+    const n = Number(t);
+    return n > 0 && n <= 10_000_000 ? n : "bad";
+  };
+  const km = parse(intervalKm);
+  const months = parse(intervalMonths);
+  if (km === "bad" || months === "bad") {
+    return { ok: false, error: "invalid", message: "Enter whole numbers above 0, or leave blank." };
+  }
+
+  const supabase = await createClient();
+  const { error } =
+    km == null && months == null
+      ? await supabase
+          .from("maintenance_intervals")
+          .delete()
+          .eq("organisation_id", organisationId)
+          .eq("category_id", categoryId)
+      : await supabase.from("maintenance_intervals").upsert(
+          {
+            organisation_id: organisationId,
+            category_id: categoryId,
+            interval_km: km,
+            interval_months: months,
+            updated_by: session.userId,
+          },
+          { onConflict: "organisation_id,category_id" }
+        );
+  if (error) return { ok: false, error: "save_failed", message: "Couldn't save the interval." };
+  revalidatePath("/maintenance/due");
+  return { ok: true, id: categoryId };
 }

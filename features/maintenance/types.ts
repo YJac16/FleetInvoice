@@ -62,6 +62,8 @@ export type BillDetail = {
 };
 
 export type BillFormOptions = {
+  /** Last Final-bill price per category (same vehicle first, else org). */
+  lastPaid?: import("@/features/maintenance/lib/last-paid").LastPaidIndex;
   suppliers: MaintenanceOption[];
   categories: MaintenanceOption[];
   vehicles: MaintenanceOption[];

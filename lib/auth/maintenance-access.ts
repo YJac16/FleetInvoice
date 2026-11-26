@@ -73,3 +73,28 @@ export async function assertMaintenanceAccess(
   void _module;
   return { ...rest, mode };
 }
+
+/**
+ * Admin-only guard (Worth keeping, intervals, rand amounts on Due): the
+ * platform owner, or an active organisation_admin of the org with the
+ * maintenance module. Managers are refused. Returns the same shape as
+ * assertMaintenanceAccess; `admin` is the service client, so callers must
+ * only use it after this check passes.
+ */
+export async function assertMaintenanceAdminAccess(input: {
+  organisationId: string;
+  userId?: string | null;
+}): Promise<MaintenanceAccessResult> {
+  const base = await assertMaintenanceAccess("manage", input);
+  if (!base.ok || base.isPlatformOwner) return base;
+  const { data, error } = await base.admin
+    .from("organisation_members")
+    .select("role")
+    .eq("organisation_id", base.organisationId)
+    .eq("user_id", base.userId)
+    .eq("status", "active");
+  if (error) throw error;
+  const isAdmin = (data ?? []).some((m: { role: string }) => m.role === "organisation_admin");
+  if (!isAdmin) return { ok: false, status: 403, error: "forbidden", notMember: false };
+  return base;
+}
