@@ -33,9 +33,15 @@ describe("migration numbering", () => {
     }
     expect(files.some((f) => f.startsWith("00092_"))).toBe(true);
     // 00096 is reserved (PR #100); 00097 is void-then-regenerate; 00098 is
-    // maintenance intervals.
+    // maintenance intervals; 00100 is the trip price guard.
     expect(
-      files.filter((f) => f > "00096" && !f.startsWith("00097_") && !f.startsWith("00098_"))
+      files.filter(
+        (f) =>
+          f > "00096" &&
+          !f.startsWith("00097_") &&
+          !f.startsWith("00098_") &&
+          !f.startsWith("00100_")
+      )
     ).toEqual([]);
   });
 
