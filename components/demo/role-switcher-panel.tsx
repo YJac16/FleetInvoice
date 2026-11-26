@@ -71,8 +71,9 @@ export function DemoRoleSwitcherPanel({
     const apply = () => {
       const h = Math.ceil(el.getBoundingClientRect().height);
       root.style.setProperty(DEMO_BAR_HEIGHT_VAR, `${h}px`);
-      // 0.75rem = the bar's bottom offset.
-      body.style.paddingBottom = `calc(var(${DEMO_BAR_HEIGHT_VAR}) + 0.75rem)`;
+      // 0.75rem = the bar's own gap; --demo-bar-reserve-extra (globals.css) adds
+      // the safe-area inset, or nothing when a tab bar already clears the page.
+      body.style.paddingBottom = `calc(var(${DEMO_BAR_HEIGHT_VAR}) + 0.75rem + var(--demo-bar-reserve-extra, 0px))`;
     };
     apply();
     let ro: ResizeObserver | undefined;
@@ -123,7 +124,7 @@ export function DemoRoleSwitcherPanel({
       data-testid="demo-role-switcher"
       data-demo-bar=""
       data-pref={pref ?? "default"}
-      className="fixed right-3 bottom-3 z-[100]"
+      className="fixed z-[100]"
     >
       <button
         type="button"
