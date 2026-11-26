@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch, type FieldPath } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatZarAmount } from "@/features/invoices/lib/invoice-print-format";
 import { saveWorkshopBillAction } from "@/features/maintenance/actions";
 import { BillTotals } from "@/features/maintenance/components/bill-lines-view";
+import { lastPaidText, lastPaidUnit, resolveLastPaid } from "@/features/maintenance/lib/last-paid";
 import { computeLineVat, formatVatRate, previewNumber, sumLineVat } from "@/features/maintenance/lib/vat";
 import {
   NONE_OPTION,
@@ -43,7 +44,7 @@ export function BillForm({ billId, defaultValues, options }: Props) {
     defaultValues,
     mode: "onTouched",
   });
-  const { control, handleSubmit, setError } = form;
+  const { control, handleSubmit, setError, setValue, getValues } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
   const lines = useWatch({ control, name: "lines" }) ?? [];
@@ -60,6 +61,38 @@ export function BillForm({ billId, defaultValues, options }: Props) {
     })
   );
   const totals = sumLineVat(previews);
+
+  const vehicleId = useWatch({ control, name: "vehicle_id" });
+  const lastPaidIndex = options.lastPaid ?? {};
+  const resolveFor = (categoryId: string | undefined) => {
+    const cat = categoryId && categoryId !== NONE_OPTION ? categoryId : null;
+    const veh = vehicleId && vehicleId !== NONE_OPTION ? vehicleId : null;
+    return resolveLastPaid(lastPaidIndex, cat, veh);
+  };
+
+  // Prefill the unit amount from the last paid price when a line's category
+  // (or the vehicle) changes, but never over something the user typed.
+  const prefilled = useRef<Map<string, { key: string; value: string }>>(new Map());
+  const categoryKey = lines.map((l) => l?.category_id ?? "").join(",");
+  useEffect(() => {
+    fields.forEach((field, index) => {
+      const categoryId = getValues(`lines.${index}.category_id`);
+      const key = `${categoryId}|${vehicleId}|${vatMode}`;
+      const prev = prefilled.current.get(field.id);
+      if (prev?.key === key) return;
+      const paid = resolveFor(categoryId);
+      const current = getValues(`lines.${index}.unit_amount`).trim();
+      const untouched = current === "" || Number(current) === 0 || current === prev?.value;
+      if (paid && untouched) {
+        const value = lastPaidUnit(paid, vatMode).toFixed(2);
+        setValue(`lines.${index}.unit_amount`, value, { shouldDirty: true });
+        prefilled.current.set(field.id, { key, value });
+      } else {
+        prefilled.current.set(field.id, { key, value: prev?.value ?? "" });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryKey, vehicleId, vatMode, fields.length]);
 
   const vehicleOptions = [{ value: NONE_OPTION, label: "No vehicle" }, ...options.vehicles];
   const categoryOptions = [{ value: NONE_OPTION, label: "No category" }, ...options.categories];
@@ -123,6 +156,7 @@ export function BillForm({ billId, defaultValues, options }: Props) {
         ) : null}
         <ol className="space-y-3">
           {fields.map((field, index) => {
+            const line = lines[index];
             const preview = previews[index] ?? { excl: 0, vat: 0, incl: 0 };
             return (
               <li key={field.id} className="space-y-3 rounded-2xl border bg-card p-4">
@@ -156,6 +190,11 @@ export function BillForm({ billId, defaultValues, options }: Props) {
                     options={categoryOptions}
                     placeholder="No category"
                   />
+                ) : null}
+                {showCategories && line?.category_id && line.category_id !== NONE_OPTION ? (
+                  <p className="text-xs text-muted-foreground" data-testid={`last-paid-${index}`}>
+                    {lastPaidText(resolveFor(line.category_id), vatMode)}
+                  </p>
                 ) : null}
                 <Controller
                   control={control}

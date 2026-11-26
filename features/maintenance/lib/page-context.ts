@@ -1,15 +1,18 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { notFound, redirect } from "next/navigation";
 
 import { UNAVAILABLE_PATH } from "@/lib/auth/hub-redirect";
-import { assertMaintenanceAccess } from "@/lib/auth/maintenance-access";
+import { assertMaintenanceAccess, assertMaintenanceAdminAccess } from "@/lib/auth/maintenance-access";
 import { getSessionContext } from "@/lib/auth/session";
 
 export type MaintenancePageContext = {
   userId: string;
   organisationId: string;
   canManage: boolean;
+  /** Platform owner or organisation_admin. Managers are false. */
+  isAdmin: boolean;
 };
 
 /**
@@ -30,9 +33,10 @@ export async function getMaintenancePageContext(
   if (!organisationId) notFound();
 
   const input = { organisationId, userId: session.userId };
-  const [view, manage] = await Promise.all([
+  const [view, manage, adminAccess] = await Promise.all([
     mode === "view" ? assertMaintenanceAccess("view", input) : null,
     assertMaintenanceAccess("manage", input),
+    assertMaintenanceAdminAccess(input),
   ]);
 
   const allowed = mode === "view" ? view : manage;
@@ -42,5 +46,28 @@ export async function getMaintenancePageContext(
     notFound();
   }
 
-  return { userId: session.userId, organisationId, canManage: manage.ok };
+  return { userId: session.userId, organisationId, canManage: manage.ok, isAdmin: adminAccess.ok };
+}
+
+/**
+ * Page-level access for admin-only pages (Worth keeping). Anyone who is not
+ * the platform owner or an organisation_admin gets a 404, so the page's
+ * existence isn't revealed. Returns the service client; use it only after
+ * this call.
+ */
+export async function getMaintenanceAdminContext(): Promise<
+  MaintenancePageContext & { admin: SupabaseClient }
+> {
+  const session = await getSessionContext();
+  if (!session) redirect("/login");
+  const organisationId = session.activeOrganisationId;
+  if (!organisationId) notFound();
+
+  const access = await assertMaintenanceAdminAccess({ organisationId, userId: session.userId });
+  if (!access.ok) {
+    if (access.status === 401) redirect("/login");
+    if (access.status === 503) redirect(UNAVAILABLE_PATH);
+    notFound();
+  }
+  return { userId: session.userId, organisationId, canManage: true, isAdmin: true, admin: access.admin };
 }

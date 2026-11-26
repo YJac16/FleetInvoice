@@ -133,7 +133,14 @@ describe("no client queries * on fuel_fillups", () => {
   }
   it("fuel_fillups is only read via the safe column list", () => {
     const users = walk(root).filter((f) => /["'`]fuel_fillups["'`]/.test(readFileSync(f, "utf8")));
-    expect(users.map((f) => path.relative(root, f))).toEqual(["services/fuel-fillups.service.ts"]);
+    // insights-queries reads odometer_km (Due, safe column) and, for the
+    // admin-only Worth keeping page, total_amount through the service client
+    // after assertMaintenanceAdminAccess. Never `select *`.
+    expect(users.map((f) => path.relative(root, f)).sort()).toEqual([
+      "features/maintenance/lib/insights-queries.ts",
+      "services/fuel-fillups.service.ts",
+    ]);
+    expect(read("features/maintenance/lib/insights-queries.ts")).not.toMatch(/select\(\s*["'`]\*/);
     const svc = read("services/fuel-fillups.service.ts");
     expect(svc).not.toMatch(/select\(\s*["'`]\*/);
     expect(svc).not.toMatch(/["'`]\*,/);
