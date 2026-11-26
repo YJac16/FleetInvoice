@@ -115,6 +115,7 @@ type LayoutCase = {
 const LAYOUTS: LayoutCase[] = [
   { route: "/invoices", modules: ["billing"], user: "admin", load: () => import("@/app/(dashboard)/invoices/layout") },
   { route: "/rate-cards", modules: ["billing"], user: "admin", load: () => import("@/app/(dashboard)/rate-cards/layout") },
+  { route: "/setup", modules: ["billing"], user: "admin", load: () => import("@/app/(dashboard)/setup/layout") },
   { route: "/route-prices", modules: ["billing"], user: "admin", load: () => import("@/app/(dashboard)/route-prices/layout") },
   { route: "/payroll", modules: ["payroll"], user: "admin", load: () => import("@/app/(dashboard)/payroll/layout") },
   { route: "/pay-rates", modules: ["payroll"], user: "admin", load: () => import("@/app/(dashboard)/pay-rates/layout") },

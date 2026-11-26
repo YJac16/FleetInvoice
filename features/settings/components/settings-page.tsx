@@ -41,6 +41,7 @@ import {
 } from "@/services/org-logo.service";
 import { InvoicePrintPreview } from "@/features/settings/components/invoice-print-preview";
 import { PrintsAsCard } from "@/features/settings/components/prints-as-card";
+import { InvoiceBillToSettings } from "@/features/settings/components/invoice-bill-to-settings";
 import { ServiceLocationsSettings } from "@/features/settings/components/service-locations-settings";
 import { getErrorMessage } from "@/utils/errors";
 import { queryKeys } from "@/utils/query";
@@ -82,9 +83,11 @@ const EMPTY_INVOICE_PRINT: InvoicePrintFormValues = {
 };
 
 export function SettingsPage() {
-  const { can } = useOrg();
+  const { can, activeRole, isPlatformOwner } = useOrg();
   const organisationId = useActiveOrgId();
   const canManage = can("settings:manage");
+  // Bill-to is org-admin only (00102 enforces this server-side too).
+  const canSetBillTo = isPlatformOwner || activeRole === "organisation_admin";
   const queryClient = useQueryClient();
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -451,6 +454,10 @@ export function SettingsPage() {
           </div>
 
           {orgQuery.data ? <PrintsAsCard organisation={orgQuery.data} /> : null}
+
+          {canSetBillTo ? (
+            <InvoiceBillToSettings organisationId={organisationId} />
+          ) : null}
 
           <ServiceLocationsSettings organisationId={organisationId} />
         </>
