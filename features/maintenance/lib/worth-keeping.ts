@@ -48,3 +48,10 @@ export function parsePeriod(value: string | undefined): number {
   const n = Number(value);
   return (PERIOD_MONTHS as readonly number[]).includes(n) ? n : DEFAULT_PERIOD_MONTHS;
 }
+
+/** Vehicle of a trip: its active (not released, not deleted) assignment. */
+export function tripVehicleId(
+  assignments: ReadonlyArray<{ vehicle_id: string | null; released_at: string | null; deleted_at: string | null }> | null | undefined
+): string | null {
+  return (assignments ?? []).find((a) => !a.released_at && !a.deleted_at)?.vehicle_id ?? null;
+}

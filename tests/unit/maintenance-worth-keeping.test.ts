@@ -84,5 +84,19 @@ describe("worth keeping revenue query", () => {
     const src = readFileSync("features/maintenance/lib/insights-queries.ts", "utf8");
     expect(src).toContain("trip:trips!invoice_lines_trip_id_fkey!inner(");
     expect(src).not.toMatch(/trip:trips!inner\(/);
+    // trips has no vehicle_id column; the vehicle comes from trip_assignments.
+    expect(src).toContain("trip_assignments(vehicle_id, released_at, deleted_at)");
+  });
+  it("takes the vehicle from the active assignment only", async () => {
+    const { tripVehicleId } = await import("@/features/maintenance/lib/worth-keeping");
+    expect(
+      tripVehicleId([
+        { vehicle_id: "old", released_at: "2026-11-01", deleted_at: null },
+        { vehicle_id: "gone", released_at: null, deleted_at: "2026-11-02" },
+        { vehicle_id: "v1", released_at: null, deleted_at: null },
+      ])
+    ).toBe("v1");
+    expect(tripVehicleId([])).toBeNull();
+    expect(tripVehicleId(null)).toBeNull();
   });
 });

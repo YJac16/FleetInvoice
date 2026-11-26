@@ -6,6 +6,7 @@ import { addMonths, computeDue, type Reading } from "@/features/maintenance/lib/
 import { buildLastPaidIndex, type LastPaidIndex, type PaidLine } from "@/features/maintenance/lib/last-paid";
 import {
   contribution,
+  tripVehicleId,
   verdictFor,
   type OwnerFilter,
   type Verdict,
@@ -281,13 +282,17 @@ export async function listWorthKeeping(
   const [lineRows, billRows, fuelRows] = await Promise.all([
     fetchAll<{
       amount: unknown;
-      trip: Embedded<{ vehicle_id: string | null; planned_start: string; deleted_at: string | null }>;
+      trip: Embedded<{
+        planned_start: string;
+        deleted_at: string | null;
+        trip_assignments: Array<{ vehicle_id: string | null; released_at: string | null; deleted_at: string | null }> | null;
+      }>;
       invoice: Embedded<{ status: string; deleted_at: string | null }>;
     }>((a, b) =>
       admin
         .from("invoice_lines")
         .select(
-          "amount, trip:trips!invoice_lines_trip_id_fkey!inner(vehicle_id, planned_start, deleted_at), invoice:invoices!inner(status, deleted_at)"
+          "amount, trip:trips!invoice_lines_trip_id_fkey!inner(planned_start, deleted_at, trip_assignments(vehicle_id, released_at, deleted_at)), invoice:invoices!inner(status, deleted_at)"
         )
         .eq("organisation_id", organisationId)
         .not("trip_id", "is", null)
@@ -327,8 +332,11 @@ export async function listWorthKeeping(
   for (const r of lineRows) {
     const trip = one(r.trip);
     const invoice = one(r.invoice);
-    if (!trip?.vehicle_id || trip.deleted_at || !invoice || invoice.status === "void" || invoice.deleted_at) continue;
-    revenue.set(trip.vehicle_id, (revenue.get(trip.vehicle_id) ?? 0) + num(r.amount));
+    if (!trip || trip.deleted_at || !invoice || invoice.status === "void" || invoice.deleted_at) continue;
+    // trips has no vehicle_id: the vehicle is on the trip's active assignment.
+    const vehicleId = tripVehicleId(trip.trip_assignments);
+    if (!vehicleId) continue;
+    revenue.set(vehicleId, (revenue.get(vehicleId) ?? 0) + num(r.amount));
   }
   const bills = new Map<string, number>();
   for (const b of billRows) {
