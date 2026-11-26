@@ -1,7 +1,9 @@
 import {
   countTripsPerDriver,
+  sumBillsByMonth,
   sumIssuedInvoices,
   summariseVehicleDue,
+  totalsByInvoiceStatus,
   type DashboardSummary,
 } from "@/features/dashboard/lib/summary";
 import { mondayOfWeek, weekPeriodEnd } from "@/features/invoices/lib/week";
@@ -119,6 +121,8 @@ export type DashboardSummaryAccess = {
   invoices: boolean;
   vehicles: boolean;
   trips: boolean;
+  /** Platform owner / organisation_admin only: Final workshop bill costs. */
+  maintenanceCosts?: boolean;
 };
 
 /**
@@ -142,6 +146,33 @@ export async function getDashboardSummary(
           .is("deleted_at", null);
         if (error) throw error;
         return sumIssuedInvoices(data ?? []);
+      })()
+    : Promise.resolve(null);
+
+  const invoiceStatusTotals = access.invoices
+    ? (async () => {
+        const { data, error } = await supabase
+          .from("invoices")
+          .select("status, total")
+          .eq("organisation_id", organisationId)
+          .is("deleted_at", null);
+        if (error) throw error;
+        return totalsByInvoiceStatus(data ?? []);
+      })()
+    : Promise.resolve(null);
+
+  const maintenanceCosts = access.maintenanceCosts
+    ? (async () => {
+        const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
+        const { data, error } = await supabase
+          .from("workshop_bills")
+          .select("bill_date, total_incl")
+          .eq("organisation_id", organisationId)
+          .eq("status", "approved")
+          .is("deleted_at", null)
+          .gte("bill_date", since.toISOString().slice(0, 10));
+        if (error) throw error;
+        return sumBillsByMonth(data ?? [], now);
       })()
     : Promise.resolve(null);
 
@@ -170,6 +201,18 @@ export async function getDashboardSummary(
       })()
     : Promise.resolve(null);
 
-  const [inv, veh, trips] = await Promise.all([invoices, vehiclesDue, driverTrips]);
-  return { invoices: inv, vehiclesDue: veh, driverTrips: trips };
+  const [inv, statusTotals, costs, veh, trips] = await Promise.all([
+    invoices,
+    invoiceStatusTotals,
+    maintenanceCosts,
+    vehiclesDue,
+    driverTrips,
+  ]);
+  return {
+    invoices: inv,
+    invoiceStatusTotals: statusTotals,
+    maintenanceCosts: costs,
+    vehiclesDue: veh,
+    driverTrips: trips,
+  };
 }

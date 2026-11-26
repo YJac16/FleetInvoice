@@ -10,7 +10,7 @@ function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Plain-text morning summary: real numbers only, no charts. */
+/** Morning summary: real numbers; small charts sit beside it (dashboard-visuals). */
 export function DashboardSummaryCards({ summary }: { summary: DashboardSummary }) {
   const { invoices, vehiclesDue, driverTrips } = summary;
   const items: Array<{ key: string; title: string; href?: string; lines: string[] }> = [];

@@ -1,5 +1,6 @@
 "use client";
 
+import { CompactSelect } from "@/components/shared/compact-select";
 import { Button } from "@/components/ui/button";
 import type {
   InvoiceSortOrder,
@@ -25,15 +26,25 @@ function FilterChipRow<T extends string>({
   value,
   onChange,
   ariaLabel,
+  selectLabel,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
+  selectLabel: string;
 }) {
   return (
+    <>
+    <CompactSelect
+      className="lg:hidden"
+      label={selectLabel}
+      value={value}
+      options={options}
+      onChange={onChange}
+    />
     <div
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
+      className="hidden gap-2 pb-1 lg:flex lg:flex-wrap"
       role="group"
       aria-label={ariaLabel}
     >
@@ -54,6 +65,7 @@ function FilterChipRow<T extends string>({
         );
       })}
     </div>
+    </>
   );
 }
 
@@ -105,6 +117,7 @@ export function InvoiceListFilters({
     <div className="space-y-2">
       <FilterChipRow
         ariaLabel="Filter by invoice status"
+        selectLabel="Status"
         options={STATUS_OPTIONS}
         value={statusFilter}
         onChange={onStatusFilterChange}
@@ -112,6 +125,7 @@ export function InvoiceListFilters({
       {ownerFilter && onOwnerFilterChange ? (
         <FilterChipRow
           ariaLabel="Filter by owner"
+          selectLabel="Owner"
           options={OWNER_OPTIONS}
           value={ownerFilter}
           onChange={onOwnerFilterChange}

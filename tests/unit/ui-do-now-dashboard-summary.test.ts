@@ -102,7 +102,13 @@ describe("getDashboardSummary access", () => {
       vehicles: false,
       trips: false,
     });
-    expect(out).toEqual({ invoices: null, vehiclesDue: null, driverTrips: null });
+    expect(out).toEqual({
+      invoices: null,
+      invoiceStatusTotals: null,
+      maintenanceCosts: null,
+      vehiclesDue: null,
+      driverTrips: null,
+    });
     expect(calls).toHaveLength(0);
     expect(renewals).not.toHaveBeenCalled();
   });
@@ -120,5 +126,26 @@ describe("getDashboardSummary access", () => {
     expect(renewals).toHaveBeenCalledWith("org-9", 30);
     for (const c of calls) expect(c.eq).toContainEqual(["organisation_id", "org-9"]);
     expect(calls.find((c) => c.table === "invoices")?.eq).toContainEqual(["status", "issued"]);
+  });
+});
+
+describe("money visuals access", () => {
+  it("reads workshop bills only with maintenanceCosts access, never invoices without invoices access", async () => {
+    tableRows = { workshop_bills: [{ bill_date: "2026-11-02", total_incl: 40 }] };
+    const none = await getDashboardSummary("org-1", { invoices: false, vehicles: false, trips: false });
+    expect(none.maintenanceCosts).toBeNull();
+    expect(none.invoiceStatusTotals).toBeNull();
+    expect(calls).toHaveLength(0);
+
+    const admin = await getDashboardSummary(
+      "org-1",
+      { invoices: false, vehicles: false, trips: false, maintenanceCosts: true },
+      new Date("2026-11-26T10:00:00Z")
+    );
+    expect(calls.map((c) => c.table)).toEqual(["workshop_bills"]);
+    expect(calls[0].eq).toContainEqual(["organisation_id", "org-1"]);
+    expect(calls[0].eq).toContainEqual(["status", "approved"]);
+    expect(admin.maintenanceCosts?.at(-1)).toEqual({ month: "2026-11", total: 40 });
+    expect(admin.invoiceStatusTotals).toBeNull();
   });
 });

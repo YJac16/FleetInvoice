@@ -2,10 +2,12 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Building2, Bus, Car, CircleUser, Radar } from "lucide-react";
 
 import { useOrg } from "@/components/layout/org-context";
 import { DateRangeFilter } from "@/components/shared/date-range-filter";
+import { CompactSelect } from "@/components/shared/compact-select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CardGridSkeleton } from "@/components/shared/card-grid-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -31,6 +33,10 @@ import {
   getDashboardOpsSummary,
   getDashboardSummary,
 } from "@/services/dashboard.service";
+import {
+  InvoiceTotalsChart,
+  MaintenanceCostsChart,
+} from "@/features/dashboard/components/dashboard-visuals";
 import { DashboardSummaryCards } from "@/features/dashboard/components/dashboard-summary";
 import { queryKeys } from "@/utils/query";
 
@@ -45,7 +51,8 @@ const BROWSE_GROUP_ORDER: NavGroupId[] = [
 ];
 
 export function DashboardPage() {
-  const { can, canModule, profile } = useOrg();
+  const { can, canModule, profile, activeRole, isPlatformOwner } = useOrg();
+  const router = useRouter();
   const organisationId = useActiveOrgId();
   const { range, setPreset, setCustomRange } = useDateRangeFilter("this_week");
   const rangeHref = usePreservedRangeHref();
@@ -77,6 +84,11 @@ export function DashboardPage() {
     invoices: can("invoices:view") && canModule("billing"),
     vehicles: can("vehicles:view"),
     trips: can("trips:view") && can("drivers:view"),
+    // Workshop rand amounts are admin-only (managers see dates/km only).
+    maintenanceCosts:
+      (isPlatformOwner || activeRole === "organisation_admin") &&
+      can("maintenance:view") &&
+      canModule("maintenance"),
   };
   const summaryQuery = useQuery({
     queryKey: organisationId
@@ -86,7 +98,10 @@ export function DashboardPage() {
     enabled:
       Boolean(organisationId) &&
       can("dashboard:view") &&
-      (summaryAccess.invoices || summaryAccess.vehicles || summaryAccess.trips),
+      (summaryAccess.invoices ||
+        summaryAccess.vehicles ||
+        summaryAccess.trips ||
+        summaryAccess.maintenanceCosts),
   });
 
   const showOpsSkeleton = useShowListSkeleton(opsQuery);
@@ -167,8 +182,30 @@ export function DashboardPage() {
         <DashboardSummaryCards summary={summaryQuery.data} />
       ) : null}
 
+      {summaryQuery.data &&
+      ((summaryQuery.data.invoiceStatusTotals && summaryAccess.invoices) ||
+        (summaryQuery.data.maintenanceCosts && summaryAccess.maintenanceCosts)) ? (
+        <div className="grid gap-3 sm:grid-cols-2" data-testid="dashboard-visuals">
+          {summaryAccess.invoices && summaryQuery.data.invoiceStatusTotals ? (
+            <InvoiceTotalsChart totals={summaryQuery.data.invoiceStatusTotals} />
+          ) : null}
+          {summaryAccess.maintenanceCosts && summaryQuery.data.maintenanceCosts ? (
+            <MaintenanceCostsChart months={summaryQuery.data.maintenanceCosts} />
+          ) : null}
+        </div>
+      ) : null}
+
       {quickLinks.length ? (
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
+        <>
+        <CompactSelect
+          className="lg:hidden"
+          label="Jump to"
+          value=""
+          placeholder="Choose a page"
+          options={quickLinks.map((l) => ({ value: l.href, label: l.label }))}
+          onChange={(href) => router.push(href)}
+        />
+        <div className="hidden flex-wrap gap-2 pb-1 lg:flex">
           {quickLinks.map((link) => (
             <Button
               key={link.href}
@@ -181,6 +218,7 @@ export function DashboardPage() {
             </Button>
           ))}
         </div>
+        </>
       ) : null}
 
       {(can("trips:view") || can("dispatch:view")) && can("dashboard:view") ? (
