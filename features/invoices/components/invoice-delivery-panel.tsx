@@ -44,16 +44,12 @@ export function InvoiceDeliveryPanel({
 
     setSending(true);
     try {
-      const printUrl =
-        typeof window !== "undefined"
-          ? window.location.href.split("?")[0]!
-          : "";
       const result = await sendInvoiceEmail({
         organisationId,
         invoiceId,
         to,
         cc: cc.trim() || undefined,
-        printUrl,
+        portal: backHref.startsWith("/company") ? "company" : "ops",
       });
       toast.success(result.message);
     } catch (error) {

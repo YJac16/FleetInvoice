@@ -19,6 +19,27 @@ const bodySchema = z
   })
   .strict();
 
+const CLIENT_AUDIT_ROLES = new Set([
+  "organisation_admin",
+  "manager",
+  "dispatcher",
+  "supervisor",
+]);
+
+async function canWriteClientAudit(
+  admin: NonNullable<ReturnType<typeof createServiceClient>>,
+  userId: string,
+  role: string
+): Promise<boolean> {
+  if (CLIENT_AUDIT_ROLES.has(role)) return true;
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("is_platform_owner")
+    .eq("id", userId)
+    .maybeSingle();
+  return Boolean(profile?.is_platform_owner);
+}
+
 function metadataByteLength(metadata: Record<string, unknown> | undefined): number {
   try {
     return Buffer.byteLength(JSON.stringify(metadata ?? {}), "utf8");
@@ -68,12 +89,12 @@ export async function POST(request: Request) {
 
   const { data: member } = await admin
     .from("organisation_members")
-    .select("id")
+    .select("role")
     .eq("user_id", user.id)
     .eq("organisation_id", parsed.data.organisationId)
     .eq("status", "active")
     .maybeSingle();
-  if (!member) {
+  if (!member || !(await canWriteClientAudit(admin, user.id, member.role))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
