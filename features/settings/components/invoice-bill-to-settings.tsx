@@ -72,7 +72,7 @@ export function InvoiceBillToSettings({ organisationId }: Props) {
   const unchanged = !selected || selected === current?.company_id;
 
   return (
-    <Card className="max-w-2xl">
+    <Card id="invoice-bill-to-card" className="max-w-2xl scroll-mt-20">
       <CardHeader>
         <CardTitle>Invoicing</CardTitle>
         <CardDescription>
