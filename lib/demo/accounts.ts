@@ -44,10 +44,20 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   },
 ];
 
+/**
+ * Extra demo sign-ins that may use the switcher (view it and switch into any
+ * DEMO_ACCOUNTS role). They have no mapped role of their own, so they are never
+ * offered as a switch target. DEMO ONLY: every consumer is behind isDemoEnabled().
+ */
+export const DEMO_SWITCHER_EXTRA_EMAILS: readonly string[] = ["demo@goops.co.za"];
+
 export function isDemoEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   const normalised = email.trim().toLowerCase();
-  return DEMO_ACCOUNTS.some((a) => a.email === normalised);
+  return (
+    DEMO_ACCOUNTS.some((a) => a.email === normalised) ||
+    DEMO_SWITCHER_EXTRA_EMAILS.includes(normalised)
+  );
 }
 
 export function findDemoAccountByRole(role: unknown): DemoAccount | null {

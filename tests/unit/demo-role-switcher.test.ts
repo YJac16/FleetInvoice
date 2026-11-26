@@ -299,6 +299,85 @@ describe("DemoRoleSwitcher", () => {
   });
 });
 
+describe("demo@goops.co.za switcher allowlist", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    const { resetDemoRateLimit } = await import("@/lib/demo/rate-limit");
+    resetDemoRateLimit();
+    generateLink.mockResolvedValue({
+      data: { properties: { hashed_token: "hash" } },
+      error: null,
+    });
+    verifyOtp.mockResolvedValue({ error: null });
+    signOut.mockResolvedValue({ error: null });
+    planModules = SCALE_WITH_HUBS;
+  });
+
+  it("isDemoEmail accepts demo@goops.co.za (case/whitespace-insensitive) and still rejects others", async () => {
+    const { isDemoEmail } = await import("@/lib/demo/accounts");
+    expect(isDemoEmail("demo@goops.co.za")).toBe(true);
+    expect(isDemoEmail(" Demo@GOOPS.co.za ")).toBe(true);
+    expect(isDemoEmail("demo@goops.co.za.evil.com")).toBe(false);
+    expect(isDemoEmail("someone@goops.co.za")).toBe(false);
+    expect(isDemoEmail("demo-admin@example.com")).toBe(true);
+    expect(isDemoEmail(null)).toBe(false);
+  });
+
+  it("does not offer goops as a switch target and gives it no mapped role", async () => {
+    const { demoRoleOptions, findDemoAccountByEmail, DEMO_ACCOUNTS } = await import(
+      "@/lib/demo/accounts"
+    );
+    expect(DEMO_ACCOUNTS.some((a) => a.email === "demo@goops.co.za")).toBe(false);
+    expect(demoRoleOptions().map((o) => o.role)).not.toContain("demo@goops.co.za");
+    expect(findDemoAccountByEmail("demo@goops.co.za")).toBeNull();
+  });
+
+  it("renders the switcher for demo@goops.co.za with no current role", async () => {
+    setEnv("true", DEMO_URL);
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-goops", email: "demo@goops.co.za" } },
+    });
+    const { DemoRoleSwitcher } = await import("@/components/demo/role-switcher");
+    const el = (await DemoRoleSwitcher()) as { props: Record<string, unknown> };
+    expect(el).not.toBeNull();
+    expect(el.props.currentEmail).toBe("demo@goops.co.za");
+    expect(el.props.currentRole).toBeUndefined();
+  });
+
+  it("does not render the switcher for goops when the guard is off", async () => {
+    setEnv(undefined, DEMO_URL);
+    const { DemoRoleSwitcher } = await import("@/components/demo/role-switcher");
+    expect(await DemoRoleSwitcher()).toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("lets demo@goops.co.za switch into a demo role", async () => {
+    setEnv("true", DEMO_URL);
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-goops-switch", email: "demo@goops.co.za" } },
+    });
+    const { POST } = await import("@/app/api/demo/switch/route");
+    const res = await POST(req({ role: "dispatcher" }));
+    expect(res.status).toBe(200);
+    expect(generateLink).toHaveBeenCalledWith({
+      type: "magiclink",
+      email: "demo-dispatcher@example.com",
+    });
+  });
+
+  it("still refuses goops on a non-demo project", async () => {
+    setEnv("true", LIVE_URL);
+    getUser.mockResolvedValue({
+      data: { user: { id: "u-goops-live", email: "demo@goops.co.za" } },
+    });
+    const { POST } = await import("@/app/api/demo/switch/route");
+    const res = await POST(req({ role: "dispatcher" }));
+    expect(res.status).toBe(404);
+    expect(generateLink).not.toHaveBeenCalled();
+  });
+});
+
 describe("findDemoAccountByEmail", () => {
   it("matches case-insensitively and rejects unknown emails", async () => {
     const { findDemoAccountByEmail } = await import("@/lib/demo/accounts");
