@@ -40,3 +40,5 @@ order by 1, 2;
 -- 5) set_invoice_status issued → paid → paid_at set
 -- 6) set_invoice_status paid → void → exception
 -- 7) company_manager set_invoice_status (mark paid or void) → Not authorised (00057)
+-- 8) 00101 owner stamp (shared / mixed / null-owner / no-trip cases, status stays issued):
+--    psql -v ON_ERROR_STOP=1 -f tests/rls/period_invoice_owner_stamp_checks.sql
