@@ -77,3 +77,12 @@ describe("Worth keeping is admin-only", () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe("worth keeping revenue query", () => {
+  it("names the invoice_lines.trip_id FK (00097 added voided_trip_id, a second FK to trips)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("features/maintenance/lib/insights-queries.ts", "utf8");
+    expect(src).toContain("trip:trips!invoice_lines_trip_id_fkey!inner(");
+    expect(src).not.toMatch(/trip:trips!inner\(/);
+  });
+});

@@ -287,7 +287,7 @@ export async function listWorthKeeping(
       admin
         .from("invoice_lines")
         .select(
-          "amount, trip:trips!inner(vehicle_id, planned_start, deleted_at), invoice:invoices!inner(status, deleted_at)"
+          "amount, trip:trips!invoice_lines_trip_id_fkey!inner(vehicle_id, planned_start, deleted_at), invoice:invoices!inner(status, deleted_at)"
         )
         .eq("organisation_id", organisationId)
         .not("trip_id", "is", null)
