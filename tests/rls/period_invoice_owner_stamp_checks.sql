@@ -1,4 +1,4 @@
--- 00096: generate_period_invoice stamps invoices.owner_tag (run after all migrations).
+-- 00101: generate_period_invoice stamps invoices.owner_tag (run after all migrations).
 -- Self-asserting (raises on failure) and rolls back. Local test DBs only.
 --   psql -v ON_ERROR_STOP=1 -d <db> -f tests/rls/period_invoice_owner_stamp_checks.sql
 begin;
