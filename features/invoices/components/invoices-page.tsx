@@ -16,6 +16,14 @@ import { toast } from "sonner";
 import { useOrg } from "@/components/layout/org-context";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { SelectField, TextField } from "@/components/forms/form-fields";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { voidInvoiceDescription } from "@/features/invoices/lib/void-invoice-confirm";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -289,6 +297,7 @@ export function InvoicesPage({
   const [open, setOpen] = useState(false);
   const [driverWeekOpen, setDriverWeekOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [voidTarget, setVoidTarget] = useState<Invoice | null>(null);
   const [sortOrder, setSortOrder] = useState<InvoiceSortOrder>(
     DEFAULT_INVOICE_LIST_FILTERS.sortOrder
   );
@@ -428,23 +437,35 @@ export function InvoicesPage({
               ) : null}
               {canManage &&
               (inv.status === "draft" || inv.status === "issued") ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={statusMutation.isPending}
-                  onClick={() =>
-                    statusMutation.mutate({ id: inv.id, status: "void" })
-                  }
-                >
-                  Void
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="More invoice actions"
+                      />
+                    }
+                  >
+                    ⋯
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-40">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={statusMutation.isPending}
+                      onClick={() => setVoidTarget(inv)}
+                    >
+                      Void invoice…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : null}
             </div>
           );
         },
       },
     ],
-    [canManage, printBasePath, statusMutation]
+    [canManage, printBasePath, statusMutation, setVoidTarget]
   );
 
   const selectedInvoice = useMemo(
@@ -559,6 +580,24 @@ export function InvoicesPage({
 
   return (
     <div>
+      <ConfirmDialog
+        open={voidTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setVoidTarget(null);
+        }}
+        title="Void this invoice?"
+        description={voidTarget ? voidInvoiceDescription(voidTarget) : ""}
+        confirmLabel="Void invoice"
+        destructive
+        loading={statusMutation.isPending}
+        onConfirm={() => {
+          if (!voidTarget) return;
+          statusMutation.mutate(
+            { id: voidTarget.id, status: "void" },
+            { onSettled: () => setVoidTarget(null) }
+          );
+        }}
+      />
       <PageHeader
         title={title}
         description={description}

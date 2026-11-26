@@ -43,10 +43,21 @@ describe("hub and special-case guards", () => {
   it.each([
     ["app/(company)/layout.tsx", "portal"],
     ["app/(employee)/layout.tsx", "passengers"],
-    ["app/(dashboard)/employees/layout.tsx", "passengers"],
-    ["app/(dashboard)/employees/layout.tsx", "attendance"],
   ])("%s guards %s", (rel, module) => {
     expect(guardsModule(read(rel), module)).toBe(true);
+  });
+
+  it("Employees is hidden from the sidebar and /employees 404s", () => {
+    expect([...MAIN_NAV, ...SECONDARY_NAV].some((i) => i.href === "/employees")).toBe(false);
+    expect(read("app/(dashboard)/employees/layout.tsx")).toContain("notFound()");
+  });
+
+  it("the /employee/* portal, attendance and staff-trip service are untouched", () => {
+    expect(guardsModule(read("app/(employee)/layout.tsx"), "passengers")).toBe(true);
+    expect(MAIN_NAV.some((i) => i.href === "/attendance")).toBe(true);
+    expect(existsSync(path.join(root, "app/(dashboard)/attendance/layout.tsx"))).toBe(true);
+    expect(read("services/employees.service.ts")).toContain("listEmployees");
+    expect(read("services/staff-trips.service.ts")).toContain("update_staff_trip");
   });
 
   it.each([

@@ -17,6 +17,12 @@ import { EntityCrudPage } from "@/components/shared/entity-crud-page";
 import { OwnerBadge } from "@/components/shared/owner-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CsvImportDialog } from "@/features/import/components/csv-import-dialog";
 import { driverImportSchema } from "@/features/import/schemas/import-schemas";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
@@ -109,21 +115,43 @@ export function DriversPage() {
 
   const columns = useMemo<ColumnDef<Driver, unknown>[]>(
     () => [
-      { accessorKey: "full_name", header: "Name" },
-      { accessorKey: "email", header: "Email" },
-      { accessorKey: "phone", header: "Phone" },
-      { accessorKey: "license_number", header: "License" },
       {
-        accessorKey: "license_code",
-        header: "Code",
-        cell: ({ row }) =>
-          row.original.license_code === "Other"
-            ? `Other: ${row.original.license_code_other ?? ""}`
-            : row.original.license_code ?? "—",
+        accessorKey: "full_name",
+        header: "Name",
+        cell: ({ row }) => {
+          const d = row.original;
+          const linked = d.profiles?.full_name || d.profiles?.email;
+          const sub = [d.email, d.phone].filter(Boolean).join(" · ");
+          return (
+            <div className="min-w-0">
+              <div className="font-medium">{d.full_name}</div>
+              {sub ? (
+                <div className="text-xs text-muted-foreground">{sub}</div>
+              ) : null}
+              {linked ? (
+                <div className="text-xs text-muted-foreground">
+                  User: {linked}
+                </div>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        id: "licence",
+        header: "Licence",
+        cell: ({ row }) => {
+          const d = row.original;
+          const code =
+            d.license_code === "Other"
+              ? `Other: ${d.license_code_other ?? ""}`
+              : d.license_code;
+          return [d.license_number, code].filter(Boolean).join(" · ") || "—";
+        },
       },
       {
         accessorKey: "license_expires_on",
-        header: "Licence",
+        header: "Licence expiry",
         cell: ({ row }) => (
           <ComplianceExpiryBadge expiresOn={row.original.license_expires_on} />
         ),
@@ -148,14 +176,6 @@ export function DriversPage() {
           if (!a?.vehicles) return "—";
           return formatVehicleLabel(a.vehicles);
         },
-      },
-      {
-        id: "linked_user",
-        header: "Linked user",
-        cell: ({ row }) =>
-          row.original.profiles?.full_name ||
-          row.original.profiles?.email ||
-          "—",
       },
       {
         accessorKey: "status",
@@ -194,6 +214,7 @@ export function DriversPage() {
         remove={canManage ? deleteDriver : undefined}
         restore={canManage ? restoreDriver : undefined}
         canManage={canManage}
+        wrapCells
         searchFilter={(row, query) =>
           [
             row.full_name,
@@ -226,29 +247,34 @@ export function DriversPage() {
           canManage
             ? (row) => (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    render={<Link href={`/drivers/${row.id}/capture`} />}
-                  >
-                    Capture
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAssignDriver(row)}
-                  >
-                    Vehicle
-                  </Button>
-                  {canManageIssuer ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIssuerDriver(row)}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`More actions for ${row.full_name}`}
+                        />
+                      }
                     >
-                      Invoice issuer
-                    </Button>
-                  ) : null}
+                      ⋯
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-40">
+                      <DropdownMenuItem
+                        render={<Link href={`/drivers/${row.id}/capture`} />}
+                      >
+                        Capture
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setAssignDriver(row)}>
+                        Vehicle
+                      </DropdownMenuItem>
+                      {canManageIssuer ? (
+                        <DropdownMenuItem onClick={() => setIssuerDriver(row)}>
+                          Invoice issuer
+                        </DropdownMenuItem>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               )
             : undefined

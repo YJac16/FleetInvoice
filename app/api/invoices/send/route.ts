@@ -6,15 +6,16 @@ import { guardModuleApi } from "@/lib/auth/module-guard";
 import { env, isEmailDeliveryConfigured } from "@/lib/env";
 import { parseEmailList, validateEmailList } from "@/lib/notifications/email-addresses";
 import { buildInvoiceEmailContent } from "@/lib/notifications/invoice-email";
+import { buildInvoicePrintUrl } from "@/lib/notifications/invoice-print-link";
 import { sendResendEmail } from "@/lib/notifications/resend-server";
 import {
-  applyDriverInvoicePrintOverride,
-  parseInvoicePrintSettings,
+  resolveInvoicePrintSettings,
 } from "@/features/invoices/lib/invoice-print-settings";
 import {
   fetchDriverInvoicePrintOverride,
   type OverrideClient,
 } from "@/features/invoices/lib/driver-invoice-print-override";
+import { resolveInvoiceOwner } from "@/lib/owner-tag";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -23,7 +24,7 @@ const bodySchema = z.object({
   invoiceId: z.string().uuid(),
   to: z.string().min(1),
   cc: z.string().optional(),
-  printUrl: z.string().url(),
+  portal: z.enum(["ops", "company"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -50,7 +51,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { organisationId, invoiceId, to, cc, printUrl } = parsed.data;
+  const { organisationId, invoiceId, to, cc, portal } = parsed.data;
+  const printUrl = buildInvoicePrintUrl(
+    env.NEXT_PUBLIC_APP_URL,
+    invoiceId,
+    portal ?? "ops"
+  );
 
   // Billing module guard: 403 JSON before any invoice lookup.
   const denied = await guardModuleApi("billing", { organisationId, userId: user.id });
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
-    .select("*, companies:company_id (id, name, contact_email)")
+    .select("*, companies:company_id (id, name, contact_email), drivers:driver_id (id, owner_tag)")
     .eq("id", invoiceId)
     .eq("organisation_id", organisationId)
     .is("deleted_at", null)
@@ -115,11 +121,12 @@ export async function POST(request: Request) {
       )
     : null;
 
-  const printSettings = applyDriverInvoicePrintOverride(
-    parseInvoicePrintSettings({
+  const printSettings = resolveInvoicePrintSettings(
+    {
       name: organisation?.name ?? "WorkOps",
       settings: (organisation?.settings as Record<string, unknown>) ?? {},
-    }),
+    },
+    resolveInvoiceOwner(invoice),
     driverOverride
   );
 

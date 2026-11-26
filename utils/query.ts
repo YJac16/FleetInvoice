@@ -58,6 +58,7 @@ export const queryKeys = {
   geofences: (orgId: string) => ["geofences", orgId] as const,
   geofenceEvents: (orgId: string) => ["geofence-events", orgId] as const,
   fuelFillups: (orgId: string) => ["fuel-fillups", orgId] as const,
+  fuelPrices: (orgId: string) => ["fuel-prices", orgId] as const,
   invoices: (orgId: string, from?: string, to?: string) =>
     from && to
       ? (["invoices", orgId, from, to] as const)

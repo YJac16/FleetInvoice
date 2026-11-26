@@ -144,6 +144,18 @@ DO $$ BEGIN
     REVOKE ALL ON TABLE public.org_copy_map FROM PUBLIC, anon, authenticated;
     GRANT EXECUTE ON FUNCTION public.copy_orgs_to_jacobs_org(uuid[], text, text, uuid) TO service_role;
   END IF;
+  -- 00093/00094 fuel price helpers are service-role / internal only
+  IF to_regprocedure('public.resolve_fuel_unit_price(uuid, text, text, date)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.resolve_fuel_unit_price(uuid, text, text, date) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON FUNCTION public.ingest_global_fuel_prices(jsonb, text) FROM PUBLIC, anon, authenticated;
+    REVOKE ALL ON FUNCTION public.notify_fuel_price_ingest_failure(text) FROM PUBLIC, anon, authenticated;
+    GRANT EXECUTE ON FUNCTION public.resolve_fuel_unit_price(uuid, text, text, date) TO service_role;
+    GRANT EXECUTE ON FUNCTION public.ingest_global_fuel_prices(jsonb, text) TO service_role;
+    GRANT EXECUTE ON FUNCTION public.notify_fuel_price_ingest_failure(text) TO service_role;
+  END IF;
+  IF to_regprocedure('public.fuel_fillups_guard_price_lock()') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.fuel_fillups_guard_price_lock() FROM PUBLIC, anon, authenticated;
+  END IF;
   IF to_regprocedure('public.set_audit_user()') IS NOT NULL THEN
     REVOKE ALL ON FUNCTION public.set_audit_user() FROM PUBLIC, anon, authenticated;
   END IF;

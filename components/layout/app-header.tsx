@@ -43,7 +43,7 @@ export function AppHeader() {
         <OrganisationSwitcher />
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <PortalClock className="mr-1" />
+        <PortalClock className="mr-1 hidden sm:inline-flex" />
         <AdminNotificationBell />
         <UserNav />
       </div>

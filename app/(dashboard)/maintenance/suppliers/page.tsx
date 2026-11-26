@@ -19,7 +19,7 @@ export default async function SuppliersPage() {
         description="Workshops and parts suppliers."
         actions={suppliers.length > 0 ? add : undefined}
       />
-      <MaintenanceTabs />
+      <MaintenanceTabs showWorthKeeping={ctx.isAdmin} />
       <SuppliersList suppliers={suppliers} action={add} />
     </div>
   );

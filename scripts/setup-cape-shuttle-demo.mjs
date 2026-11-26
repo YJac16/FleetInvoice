@@ -468,10 +468,10 @@ async function main() {
   must(
     "fuel_fillups",
     await sb.from("fuel_fillups").insert([
-      { id: IDS.fuel.f1, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q1, driver_id: IDS.drivers.thabo, company_id: IDS.acm, filled_at: ctIso(ps, "17:40:00"), odometer_km: 84210, litres: 55, unit_price: 23.45, total_amount: 1289.75, currency: "ZAR", station_name: "Engen Milnerton", created_by: demoUserId },
-      { id: IDS.fuel.f2, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q2, driver_id: IDS.drivers.ayesha, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 1)), "18:10:00"), odometer_km: 76102, litres: 48.5, unit_price: 23.45, total_amount: 1137.33, currency: "ZAR", station_name: "Shell Woodstock", created_by: demoUserId },
-      { id: IDS.fuel.f3, organisation_id: IDS.org, vehicle_id: IDS.vehicles.e1, driver_id: IDS.drivers.johan, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 2)), "17:55:00"), odometer_km: 51240, litres: 32, unit_price: 23.89, total_amount: 764.48, currency: "ZAR", station_name: "Caltex Kensington", created_by: demoUserId },
-      { id: IDS.fuel.f4, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q3, driver_id: IDS.drivers.chantal, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 3)), "18:25:00"), odometer_km: 69880, litres: 52, unit_price: 23.45, total_amount: 1219.4, currency: "ZAR", station_name: "Engen Hout Bay", created_by: demoUserId },
+      { id: IDS.fuel.f1, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q1, driver_id: IDS.drivers.thabo, company_id: IDS.acm, filled_at: ctIso(ps, "17:40:00"), odometer_km: 84210, litres: 55, unit_price: 23.45, total_amount: 1289.75, currency: "ZAR", price_status: "priced", station_name: "Engen Milnerton", created_by: demoUserId },
+      { id: IDS.fuel.f2, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q2, driver_id: IDS.drivers.ayesha, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 1)), "18:10:00"), odometer_km: 76102, litres: 48.5, unit_price: 23.45, total_amount: 1137.33, currency: "ZAR", price_status: "priced", station_name: "Shell Woodstock", created_by: demoUserId },
+      { id: IDS.fuel.f3, organisation_id: IDS.org, vehicle_id: IDS.vehicles.e1, driver_id: IDS.drivers.johan, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 2)), "17:55:00"), odometer_km: 51240, litres: 32, unit_price: 23.89, total_amount: 764.48, currency: "ZAR", price_status: "priced", station_name: "Caltex Kensington", created_by: demoUserId },
+      { id: IDS.fuel.f4, organisation_id: IDS.org, vehicle_id: IDS.vehicles.q3, driver_id: IDS.drivers.chantal, company_id: IDS.acm, filled_at: ctIso(ymd(addDays(periodStart, 3)), "18:25:00"), odometer_km: 69880, litres: 52, unit_price: 23.45, total_amount: 1219.4, currency: "ZAR", price_status: "priced", station_name: "Engen Hout Bay", created_by: demoUserId },
     ]),
   );
 

@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { SelectField, TextField, TextAreaField } from "@/components/forms/form-fields";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,10 +24,13 @@ import {
 import {
   fuelFillupSchema,
   parseNonNegativeNumber,
-  parseOptionalNumber,
   parsePositiveNumber,
   type FuelFillupValues,
 } from "@/features/fuel/schemas/fuel-fillup";
+import { FuelPricesPanel } from "@/features/fuel/components/fuel-prices-panel";
+import { VehicleFuelHistoryPanel } from "@/features/fuel/components/vehicle-fuel-history";
+import { isPricedFill, needsPrice } from "@/features/fuel/lib/fuel-pricing";
+import { FUEL_TYPES, fuelTypeLabel } from "@/lib/fuel/fuel-types";
 import { useActiveOrgId } from "@/hooks/use-active-org-id";
 import { useEntityOptions } from "@/hooks/use-entity-options";
 import { formatVehicleLabel } from "@/features/vehicles/lib/vehicle-label";
@@ -34,6 +38,7 @@ import {
   listFuelFillups,
   logFuelFillup,
 } from "@/services/fuel-fillups.service";
+import { listFuelPrices } from "@/services/fuel-prices.service";
 import { listVehicles } from "@/services/vehicles.service";
 import type { FuelFillup } from "@/types";
 import { getErrorMessage } from "@/utils/errors";
@@ -48,14 +53,31 @@ function emptyToNull(value: string | undefined): string | null {
   return trimmed;
 }
 
-function LogFuelForm({
+/** Finance-only: "after save" result shown to admin / manager / owner. */
+export function fuelSavedMessage(row: FuelFillup, showPrice: boolean): string {
+  if (!showPrice) return "Fuel fill-up logged";
+  if (row.price_status === "priced" && row.total_amount != null) {
+    return `Fuel fill-up logged · locked at ${row.currency ?? "ZAR"} ${Number(row.total_amount).toFixed(2)}`;
+  }
+  if (row.price_status === "needs_price") {
+    return "Fuel fill-up logged · Needs price (no confirmed rate on the slip date)";
+  }
+  return "Fuel fill-up logged";
+}
+
+/**
+ * No unit price field for anyone: the price comes from the confirmed fuel
+ * price table on the slip date (00094).
+ */
+export function LogFuelForm({
   organisationId,
   onDone,
-  showUnitPrice = true,
+  showPrice = false,
 }: {
   organisationId: string;
   onDone: () => void;
-  showUnitPrice?: boolean;
+  /** finance only: show the locked amount / Needs price after save */
+  showPrice?: boolean;
 }) {
   const { companies } = useEntityOptions(organisationId);
   const vehiclesQuery = useQuery({
@@ -68,9 +90,9 @@ function LogFuelForm({
     defaultValues: {
       vehicle_id: "",
       company_id: NONE,
+      fuel_type: "",
       odometer_km: "",
       litres: "",
-      unit_price: "",
       station_name: "",
       notes: "",
       filled_at: "",
@@ -88,14 +110,16 @@ function LogFuelForm({
         odometerKm: parseNonNegativeNumber(values.odometer_km, "Odometer"),
         litres: parsePositiveNumber(values.litres, "Litres"),
         companyId: emptyToNull(values.company_id) ?? vehicle?.company_id ?? null,
-        unitPrice: parseOptionalNumber(values.unit_price),
+        fuelType: values.fuel_type,
         stationName: emptyToNull(values.station_name),
         notes: emptyToNull(values.notes),
         filledAt: emptyToNull(values.filled_at),
       });
     },
-    onSuccess: () => {
-      toast.success("Fuel fill-up logged");
+    onSuccess: (row) => {
+      const message = fuelSavedMessage(row, showPrice);
+      if (showPrice && row.price_status === "needs_price") toast.warning(message);
+      else toast.success(message);
       onDone();
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -123,6 +147,12 @@ function LogFuelForm({
         label="Company (optional)"
         options={[{ label: "Use vehicle default", value: NONE }, ...companies]}
       />
+      <SelectField
+        control={form.control}
+        name="fuel_type"
+        label="Fuel type"
+        options={[...FUEL_TYPES]}
+      />
       <TextField
         control={form.control}
         name="odometer_km"
@@ -135,14 +165,6 @@ function LogFuelForm({
         label="Litres"
         type="number"
       />
-      {showUnitPrice ? (
-        <TextField
-          control={form.control}
-          name="unit_price"
-          label="Unit price (optional)"
-          type="number"
-        />
-      ) : null}
       <TextField
         control={form.control}
         name="station_name"
@@ -175,6 +197,7 @@ export function FuelFillupsPage({
   const canView = can("fuel:view") || can("fuel:manage") || can("fuel:self");
   const canManage = can("fuel:manage");
   const canViewFuelCost = can("invoices:view") && can("rate_cards:view");
+  const canManageFuelPrices = canViewFuelCost && can("rate_cards:manage");
   const [open, setOpen] = useState(false);
 
   const fillupsQuery = useQuery({
@@ -185,6 +208,18 @@ export function FuelFillupsPage({
       listFuelFillups(organisationId!, { includeAmounts: canViewFuelCost }),
     enabled: Boolean(organisationId) && canView,
   });
+
+  const pricesQuery = useQuery({
+    queryKey: organisationId ? queryKeys.fuelPrices(organisationId) : ["fuel-prices", "none"],
+    queryFn: () => listFuelPrices(organisationId!),
+    enabled: Boolean(organisationId) && canViewFuelCost,
+  });
+
+  const fills = useMemo(() => fillupsQuery.data ?? [], [fillupsQuery.data]);
+  const needsPriceCount = canViewFuelCost ? fills.filter(needsPrice).length : 0;
+  const pricedTotal = canViewFuelCost
+    ? fills.filter(isPricedFill).reduce((sum, f) => sum + Number(f.total_amount), 0)
+    : 0;
 
   const columns = useMemo<ColumnDef<FuelFillup, unknown>[]>(
     () => [
@@ -203,6 +238,11 @@ export function FuelFillupsPage({
         accessorKey: "odometer_km",
         header: "Odometer (km)",
       },
+      {
+        id: "fuel_type",
+        header: "Fuel type",
+        cell: ({ row }) => fuelTypeLabel(row.original.fuel_type),
+      },
       { accessorKey: "litres", header: "Litres" },
       ...(canViewFuelCost
         ? [
@@ -210,9 +250,13 @@ export function FuelFillupsPage({
               accessorKey: "total_amount",
               header: "Amount",
               cell: ({ row }: { row: { original: FuelFillup } }) =>
-                row.original.total_amount != null
-                  ? `${row.original.currency ?? ""} ${row.original.total_amount}`.trim()
-                  : "—",
+                needsPrice(row.original) ? (
+                  <Badge variant="destructive">Needs price</Badge>
+                ) : row.original.total_amount != null ? (
+                  `${row.original.currency ?? ""} ${Number(row.original.total_amount).toFixed(2)}`.trim()
+                ) : (
+                  "—"
+                ),
             } as ColumnDef<FuelFillup, unknown>,
           ]
         : []),
@@ -257,11 +301,38 @@ export function FuelFillupsPage({
       ) : fillupsQuery.isLoading ? (
         <LoadingSkeleton rows={5} />
       ) : (
-        <DataTable
-          columns={columns}
-          data={fillupsQuery.data ?? []}
-          emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
-        />
+        <div className="space-y-4">
+          {canViewFuelCost ? (
+            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+              <span className="rounded-md bg-muted px-2 py-1">
+                Priced total: {pricedTotal.toFixed(2)}
+              </span>
+              <span className="rounded-md bg-muted px-2 py-1" data-testid="needs-price-count">
+                Needs price: {needsPriceCount}
+              </span>
+            </div>
+          ) : null}
+          <DataTable
+            columns={columns}
+            data={fills}
+            emptyMessage="No fill-ups yet. Log the first fuel fill-up for a vehicle."
+          />
+          {canViewFuelCost ? (
+            <>
+              <FuelPricesPanel
+                organisationId={organisationId}
+                prices={pricesQuery.data ?? []}
+                fills={fills}
+                canManage={canManageFuelPrices}
+              />
+              <VehicleFuelHistoryPanel
+                organisationId={organisationId}
+                fills={fills}
+                prices={pricesQuery.data ?? []}
+              />
+            </>
+          ) : null}
+        </div>
       )}
 
       {organisationId ? (
@@ -272,7 +343,7 @@ export function FuelFillupsPage({
             </DialogHeader>
             <LogFuelForm
               organisationId={organisationId}
-              showUnitPrice={canViewFuelCost}
+              showPrice={canViewFuelCost}
               onDone={async () => {
                 setOpen(false);
                 await queryClient.invalidateQueries({

@@ -10,6 +10,12 @@ const BILL = "b1000000-0000-4000-8000-000000000001";
 
 const getSessionContext = vi.fn();
 const assertMaintenanceAccess = vi.fn();
+const assertMaintenanceAdminAccess = vi.fn(async () => ({
+  ok: false,
+  status: 403,
+  error: "forbidden",
+  notMember: false,
+}));
 const getBill = vi.fn();
 const getBillFormOptions = vi.fn();
 const listBills = vi.fn();
@@ -29,7 +35,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getSessionContext }));
-vi.mock("@/lib/auth/maintenance-access", () => ({ assertMaintenanceAccess }));
+vi.mock("@/lib/auth/maintenance-access", () => ({ assertMaintenanceAccess, assertMaintenanceAdminAccess }));
+vi.mock("@/features/maintenance/lib/insights-queries", () => ({
+  getLastPaidIndex: vi.fn(async () => ({})),
+}));
 vi.mock("@/features/maintenance/lib/queries", () => ({
   getBill,
   getBillFormOptions,

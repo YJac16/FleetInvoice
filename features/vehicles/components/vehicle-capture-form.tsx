@@ -12,6 +12,7 @@ import {
   type VehicleValues,
 } from "@/features/vehicles/schemas/vehicle";
 import { SelectField, TextField } from "@/components/forms/form-fields";
+import { SastDateField } from "@/components/shared/sast-date-input";
 import { Button } from "@/components/ui/button";
 import {
   ENTITY_STATUSES,
@@ -113,12 +114,7 @@ export function VehicleCaptureForm({
           type="number"
           placeholder="e.g. 2022"
         />
-        <TextField
-          control={form.control}
-          name="license_disc_expires_on"
-          label="Licence disc expiry"
-          type="date"
-        />
+        <SastDateField control={form.control} name="license_disc_expires_on" label="Licence disc expiry" />
       </CaptureSection>
 
       <CaptureSection title="Operating permit">
@@ -127,12 +123,7 @@ export function VehicleCaptureForm({
           name="operating_permit_number"
           label="Operating permit number"
         />
-        <TextField
-          control={form.control}
-          name="operating_permit_expires_on"
-          label="Operating permit expiry"
-          type="date"
-        />
+        <SastDateField control={form.control} name="operating_permit_expires_on" label="Operating permit expiry" />
       </CaptureSection>
 
       {subjectId ? (

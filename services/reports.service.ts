@@ -16,9 +16,11 @@ import { listVehicles } from "@/services/vehicles.service";
 import type { ReportType } from "@/features/reports/schemas/report";
 import type { TripStatus } from "@/lib/constants";
 import { listAttendanceEvents } from "@/services/attendance.service";
+import { isPricedFill, needsPrice } from "@/features/fuel/lib/fuel-pricing";
 import { listFuelFillups } from "@/services/fuel-fillups.service";
 import { listInvoices } from "@/services/invoices.service";
 import { listPayrollRuns } from "@/services/payroll.service";
+import { tripRouteLabel } from "@/features/trips/lib/trip-display";
 import { listTrips } from "@/services/trips.service";
 import type {
   AttendanceEvent,
@@ -42,6 +44,7 @@ export type TripsReport = {
     planned_start: string;
     status: TripStatus;
     route: string;
+    driver: string;
     owner: OwnerBucket;
     entered_by: string;
     updated_by: string;
@@ -51,12 +54,16 @@ export type TripsReport = {
 export type FuelReport = {
   type: "fuel";
   totalLitres: number;
+  /** Sum of locked amounts only; needs_price fills are excluded, never R0. */
   totalAmount: number;
+  /** Finance only: fills with no confirmed rate on the slip date. */
+  needsPriceCount: number;
   ownerSplit: OwnerSplitRow[];
   rows: Array<{
     owner: OwnerBucket;
     id: string;
     filled_at: string;
+    fuel_type: string;
     vehicle: string;
     company: string;
     driver: string;
@@ -64,6 +71,8 @@ export type FuelReport = {
     litres: number;
     total_amount: number | null;
     currency: string;
+    /** "" when amounts are hidden (dispatcher / supervisor). */
+    price_status: string;
   }>;
 };
 
@@ -131,6 +140,7 @@ async function loadOwnerLookup(organisationId: string): Promise<OwnerLookup> {
     return {
       drivers: new Map((drivers ?? []).map((d) => [d.id, d.owner_tag ?? null])),
       vehicles: new Map((vehicles ?? []).map((v) => [v.id, v.owner_tag ?? null])),
+      driverNames: new Map((drivers ?? []).map((d) => [d.id, d.full_name ?? ""])),
     };
   } catch {
     return EMPTY_OWNER_LOOKUP;
@@ -178,7 +188,8 @@ export async function buildOpsReport(
             id: t.id,
             planned_start: t.planned_start,
             status: t.status,
-            route: t.routes?.name ?? "",
+            route: tripRouteLabel(t) === "—" ? "" : tripRouteLabel(t),
+            driver: (active?.driver_id && lookup.driverNames?.get(active.driver_id)) || "",
             owner: toBucket(resolveFleetOwner(lookup, active?.driver_id, active?.vehicle_id)),
             entered_by: actorName(names, t.created_by) ?? "",
             updated_by: actorName(names, t.updated_by) ?? "",
@@ -212,9 +223,12 @@ export async function buildOpsReport(
       );
       let totalLitres = 0;
       let totalAmount = 0;
+      let needsPriceCount = 0;
       const rows = inPeriod.map((f: FuelFillup) => {
         totalLitres += Number(f.litres) || 0;
-        if (includeFuelAmounts) totalAmount += Number(f.total_amount) || 0;
+        const priced = includeFuelAmounts && isPricedFill(f);
+        if (priced) totalAmount += Number(f.total_amount);
+        if (includeFuelAmounts && needsPrice(f)) needsPriceCount += 1;
         return {
           owner: toBucket(resolveFleetOwner(lookup, f.driver_id, f.vehicle_id)),
           id: f.id,
@@ -225,21 +239,24 @@ export async function buildOpsReport(
             f.vehicle_id.slice(0, 8),
           company: f.companies?.name ?? "",
           driver: f.drivers?.full_name ?? "",
+          fuel_type: f.fuel_type ?? "",
           odometer_km: Number(f.odometer_km) || 0,
           litres: Number(f.litres) || 0,
-          total_amount: includeFuelAmounts ? f.total_amount : null,
+          total_amount: priced ? Number(f.total_amount) : null,
           currency: includeFuelAmounts ? (f.currency ?? "") : "",
+          price_status: includeFuelAmounts ? (f.price_status ?? (f.total_amount != null ? "priced" : "")) : "",
         };
       });
       return {
         type: "fuel",
         totalLitres,
         totalAmount,
+        needsPriceCount,
         ownerSplit: splitByOwner(
           rows.map((r) => ({
             owner: r.owner,
             litres: r.litres,
-            amount: includeFuelAmounts ? Number(r.total_amount) || 0 : 0,
+            amount: r.total_amount ?? 0,
           }))
         ),
         rows,
@@ -349,7 +366,7 @@ export function reportToCsvRows(
     case "trips":
       return {
         filename: "trips-report.csv",
-        headers: ["id", "planned_start", "status", "route", "owner", "entered_by", "updated_by"],
+        headers: ["id", "planned_start", "status", "route", "driver", "owner", "entered_by", "updated_by"],
         rows: report.rows.map((r) => ({ ...r, owner: OWNER_LABELS[r.owner] })),
       };
     case "fuel": {
@@ -359,6 +376,7 @@ export function reportToCsvRows(
         "vehicle",
         "company",
         "driver",
+        "fuel_type",
         "odometer_km",
         "litres",
         "owner",
@@ -367,7 +385,7 @@ export function reportToCsvRows(
       if (options?.includeFuelAmounts) {
         return {
           filename: "fuel-report.csv",
-          headers: [...opsHeaders, "total_amount", "currency"],
+          headers: [...opsHeaders, "total_amount", "currency", "price_status"],
           rows: labelled,
         };
       }
@@ -375,7 +393,10 @@ export function reportToCsvRows(
         filename: "fuel-report.csv",
         headers: opsHeaders,
         rows: labelled.map(
-          ({ total_amount: _a, currency: _c, ...ops }) => ops
+          ({ total_amount: _a, currency: _c, ...ops }) => {
+            delete (ops as { price_status?: string }).price_status;
+            return ops;
+          }
         ),
       };
     }

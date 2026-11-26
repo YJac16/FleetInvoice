@@ -72,9 +72,7 @@ export async function listInvoiceLines(
   return sortInvoiceLinesChronologically((data ?? []) as InvoiceLine[]);
 }
 
-const INVOICE_LINE_TRIP_SELECT = `
-  *,
-  trips:trip_id (
+const INVOICE_LINE_TRIP_COLUMNS = `
     id,
     planned_start,
     notes,
@@ -86,12 +84,32 @@ const INVOICE_LINE_TRIP_SELECT = `
       drivers:driver_id ( full_name ),
       vehicles:vehicle_id ( registration_number )
     )
-  )
+`;
+
+// Void invoices keep their trip in voided_trip_id (00097), so the print view
+// embeds both and falls back to the voided trip.
+const INVOICE_LINE_TRIP_SELECT = `
+  *,
+  trips:trip_id (${INVOICE_LINE_TRIP_COLUMNS}),
+  voided_trips:voided_trip_id (${INVOICE_LINE_TRIP_COLUMNS})
 `;
 
 export type InvoiceLineWithTrip = InvoiceLine & {
   trips?: InvoiceTripEmbed | null;
 };
+
+type InvoiceLineWithTripRow = InvoiceLineWithTrip & {
+  voided_trips?: InvoiceTripEmbed | null;
+};
+
+export function coalesceInvoiceLineTrips(
+  rows: InvoiceLineWithTripRow[]
+): InvoiceLineWithTrip[] {
+  return rows.map(({ voided_trips, ...line }) => ({
+    ...line,
+    trips: line.trips ?? voided_trips ?? null,
+  }));
+}
 
 export async function listInvoiceLinesWithTrips(
   organisationId: string,
@@ -104,7 +122,9 @@ export async function listInvoiceLinesWithTrips(
     .eq("organisation_id", organisationId)
     .eq("invoice_id", invoiceId);
   if (error) throw error;
-  return sortInvoiceLinesChronologically((data ?? []) as InvoiceLineWithTrip[]);
+  return sortInvoiceLinesChronologically(
+    coalesceInvoiceLineTrips((data ?? []) as InvoiceLineWithTripRow[])
+  );
 }
 
 export async function generateWeeklyFuelInvoice(

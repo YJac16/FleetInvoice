@@ -50,6 +50,7 @@ type EntityCrudPageProps<T extends { id: string }> = {
   createLabel?: string;
   headerActions?: ReactNode;
   rowActions?: (row: T) => ReactNode;
+  wrapCells?: boolean;
 };
 
 export function EntityCrudPage<T extends { id: string }>({
@@ -64,6 +65,7 @@ export function EntityCrudPage<T extends { id: string }>({
   remove,
   restore,
   canManage,
+  wrapCells,
   searchFilter,
   renderForm,
   emptyIcon: EmptyIcon,
@@ -150,7 +152,7 @@ export function EntityCrudPage<T extends { id: string }>({
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {rowActions?.(row.original)}
             {listMode === "active" && update ? (
               <Button
@@ -283,7 +285,7 @@ export function EntityCrudPage<T extends { id: string }>({
           }
         />
       ) : (
-        <DataTable columns={actionColumns} data={rows} />
+        <DataTable columns={actionColumns} data={rows} wrapCells={wrapCells} />
       )}
 
       <FormDialog

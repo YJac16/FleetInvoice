@@ -28,6 +28,8 @@ type DataTableProps<TData> = {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   emptyMessage?: string;
+  /** Let cell text wrap instead of forcing one line (avoids wide tables). */
+  wrapCells?: boolean;
 };
 
 function isActionsColumn<TData>(column: ColumnDef<TData, unknown>): boolean {
@@ -132,6 +134,7 @@ export function DataTable<TData>({
   columns,
   data,
   emptyMessage = "No results.",
+  wrapCells = false,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const isMobile = useIsMobile();
@@ -179,7 +182,10 @@ export function DataTable<TData>({
                 rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell
+                        key={cell.id}
+                        className={wrapCells ? "whitespace-normal break-words" : undefined}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
